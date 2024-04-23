@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "atlas-lib",
+  "version": "${version}",
+  "name": "Atlas Lib",
+  "description": "",
+  "authors": [],
+  "contact": {
+    "repo": "https://github.com/brian/Atlas Lib"
+  },
+  "license": "All-Rights-Reserved",
+  "icon": "assets/atlas-lib/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "net.atlas.atlaslib.client.AtlasLibClient"
+    ],
+    "main": [
+      "net.atlas.atlaslib.AtlasLib"
+    ],
+    "modmenu": [
+      "net.atlas.atlaslib.impl.ModMenuApiImpl"
+    ]
+  },
+  "mixins": [
+    "atlas-lib.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
