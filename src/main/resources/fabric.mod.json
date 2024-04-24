@@ -2,14 +2,16 @@
   "schemaVersion": 1,
   "id": "atlas-lib",
   "version": "${version}",
+
   "name": "Atlas Lib",
-  "description": "",
-  "authors": [],
-  "contact": {
-    "repo": "https://github.com/brian/Atlas Lib"
-  },
-  "license": "All-Rights-Reserved",
+  "description": "A mod library made for Atlas mods",
+  "authors": [
+    "Alexandra"
+  ],
+  "contact": {},
+  "license": "GPL-3.0",
   "icon": "assets/atlas-lib/icon.png",
+
   "environment": "*",
   "entrypoints": {
     "client": [
@@ -26,8 +28,9 @@
     "atlas-lib.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=${loader_version}",
-    "fabric": "*",
-    "minecraft": "${minecraft_version}"
+    "fabric-api": ">=0.97.5+1.20.5",
+    "fabricloader": ">=0.15.10",
+    "minecraft": ">=1.20.5 <1.20.6-",
+    "java": ">=21"
   }
 }
