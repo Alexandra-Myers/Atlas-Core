@@ -365,7 +365,7 @@ public abstract class AtlasConfig {
                 }
             }, (writer, e) -> {
                 try {
-                    writer.value(e.name());
+                    writer.value(e.name().toLowerCase());
                 } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
