@@ -18,6 +18,7 @@ import net.minecraft.ReportedException;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -36,8 +37,8 @@ import java.util.function.Supplier;
 public abstract class AtlasConfig {
     public final ResourceLocation name;
 	public boolean isDefault;
-    public final Map<String, ConfigHolder<?>> valueNameToConfigHolderMap = Maps.newHashMap();
-	List<ConfigHolder<?>> holders;
+    public final Map<String, ConfigHolder<?, ? extends ByteBuf>> valueNameToConfigHolderMap = Maps.newHashMap();
+	List<ConfigHolder<?, ? extends ByteBuf>> holders;
 	public final List<Category> categories;
     public static final Map<ResourceLocation, AtlasConfig> configs = Maps.newHashMap();
 	public static final Map<String, AtlasConfig> menus = Maps.newHashMap();
@@ -143,7 +144,7 @@ public abstract class AtlasConfig {
 
     protected abstract void loadExtra(JsonObject jsonObject);
     protected abstract InputStream getDefaultedConfig();
-    public AtlasConfig loadFromNetwork(FriendlyByteBuf buf) {
+    public AtlasConfig loadFromNetwork(RegistryFriendlyByteBuf buf) {
         enumValues.forEach(enumHolder -> enumHolder.readFromBuf(buf));
         stringValues.forEach(stringHolder -> stringHolder.readFromBuf(buf));
         booleanValues.forEach(booleanHolder -> booleanHolder.readFromBuf(buf));
@@ -151,11 +152,11 @@ public abstract class AtlasConfig {
         doubleValues.forEach(doubleHolder -> doubleHolder.readFromBuf(buf));
         return this;
     }
-    public static AtlasConfig staticLoadFromNetwork(FriendlyByteBuf buf) {
+    public static AtlasConfig staticLoadFromNetwork(RegistryFriendlyByteBuf buf) {
         return configs.get(buf.readResourceLocation()).loadFromNetwork(buf);
     }
 
-    public void saveToNetwork(FriendlyByteBuf buf) {
+    public void saveToNetwork(RegistryFriendlyByteBuf buf) {
         enumValues.forEach(enumHolder -> enumHolder.writeToBuf(buf));
         stringValues.forEach(stringHolder -> stringHolder.writeToBuf(buf));
         booleanValues.forEach(booleanHolder -> booleanHolder.writeToBuf(buf));
@@ -167,7 +168,7 @@ public abstract class AtlasConfig {
     public boolean equals(Object obj) {
         return super.equals(obj);
     }
-    public ConfigHolder<?> fromValue(ConfigValue<?> value) {
+    public ConfigHolder<?, ? extends ByteBuf> fromValue(ConfigValue<?> value) {
         return valueNameToConfigHolderMap.get(value.name);
     }
     public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Function<Enum, Component> names) {
@@ -240,7 +241,7 @@ public abstract class AtlasConfig {
 		jsonWriter.setIndent("\t");
 		saveExtra(jsonWriter, printWriter);
 		for (Category category : categories) {
-			for (ConfigHolder<?> holder : category.members) {
+			for (ConfigHolder<?, ? extends ByteBuf> holder : category.members) {
 				holder.writeToJSONFile(jsonWriter);
 				printWriter.flush();
 			}
@@ -259,7 +260,7 @@ public abstract class AtlasConfig {
         public boolean isValid(T newValue) {
             return possibleValues == null || Arrays.stream(possibleValues).toList().contains(newValue);
         }
-        public void addAssociation(ConfigHolder<T> configHolder) {
+        public void addAssociation(ConfigHolder<T, ? extends ByteBuf> configHolder) {
             if (owner.valueNameToConfigHolderMap.containsKey(name))
                 throw new ReportedException(new CrashReport("Tried to associate a ConfigHolder to a ConfigValue which already has one!", new RuntimeException()));
             owner.valueNameToConfigHolderMap.put(name, configHolder);
@@ -279,16 +280,16 @@ public abstract class AtlasConfig {
             return result;
         }
     }
-    public static abstract class ConfigHolder<T> {
+    public static abstract class ConfigHolder<T, B extends ByteBuf> {
         private T value;
         public final ConfigValue<T> heldValue;
-        public final StreamCodec<ByteBuf, T> codec;
+        public final StreamCodec<B, T> codec;
 		public final BiConsumer<JsonWriter, T> update;
 		public boolean restartRequired = false;
 		public boolean serverManaged = false;
 		public Supplier<Optional<Component[]>> tooltip = Optional::empty;
 
-		public ConfigHolder(ConfigValue<T> value, StreamCodec<ByteBuf, T> codec, BiConsumer<JsonWriter, T> update) {
+		public ConfigHolder(ConfigValue<T> value, StreamCodec<B, T> codec, BiConsumer<JsonWriter, T> update) {
             this.value = value.defaultValue;
             heldValue = value;
             this.codec = codec;
@@ -302,10 +303,10 @@ public abstract class AtlasConfig {
 			writer.name(heldValue.name);
 			update.accept(writer, value);
 		}
-        public void writeToBuf(FriendlyByteBuf buf) {
+        public void writeToBuf(B buf) {
             codec.encode(buf, value);
         }
-        public void readFromBuf(FriendlyByteBuf buf) {
+        public void readFromBuf(B buf) {
             T newValue = codec.decode(buf);
             if (isNotValid(newValue))
                 return;
@@ -349,19 +350,19 @@ public abstract class AtlasConfig {
 		@Environment(EnvType.CLIENT)
 		public abstract AbstractConfigListEntry<?> transformIntoConfigEntry();
 	}
-    public static class EnumHolder<E extends Enum<E>> extends ConfigHolder<E> {
+    public static class EnumHolder<E extends Enum<E>> extends ConfigHolder<E, FriendlyByteBuf> {
         public final Class<E> clazz;
 		public final Function<Enum, Component> names;
         private EnumHolder(ConfigValue<E> value, Class<E> clazz, Function<Enum, Component> names) {
             super(value, new StreamCodec<>() {
                 @Override
-                public void encode(ByteBuf object, E object2) {
-                    new FriendlyByteBuf(object).writeEnum(object2);
+                public void encode(FriendlyByteBuf object, E object2) {
+                    object.writeEnum(object2);
                 }
 
                 @Override
-                public @NotNull E decode(ByteBuf object) {
-                    return new FriendlyByteBuf(object).readEnum(clazz);
+                public @NotNull E decode(FriendlyByteBuf object) {
+                    return object.readEnum(clazz);
                 }
             }, (writer, e) -> {
                 try {
@@ -389,7 +390,7 @@ public abstract class AtlasConfig {
 			return new EnumListEntry<>(Component.translatable(getTranslationKey()), clazz, get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, names, tooltip, restartRequired);
 		}
 	}
-    public static class StringHolder extends ConfigHolder<String> {
+    public static class StringHolder extends ConfigHolder<String, ByteBuf> {
         private StringHolder(ConfigValue<String> value) {
             super(value, ByteBufCodecs.STRING_UTF8, (writer, s) -> {
                 try {
@@ -406,7 +407,7 @@ public abstract class AtlasConfig {
 			return new StringListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
 		}
 	}
-    public static class BooleanHolder extends ConfigHolder<Boolean> {
+    public static class BooleanHolder extends ConfigHolder<Boolean, ByteBuf> {
         private BooleanHolder(ConfigValue<Boolean> value) {
             super(value, ByteBufCodecs.BOOL, (writer, b) -> {
 				try {
@@ -423,7 +424,7 @@ public abstract class AtlasConfig {
 			return new BooleanListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
 		}
 	}
-    public static class IntegerHolder extends ConfigHolder<Integer> {
+    public static class IntegerHolder extends ConfigHolder<Integer, ByteBuf> {
 		public final boolean isSlider;
         private IntegerHolder(ConfigValue<Integer> value, boolean isSlider) {
             super(value, ByteBufCodecs.VAR_INT, (writer, i) -> {
@@ -452,7 +453,7 @@ public abstract class AtlasConfig {
 			return new IntegerSliderEntry(Component.translatable(getTranslationKey()), heldValue.possibleValues[0], heldValue.possibleValues[1], get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
 		}
 	}
-    public static class DoubleHolder extends ConfigHolder<Double> {
+    public static class DoubleHolder extends ConfigHolder<Double, ByteBuf> {
         private DoubleHolder(ConfigValue<Double> value) {
             super(value, ByteBufCodecs.DOUBLE, (writer, d) -> {
 				try {
@@ -519,11 +520,11 @@ public abstract class AtlasConfig {
 		return true;
 	}
 
-	public record Category(AtlasConfig config, String name, List<ConfigHolder<?>> members) {
+	public record Category(AtlasConfig config, String name, List<ConfigHolder<?, ? extends ByteBuf>> members) {
 		public String translationKey() {
 			return "text.config." + config.name.getPath() + ".category." + name;
 		}
-		public void addMember(ConfigHolder<?> member) {
+		public void addMember(ConfigHolder<?, ? extends ByteBuf> member) {
 			members.add(member);
 		}
 

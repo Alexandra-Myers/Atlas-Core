@@ -6,11 +6,12 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import org.apache.logging.log4j.LogManager;
+import org.jetbrains.annotations.NotNull;
 
 public class AtlasLib implements ModInitializer {
     public static ResourceLocation modDetectionNetworkChannel = id("networking");
@@ -35,19 +36,19 @@ public class AtlasLib implements ModInitializer {
 
     public record AtlasConfigPacket(AtlasConfig config) implements CustomPacketPayload {
         public static final Type<AtlasConfigPacket> TYPE = CustomPacketPayload.createType(id("atlas_config").toString());
-        public static final StreamCodec<FriendlyByteBuf, AtlasConfigPacket> CODEC = CustomPacketPayload.codec(AtlasConfigPacket::write, AtlasConfigPacket::new);
+        public static final StreamCodec<RegistryFriendlyByteBuf, AtlasConfigPacket> CODEC = CustomPacketPayload.codec(AtlasConfigPacket::write, AtlasConfigPacket::new);
 
-        public AtlasConfigPacket(FriendlyByteBuf buf) {
+        public AtlasConfigPacket(RegistryFriendlyByteBuf buf) {
             this(AtlasConfig.staticLoadFromNetwork(buf));
         }
 
-        public void write(FriendlyByteBuf buf) {
+        public void write(RegistryFriendlyByteBuf buf) {
             buf.writeResourceLocation(config.name);
             config.saveToNetwork(buf);
         }
 
         @Override
-        public Type<? extends CustomPacketPayload> type() {
+        public @NotNull Type<? extends CustomPacketPayload> type() {
             return TYPE;
         }
     }
