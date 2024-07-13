@@ -31,11 +31,11 @@ public class AtlasLib implements ModInitializer {
         });
     }
     public static ResourceLocation id(String path) {
-        return new ResourceLocation(MOD_ID, path);
+        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
     }
 
     public record AtlasConfigPacket(AtlasConfig config) implements CustomPacketPayload {
-        public static final Type<AtlasConfigPacket> TYPE = CustomPacketPayload.createType(id("atlas_config").toString());
+        public static final Type<AtlasConfigPacket> TYPE = new Type<>(id("atlas_config"));
         public static final StreamCodec<RegistryFriendlyByteBuf, AtlasConfigPacket> CODEC = CustomPacketPayload.codec(AtlasConfigPacket::write, AtlasConfigPacket::new);
 
         public AtlasConfigPacket(RegistryFriendlyByteBuf buf) {

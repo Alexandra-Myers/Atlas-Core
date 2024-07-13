@@ -111,9 +111,9 @@ public abstract class AtlasConfig {
         if (!configFile.exists()) {
             try {
                 configFile.createNewFile();
-                InputStream inputStream = getDefaultedConfig();
-                Files.write(configFile.toPath(), inputStream.readAllBytes());
-                inputStream.close();
+                try (InputStream inputStream = getDefaultedConfig()) {
+                    Files.write(configFile.toPath(), inputStream.readAllBytes());
+                }
             } catch (IOException e) {
                 throw new ReportedException(new CrashReport("Failed to create config file for config " + name, e));
             }
