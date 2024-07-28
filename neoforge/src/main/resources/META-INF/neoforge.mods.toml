@@ -1,0 +1,45 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+#issueTrackerURL = ""
+license = "MIT"
+
+[[mixins]]
+config="atlas-lib-common.mixins.json"
+
+[[mods]]
+modId = "atlas-lib"
+version = "${version}"
+displayName = "Atlas Lib"
+authors = "Alexandra"
+description = '''
+A mod library made for Atlas mods
+'''
+#logoFile = ""
+
+[[dependencies.atlas-lib]]
+modId = "neoforge"
+mandatory = true
+versionRange = "[20.5.0-beta,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.atlas-lib]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.20.5,1.21)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.atlas-lib]]
+modId = "architectury"
+mandatory = true
+versionRange = "[12.0.27,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.atlas-lib]]
+modId = "cloth-config"
+mandatory = true
+versionRange = "[14.0.126,)"
+ordering = "AFTER"
+side = "BOTH"
