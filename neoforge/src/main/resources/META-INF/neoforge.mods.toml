@@ -19,27 +19,20 @@ A mod library made for Atlas mods
 [[dependencies.atlas-lib]]
 modId = "neoforge"
 mandatory = true
-versionRange = "[20.5.0-beta,)"
+versionRange = "[21.0.0-beta,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.atlas-lib]]
 modId = "minecraft"
 mandatory = true
-versionRange = "[1.20.5,1.21)"
+versionRange = "[1.21,1.22)"
 ordering = "NONE"
-side = "BOTH"
-
-[[dependencies.atlas-lib]]
-modId = "architectury"
-mandatory = true
-versionRange = "[12.0.27,)"
-ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies.atlas-lib]]
 modId = "cloth-config"
 mandatory = true
-versionRange = "[14.0.126,)"
+versionRange = "[15.0.127,)"
 ordering = "AFTER"
 side = "BOTH"
