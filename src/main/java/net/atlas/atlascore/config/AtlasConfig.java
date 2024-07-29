@@ -1,4 +1,4 @@
-package net.atlas.atlaslib.config;
+package net.atlas.atlascore.config;
 
 import com.google.common.collect.Maps;
 import com.google.gson.JsonObject;
@@ -13,7 +13,7 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import io.netty.buffer.ByteBuf;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.gui.entries.*;
-import net.atlas.atlaslib.AtlasLib;
+import net.atlas.atlascore.AtlasCore;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
@@ -838,7 +838,7 @@ public abstract class AtlasConfig {
 		loadExtra(configJsonObject);
 	}
 
-	public abstract void handleExtraSync(AtlasLib.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender);
+	public abstract void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender);
 	@Environment(EnvType.CLIENT)
 	public abstract Screen createScreen(Screen prevScreen);
 	@Environment(EnvType.CLIENT)

@@ -1,6 +1,6 @@
-package net.atlas.atlaslib.config;
+package net.atlas.atlascore.config;
 
-import net.atlas.atlaslib.client.ScreenBuilder;
+import net.atlas.atlascore.client.ScreenBuilder;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;

@@ -1,6 +1,6 @@
 {
   "options.atlas_config.button": "Atlas Configs",
-  "title.atlas_config.name": "Atlas Lib",
+  "title.atlas_config.name": "Atlas Core",
   "commands.config.reload.success": "Successfully reloaded the given config!",
   "commands.config.reload_all.success": "All Atlas Configs successfully reloaded!",
   "text.config.true": "True",

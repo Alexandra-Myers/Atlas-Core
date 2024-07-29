@@ -10,22 +10,22 @@
   ],
   "contact": {},
   "license": "GPL-3.0",
-  "icon": "assets/atlas-lib/icon.png",
+  "icon": "assets/atlas-core/icon.png",
 
   "environment": "*",
   "entrypoints": {
     "client": [
-      "net.atlas.atlaslib.client.AtlasLibClient"
+      "net.atlas.atlascore.client.AtlasCoreClient"
     ],
     "main": [
-      "net.atlas.atlaslib.AtlasLib"
+      "net.atlas.atlascore.AtlasCore"
     ],
     "modmenu": [
-      "net.atlas.atlaslib.impl.ModMenuApiImpl"
+      "net.atlas.atlascore.impl.ModMenuApiImpl"
     ]
   },
   "mixins": [
-    "atlas-lib.mixins.json"
+    "atlas-core.mixins.json"
   ],
   "depends": {
     "fabric-api": ">=0.100.6+1.21",

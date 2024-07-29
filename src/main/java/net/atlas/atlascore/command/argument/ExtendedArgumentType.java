@@ -1,4 +1,4 @@
-package net.atlas.atlaslib.command.argument;
+package net.atlas.atlascore.command.argument;
 
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContextBuilder;

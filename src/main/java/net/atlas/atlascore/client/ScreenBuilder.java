@@ -1,10 +1,10 @@
-package net.atlas.atlaslib.client;
+package net.atlas.atlascore.client;
 
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
-import net.atlas.atlaslib.AtlasLib;
-import net.atlas.atlaslib.config.AtlasConfig;
+import net.atlas.atlascore.AtlasCore;
+import net.atlas.atlascore.config.AtlasConfig;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -25,7 +25,7 @@ public final class ScreenBuilder {
 				try {
 					config.saveConfig();
 				} catch (IOException e) {
-					AtlasLib.LOGGER.error("Failed to save " + config.name + " config file!");
+					AtlasCore.LOGGER.error("Failed to save " + config.name + " config file!");
 					e.printStackTrace();
 				}
 			});

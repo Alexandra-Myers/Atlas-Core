@@ -1,10 +1,10 @@
-package net.atlas.atlaslib.impl;
+package net.atlas.atlascore.impl;
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
-import net.atlas.atlaslib.client.ScreenBuilder;
-import net.atlas.atlaslib.config.AtlasConfig;
-import net.atlas.atlaslib.config.AtlasConfigScreen;
+import net.atlas.atlascore.client.ScreenBuilder;
+import net.atlas.atlascore.config.AtlasConfig;
+import net.atlas.atlascore.config.AtlasConfigScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 

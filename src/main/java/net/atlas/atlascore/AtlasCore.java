@@ -1,10 +1,10 @@
-package net.atlas.atlaslib;
+package net.atlas.atlascore;
 
-import net.atlas.atlaslib.command.ConfigCommand;
-import net.atlas.atlaslib.config.AtlasConfig;
-import net.atlas.atlaslib.config.AtlasLibConfig;
-import net.atlas.atlaslib.init.ArgumentInit;
-import net.atlas.atlaslib.util.PrefixLogger;
+import net.atlas.atlascore.command.ConfigCommand;
+import net.atlas.atlascore.config.AtlasConfig;
+import net.atlas.atlascore.config.AtlasCoreConfig;
+import net.atlas.atlascore.init.ArgumentInit;
+import net.atlas.atlascore.util.PrefixLogger;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -17,11 +17,11 @@ import net.minecraft.resources.ResourceLocation;
 import org.apache.logging.log4j.LogManager;
 import org.jetbrains.annotations.NotNull;
 
-public class AtlasLib implements ModInitializer {
-    public static AtlasLibConfig CONFIG = new AtlasLibConfig();
+public class AtlasCore implements ModInitializer {
+    public static AtlasCoreConfig CONFIG = new AtlasCoreConfig();
     public static ResourceLocation modDetectionNetworkChannel = id("networking");
-    public static final String MOD_ID = "atlas-lib";
-    public static final PrefixLogger LOGGER = new PrefixLogger(LogManager.getLogger("Atlas Lib"));
+    public static final String MOD_ID = "atlas-core";
+    public static final PrefixLogger LOGGER = new PrefixLogger(LogManager.getLogger("Atlas Core"));
     /**
      * Runs the mod initializer.
      */
@@ -32,7 +32,7 @@ public class AtlasLib implements ModInitializer {
             for (AtlasConfig atlasConfig : AtlasConfig.configs.values()) {
                 ServerPlayNetworking.send(handler.player, new AtlasConfigPacket(atlasConfig));
             }
-            AtlasLib.LOGGER.info("Config packets sent to client.");
+            AtlasCore.LOGGER.info("Config packets sent to client.");
         });
         ArgumentInit.registerArguments();
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ConfigCommand.register(dispatcher));

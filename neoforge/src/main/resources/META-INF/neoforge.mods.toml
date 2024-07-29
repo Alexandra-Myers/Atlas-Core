@@ -4,33 +4,33 @@ loaderVersion = "[1,)"
 license = "MIT"
 
 [[mixins]]
-config="atlas-lib-common.mixins.json"
+config="atlas-core-common.mixins.json"
 
 [[mods]]
-modId = "atlas-lib"
+modId = "atlas-core"
 version = "${version}"
-displayName = "Atlas Lib"
+displayName = "Atlas Core"
 authors = "Alexandra"
 description = '''
 A mod library made for Atlas mods
 '''
 #logoFile = ""
 
-[[dependencies.atlas-lib]]
+[[dependencies.atlas-core]]
 modId = "neoforge"
 mandatory = true
 versionRange = "[21.0.0-beta,)"
 ordering = "NONE"
 side = "BOTH"
 
-[[dependencies.atlas-lib]]
+[[dependencies.atlas-core]]
 modId = "minecraft"
 mandatory = true
 versionRange = "[1.21,1.22)"
 ordering = "NONE"
 side = "BOTH"
 
-[[dependencies.atlas-lib]]
+[[dependencies.atlas-core]]
 modId = "cloth-config"
 mandatory = true
 versionRange = "[15.0.127,)"

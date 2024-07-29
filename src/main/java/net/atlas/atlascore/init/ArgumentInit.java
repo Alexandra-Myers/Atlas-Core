@@ -1,7 +1,7 @@
-package net.atlas.atlaslib.init;
+package net.atlas.atlascore.init;
 
-import net.atlas.atlaslib.command.argument.AtlasConfigArgument;
-import net.atlas.atlaslib.command.argument.ConfigHolderArgument;
+import net.atlas.atlascore.command.argument.AtlasConfigArgument;
+import net.atlas.atlascore.command.argument.ConfigHolderArgument;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.commands.synchronization.SingletonArgumentInfo;

@@ -1,4 +1,4 @@
-package net.atlas.atlaslib.command.argument;
+package net.atlas.atlascore.command.argument;
 
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
@@ -8,7 +8,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import io.netty.buffer.ByteBuf;
-import net.atlas.atlaslib.config.AtlasConfig;
+import net.atlas.atlascore.config.AtlasConfig;
 import net.minecraft.commands.SharedSuggestionProvider;
 
 import java.util.Arrays;

@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "net.atlas.atlaslib.mixin",
+  "package": "net.atlas.atlascore.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "ArgumentCommandNodeMixin"

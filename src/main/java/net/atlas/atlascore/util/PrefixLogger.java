@@ -1,4 +1,4 @@
-package net.atlas.atlaslib.util;
+package net.atlas.atlascore.util;
 
 import org.apache.logging.log4j.Logger;
 

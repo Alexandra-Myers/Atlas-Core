@@ -1,6 +1,6 @@
-package net.atlas.atlaslib.mixin;
+package net.atlas.atlascore.mixin;
 
-import net.atlas.atlaslib.config.AtlasConfigScreen;
+import net.atlas.atlascore.config.AtlasConfigScreen;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.layouts.GridLayout;

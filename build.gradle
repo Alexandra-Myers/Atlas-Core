@@ -21,7 +21,7 @@ repositories {
 }
 
 loom {
-    accessWidenerPath = file("src/main/resources/atlas-lib.accesswidener")
+    accessWidenerPath = file("src/main/resources/atlas-core.accesswidener")
 }
 
 dependencies {

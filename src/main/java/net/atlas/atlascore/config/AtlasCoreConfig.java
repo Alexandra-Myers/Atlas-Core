@@ -1,8 +1,8 @@
-package net.atlas.atlaslib.config;
+package net.atlas.atlascore.config;
 
 import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonWriter;
-import net.atlas.atlaslib.AtlasLib;
+import net.atlas.atlascore.AtlasCore;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class AtlasLibConfig extends AtlasConfig {
+public class AtlasCoreConfig extends AtlasConfig {
     public enum TestEnum {
         FOO,
         BAR
@@ -30,14 +30,14 @@ public class AtlasLibConfig extends AtlasConfig {
     public ColorHolder grayFormattingColour;
     private Category test;
     private Category formatting;
-    public AtlasLibConfig() {
-        super(AtlasLib.id("atlas-lib-config"));
-        declareDefaultForMod(AtlasLib.MOD_ID);
+    public AtlasCoreConfig() {
+        super(AtlasCore.id("atlas-core-config"));
+        declareDefaultForMod(AtlasCore.MOD_ID);
     }
 
     @Override
     public void defineConfigHolders() {
-        testEnum = createEnum("testEnum", TestEnum.FOO, TestEnum.class, TestEnum.values(), e -> Component.translatable("text.config.atlas-lib-config.option.testEnum." + e.name().toLowerCase(Locale.ROOT)));
+        testEnum = createEnum("testEnum", TestEnum.FOO, TestEnum.class, TestEnum.values(), e -> Component.translatable("text.config.atlas-core-config.option.testEnum." + e.name().toLowerCase(Locale.ROOT)));
         testEnum.tieToCategory(test);
         testString = createString("testString", "foo");
         testString.tieToCategory(test);
@@ -94,7 +94,7 @@ public class AtlasLibConfig extends AtlasConfig {
     }
 
     @Override
-    public void handleExtraSync(AtlasLib.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender) {
+    public void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender) {
 
     }
 
