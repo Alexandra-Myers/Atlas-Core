@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "atlas-lib",
+  "id": "atlas-core",
   "version": "${version}",
 
-  "name": "Atlas Lib",
+  "name": "Atlas Core",
   "description": "A mod library made for Atlas mods",
   "authors": [
     "Alexandra"
