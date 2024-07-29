@@ -18,7 +18,6 @@ import java.util.concurrent.CompletableFuture;
 
 @SuppressWarnings("unchecked")
 public class ConfigHolderArgument implements ArgumentType<AtlasConfig.ConfigHolder<?, ? extends ByteBuf>>, ExtendedArgumentType<AtlasConfig.ConfigHolder<?, ? extends ByteBuf>> {
-    public AtlasConfig config;
     private static final Collection<String> EXAMPLES = List.of("grayFormattingColour");
 
     public static ConfigHolderArgument configHolderArgument() {
@@ -30,11 +29,8 @@ public class ConfigHolderArgument implements ArgumentType<AtlasConfig.ConfigHold
     }
 
     public AtlasConfig.ConfigHolder<?, ? extends ByteBuf> parse(StringReader stringReader) throws CommandSyntaxException {
-        if (config == null) {
-            // Literally nothing we can do to change this fate
-            throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
-        }
-        return config.valueNameToConfigHolderMap.get(stringReader.readString());
+        // Literally nothing we can do to change this fate
+        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
     }
 
     @Override
@@ -42,14 +38,12 @@ public class ConfigHolderArgument implements ArgumentType<AtlasConfig.ConfigHold
         if (!contextBuilder.getArguments().containsKey("config")) {
             // Literally nothing we can do to change this fate
             throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
-        } else if (config == null)
-            config = (AtlasConfig) contextBuilder.getArguments().get("config").getResult();
-        return config.valueNameToConfigHolderMap.get(reader.readString());
+        }
+        return ((AtlasConfig) contextBuilder.getArguments().get("config").getResult()).valueNameToConfigHolderMap.get(reader.readString());
     }
 
     public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder) {
-        config = AtlasConfigArgument.getConfig(commandContext, "config");
-        return SharedSuggestionProvider.suggest(config.valueNameToConfigHolderMap.keySet(), suggestionsBuilder);
+        return SharedSuggestionProvider.suggest(AtlasConfigArgument.getConfig(commandContext, "config").valueNameToConfigHolderMap.keySet(), suggestionsBuilder);
     }
 
     public Collection<String> getExamples() {
