@@ -149,5 +149,5 @@ Fourthly, we have `IntegerHolder` and `DoubleHolder`, which are near identical t
 ***
 Finally, there is `ColorHolder`, constructed with `createColor(String name, Integer defaultVal, boolean alpha)`
 `name` represents the same concept as the rest, however...
-`defaultVal` represents the integer representation of the default color, while inside of the config file it is the hex value prefixed with #.
+`defaultVal` represents the integer representation of the default color, while inside of the config file it is the hex value prefixed with `#`.
 `alpha` defines whether or not this `ColorHolder` should store argb in hex or just rgb.
