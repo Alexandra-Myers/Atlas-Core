@@ -129,20 +129,24 @@ It has several base implementations, including `EnumHolder<E extends Enum>`, `St
 Before going into the implementation detail itself, it is more important to cover the base implementations directly.
 First off: `EnumHolder<E extends Enum>` represents an Enum value in a config. it is constructed using the instance method `<E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Function<Enum, Component> names)` in `AtlasConfig`.
 Let's go into detail on the parameters:
+***
 1. `name`: The name of the holder, used internally to identify it.
 2. `defaultVal`: The default value for this config option.
 3. `clazz`: The class that this `EnumHolder<E>` represents, must represent an Enum, and must conform to the same type as the other parameters.
 4. `values`: The enum values which can be selected by this enum. In general, should be `Enum.values()` but can be whatever subset you like.
 5. `names`: A function which provides the enum value, and produces a `Component` to represent the name of the value.
+***
 Secondly, we have `StringHolder`, which is less complex, constructed by two methods, `createStringRange(String name, String defaultVal, String... values)`, and `createString(String name, String defaultVal)`
 `name` and `defaultVal` are shared across all `ConfigHolder` constructors, so we ignore those.
 `values` represents the possible values which this `StringHolder` can be set to, allowing you to confine the user's input to strictly what is needed or accepted.
 Thirdly, we have `BooleanHolder` which is only constructed with `createBoolean(String name, boolean defaultVal)`, with which we have nothing to say for.
 Fourthly, we have `IntegerHolder` and `DoubleHolder`, which are near identical to each other, aside from type, each being constructed with three methods, for which I will be replacing the type's name with (insert type here):
+***
 1. `create(insert type here)Unbound(String name, (insert type here) defaultVal)`: Nothing notable, creates an Integer / Double with no restrictions on values.
 2. `createInRestrictedValues(String name, (insert type here) defaultVal, (insert type here)... values)`: Similar to `createStringRange`, creates a holder which only accepts the given values.
 3. `createInRange(String name, int defaultVal, int min, int max, boolean isSlider)`: Specific to `IntegerHolder`, creates a holder which accepts any value in a specified range and specifies whether it will be a slider or not when viewed in the config's screen.
 4. `createInRange(String name, double defaultVal, double min, double max)`: Specific to `DoubleHolder`, creates a holder which accepts any value in a specified range.
+***
 Finally, there is `ColorHolder`, constructed with `createColor(String name, Integer defaultVal, boolean alpha)`
 `name` represents the same concept as the rest, however...
 `defaultVal` represents the integer representation of the default color, while inside of the config file it is the hex value prefixed with #.
