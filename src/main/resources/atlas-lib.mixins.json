@@ -4,6 +4,7 @@
   "package": "net.atlas.atlaslib.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "ArgumentCommandNodeMixin"
   ],
   "client": [
     "OptionsScreenMixin"

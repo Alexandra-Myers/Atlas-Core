@@ -5,6 +5,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import io.netty.buffer.ByteBuf;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.gui.entries.*;
@@ -29,6 +34,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -50,6 +56,8 @@ public abstract class AtlasConfig {
     List<BooleanHolder> booleanValues;
     List<IntegerHolder> integerValues;
     List<DoubleHolder> doubleValues;
+    List<ColorHolder> colorValues;
+
     public AtlasConfig(ResourceLocation name) {
 		this.name = name;
         enumValues = new ArrayList<>();
@@ -57,6 +65,7 @@ public abstract class AtlasConfig {
         booleanValues = new ArrayList<>();
         integerValues = new ArrayList<>();
         doubleValues = new ArrayList<>();
+        colorValues = new ArrayList<>();
 		holders = new ArrayList<>();
 		categories = createCategories();
         defineConfigHolders();
@@ -70,6 +79,10 @@ public abstract class AtlasConfig {
 
         load();
         configs.put(name, this);
+    }
+
+    public Component getFormattedName() {
+        return Component.translatable("text.config." + name.getPath() + ".title");
     }
 
 	public AtlasConfig declareDefaultForMod(String modID) {
@@ -100,6 +113,19 @@ public abstract class AtlasConfig {
     }
     public static Boolean getBoolean(JsonObject element, String name) {
         return element.get(name).getAsBoolean();
+    }
+
+    public static Integer getColor(JsonObject element, String name, ColorHolder colorHolder) {
+        String color = stripHexStarter(getString(element, name));
+        if (color.length() > 8)
+            return colorHolder.get();
+        if (!colorHolder.hasAlpha && color.length() > 6)
+            return colorHolder.get();
+        return (int) Long.parseLong(color, 16);
+    }
+
+    public static String stripHexStarter(String hex) {
+        return hex.startsWith("#") ? hex.substring(1) : hex;
     }
 	public void reload() {
 		resetExtraHolders();
@@ -136,6 +162,9 @@ public abstract class AtlasConfig {
             for (DoubleHolder doubleHolder : doubleValues)
                 if (configJsonObject.has(doubleHolder.heldValue.name))
                     doubleHolder.setValueAndResetManaged(getDouble(configJsonObject, doubleHolder.heldValue.name));
+            for (ColorHolder colorHolder : colorValues)
+                if (configJsonObject.has(colorHolder.heldValue.name))
+                    colorHolder.setValueAndResetManaged(getColor(configJsonObject, colorHolder.heldValue.name, colorHolder));
             loadExtra(configJsonObject);
         } catch (IOException | IllegalStateException e) {
             e.printStackTrace();
@@ -150,6 +179,7 @@ public abstract class AtlasConfig {
         booleanValues.forEach(booleanHolder -> booleanHolder.readFromBuf(buf));
         integerValues.forEach(integerHolder -> integerHolder.readFromBuf(buf));
         doubleValues.forEach(doubleHolder -> doubleHolder.readFromBuf(buf));
+        colorValues.forEach(colorHolder -> colorHolder.readFromBuf(buf));
         return this;
     }
     public static AtlasConfig staticLoadFromNetwork(RegistryFriendlyByteBuf buf) {
@@ -162,6 +192,7 @@ public abstract class AtlasConfig {
         booleanValues.forEach(booleanHolder -> booleanHolder.writeToBuf(buf));
         integerValues.forEach(integerHolder -> integerHolder.writeToBuf(buf));
         doubleValues.forEach(doubleHolder -> doubleHolder.writeToBuf(buf));
+        colorValues.forEach(colorHolder -> colorHolder.writeToBuf(buf));
     }
 
     @Override
@@ -194,6 +225,12 @@ public abstract class AtlasConfig {
         booleanValues.add(booleanHolder);
 		holders.add(booleanHolder);
         return booleanHolder;
+    }
+    public ColorHolder createColor(String name, Integer defaultVal, boolean alpha) {
+        ColorHolder colorHolder = new ColorHolder(new ConfigValue<>(defaultVal, null, false, name, this), alpha);
+        colorValues.add(colorHolder);
+        holders.add(colorHolder);
+        return colorHolder;
     }
 	public IntegerHolder createIntegerUnbound(String name, Integer defaultVal) {
 		IntegerHolder integerHolder = new IntegerHolder(new ConfigValue<>(defaultVal, null, false, name, this), false);
@@ -282,6 +319,7 @@ public abstract class AtlasConfig {
     }
     public static abstract class ConfigHolder<T, B extends ByteBuf> {
         private T value;
+        protected T parsedValue = null;
         public final ConfigValue<T> heldValue;
         public final StreamCodec<B, T> codec;
 		public final BiConsumer<JsonWriter, T> update;
@@ -347,9 +385,24 @@ public abstract class AtlasConfig {
 			return "text.config." + heldValue.owner.name.getPath() + ".reset";
 		}
 
+        public abstract Component getValueAsComponent();
+
+        public abstract Class<T> getType();
+
 		@Environment(EnvType.CLIENT)
 		public abstract AbstractConfigListEntry<?> transformIntoConfigEntry();
-	}
+
+        public abstract <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder);
+
+        public abstract T parse(StringReader stringReader) throws CommandSyntaxException;
+        public void setToParsedValue() {
+            if (parsedValue == null || isNotValid(parsedValue))
+                return;
+            heldValue.emitChanged(parsedValue);
+            value = parsedValue;
+            parsedValue = null;
+        }
+    }
     public static class EnumHolder<E extends Enum<E>> extends ConfigHolder<E, FriendlyByteBuf> {
         public final Class<E> clazz;
 		public final Function<Enum, Component> names;
@@ -384,12 +437,44 @@ public abstract class AtlasConfig {
             setValue(Enum.valueOf(clazz, name.toUpperCase(Locale.ROOT)));
         }
 
-		@Override
+        @Override
+        public Component getValueAsComponent() {
+            return names.apply(get());
+        }
+
+        @Override
+        public Class<E> getType() {
+            return clazz;
+        }
+
+        @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			return new EnumListEntry<>(Component.translatable(getTranslationKey()), clazz, get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, names, tooltip, restartRequired);
 		}
-	}
+
+        @Override
+        public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
+            for (E e : heldValue.possibleValues) {
+                if (e.name().toLowerCase().startsWith(builder.getRemainingLowerCase())) {
+                    builder.suggest(e.name().toLowerCase());
+                }
+            }
+            return builder.buildFuture();
+        }
+
+        @Override
+        public E parse(StringReader stringReader) throws CommandSyntaxException {
+            String name = stringReader.readString();
+            for (E e : heldValue.possibleValues) {
+                if (e.name().toLowerCase().equals(name.toLowerCase())) {
+                    parsedValue = e;
+                    return e;
+                }
+            }
+            throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerExpectedSymbol().create("a valid enum input");
+        }
+    }
     public static class StringHolder extends ConfigHolder<String, ByteBuf> {
         private StringHolder(ConfigValue<String> value) {
             super(value, ByteBufCodecs.STRING_UTF8, (writer, s) -> {
@@ -401,12 +486,41 @@ public abstract class AtlasConfig {
             });
         }
 
-		@Override
+        @Override
+        public Component getValueAsComponent() {
+            return Component.literal(get());
+        }
+
+        @Override
+        public Class<String> getType() {
+            return String.class;
+        }
+
+        @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			return new StringListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
 		}
-	}
+
+        @Override
+        public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
+            if (heldValue.possibleValues != null) {
+                for (String s : heldValue.possibleValues) {
+                    if (s.toLowerCase().startsWith(builder.getRemainingLowerCase())) {
+                        builder.suggest(s.toLowerCase());
+                    }
+                }
+                return builder.buildFuture();
+            }
+            return Suggestions.empty();
+        }
+
+        @Override
+        public String parse(StringReader stringReader) throws CommandSyntaxException {
+            parsedValue = stringReader.readString();
+            return parsedValue;
+        }
+    }
     public static class BooleanHolder extends ConfigHolder<Boolean, ByteBuf> {
         private BooleanHolder(ConfigValue<Boolean> value) {
             super(value, ByteBufCodecs.BOOL, (writer, b) -> {
@@ -418,12 +532,39 @@ public abstract class AtlasConfig {
 			});
         }
 
-		@Override
+        @Override
+        public Component getValueAsComponent() {
+            return get() ? Component.translatable("text.config.true") : Component.translatable("text.config.false");
+        }
+
+        @Override
+        public Class<Boolean> getType() {
+            return Boolean.class;
+        }
+
+        @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			return new BooleanListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
 		}
-	}
+
+        @Override
+        public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
+            if ("true".startsWith(builder.getRemainingLowerCase())) {
+                builder.suggest("true");
+            }
+            if ("false".startsWith(builder.getRemainingLowerCase())) {
+                builder.suggest("false");
+            }
+            return builder.buildFuture();
+        }
+
+        @Override
+        public Boolean parse(StringReader stringReader) throws CommandSyntaxException {
+            parsedValue = stringReader.readBoolean();
+            return parsedValue;
+        }
+    }
     public static class IntegerHolder extends ConfigHolder<Integer, ByteBuf> {
 		public final boolean isSlider;
         private IntegerHolder(ConfigValue<Integer> value, boolean isSlider) {
@@ -445,14 +586,62 @@ public abstract class AtlasConfig {
             return super.isNotValid(newValue) && !inRange;
         }
 
-		@Override
+        @Override
+        public Component getValueAsComponent() {
+            return Component.literal(String.valueOf(get()));
+        }
+
+        @Override
+        public Class<Integer> getType() {
+            return Integer.class;
+        }
+
+        @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			if (!heldValue.isRange || !isSlider)
 				return new IntegerListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
 			return new IntegerSliderEntry(Component.translatable(getTranslationKey()), heldValue.possibleValues[0], heldValue.possibleValues[1], get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
 		}
-	}
+
+        @Override
+        public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
+            if (heldValue.possibleValues != null && !heldValue.isRange) {
+                for (Integer i : heldValue.possibleValues) {
+                    if (i.toString().startsWith(builder.getRemainingLowerCase())) {
+                        builder.suggest(i.toString());
+                    }
+                }
+                return builder.buildFuture();
+            }
+            return Suggestions.empty();
+        }
+
+        @Override
+        public Integer parse(StringReader reader) throws CommandSyntaxException {
+            final int start = reader.getCursor();
+            final int result = reader.readInt();
+            if (heldValue.possibleValues != null) {
+                if (heldValue.isRange) {
+                    if (result < heldValue.possibleValues[0]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.integerTooLow().createWithContext(reader, result, heldValue.possibleValues[0]);
+                    }
+                    if (result > heldValue.possibleValues[1]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.integerTooHigh().createWithContext(reader, result, heldValue.possibleValues[1]);
+                    }
+                } else {
+                    if (Arrays.stream(heldValue.possibleValues).noneMatch(integer -> integer == result)) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
+                    }
+                }
+            }
+            parsedValue = result;
+            return result;
+        }
+    }
     public static class DoubleHolder extends ConfigHolder<Double, ByteBuf> {
         private DoubleHolder(ConfigValue<Double> value) {
             super(value, ByteBufCodecs.DOUBLE, (writer, d) -> {
@@ -472,12 +661,144 @@ public abstract class AtlasConfig {
             return super.isNotValid(newValue) && !inRange;
         }
 
-		@Override
+        @Override
+        public Component getValueAsComponent() {
+            return Component.literal(String.valueOf(get()));
+        }
+
+        @Override
+        public Class<Double> getType() {
+            return Double.class;
+        }
+
+        @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			return new DoubleListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
 		}
+
+        @Override
+        public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
+            if (heldValue.possibleValues != null && !heldValue.isRange) {
+                for (Double d : heldValue.possibleValues) {
+                    if (d.toString().startsWith(builder.getRemainingLowerCase())) {
+                        builder.suggest(d.toString());
+                    }
+                }
+                return builder.buildFuture();
+            }
+            return Suggestions.empty();
+        }
+
+        @Override
+        public Double parse(StringReader reader) throws CommandSyntaxException {
+            final int start = reader.getCursor();
+            final double result = reader.readDouble();
+            if (heldValue.possibleValues != null) {
+                if (heldValue.isRange) {
+                    if (result < heldValue.possibleValues[0]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.doubleTooLow().createWithContext(reader, result, heldValue.possibleValues[0]);
+                    }
+                    if (result > heldValue.possibleValues[1]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.doubleTooHigh().createWithContext(reader, result, heldValue.possibleValues[1]);
+                    }
+                } else {
+                    if (Arrays.stream(heldValue.possibleValues).noneMatch(integer -> integer == result)) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidDouble().createWithContext(reader, result);
+                    }
+                }
+            }
+            parsedValue = result;
+            return result;
+        }
 	}
+    public static class ColorHolder extends ConfigHolder<Integer, ByteBuf> {
+        private boolean hasAlpha;
+
+        private ColorHolder(ConfigValue<Integer> value, boolean alpha) {
+            super(value, ByteBufCodecs.VAR_INT, (writer, d) -> {
+                try {
+                    String val = "#" + toColorHex(alpha, d);
+                    writer.value(val);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            hasAlpha = alpha;
+        }
+
+        @Override
+        public boolean isNotValid(Integer newValue) {
+            String hex = Integer.toHexString(newValue);
+            if (hex.length() > 8)
+                return true;
+            if (!hasAlpha && hex.length() > 6)
+                return true;
+            return super.isNotValid(newValue);
+        }
+
+        @Override
+        public Component getValueAsComponent() {
+            return Component.literal("#" + toColorHex(hasAlpha, get()));
+        }
+
+        public static String toColorHex(boolean hasAlpha, int val) {
+            int i = 6;
+            if (hasAlpha)
+                i = 8;
+            String toHex = Integer.toHexString(val);
+            while (toHex.length() < i) {
+                toHex = "0".concat(toHex);
+            }
+            return toHex;
+        }
+
+        @Override
+        public Class<Integer> getType() {
+            return Integer.class;
+        }
+
+        @Override
+        @Environment(EnvType.CLIENT)
+        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
+            ColorEntry entry = new ColorEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
+            if (hasAlpha) entry.withAlpha();
+            else entry.withoutAlpha();
+            return entry;
+        }
+
+        @Override
+        public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
+            return Suggestions.empty();
+        }
+
+        @Override
+        public Integer parse(StringReader reader) throws CommandSyntaxException {
+            final String hex = reader.readString();
+            stripHexStarter(hex);
+            int result = (int) Long.parseLong(hex, 16);
+            if (hex.length() > 8)
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
+            if (!hasAlpha && hex.length() > 6)
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
+            parsedValue = result;
+            return result;
+        }
+    }
+
+    public void reset() {
+        try {
+            try (InputStream inputStream = getDefaultedConfig()) {
+                Files.write(configFile.toPath(), inputStream.readAllBytes());
+            }
+        } catch (IOException e) {
+            throw new ReportedException(new CrashReport("Failed to recreate config file for config " + name, e));
+        }
+        reload();
+    }
 
 	public void reloadFromDefault() {
 		resetExtraHolders();
@@ -509,6 +830,11 @@ public abstract class AtlasConfig {
 				doubleHolder.setValue(getDouble(configJsonObject, doubleHolder.heldValue.name));
 				doubleHolder.serverManaged = true;
 			}
+        for (ColorHolder colorHolder : colorValues)
+            if (configJsonObject.has(colorHolder.heldValue.name)) {
+                colorHolder.setValue(getColor(configJsonObject, colorHolder.heldValue.name, colorHolder));
+                colorHolder.serverManaged = true;
+            }
 		loadExtra(configJsonObject);
 	}
 

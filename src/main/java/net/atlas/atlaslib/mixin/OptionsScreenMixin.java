@@ -36,7 +36,7 @@ public abstract class OptionsScreenMixin extends Screen {
                     target = "Lnet/minecraft/client/gui/layouts/GridLayout$RowHelper;addChild(Lnet/minecraft/client/gui/layouts/LayoutElement;)Lnet/minecraft/client/gui/layouts/LayoutElement;",
                     shift = At.Shift.AFTER, ordinal = 9),
             locals = LocalCapture.CAPTURE_FAILSOFT)
-    public void injectCookeyModButton(CallbackInfo ci, LinearLayout linearLayout, LinearLayout linearLayout2, GridLayout gridLayout, GridLayout.RowHelper rowHelper) {
+    public void injectAtlasConfigButton(CallbackInfo ci, LinearLayout linearLayout, LinearLayout linearLayout2, GridLayout gridLayout, GridLayout.RowHelper rowHelper) {
 		rowHelper.addChild(this.openScreenButton(Component.translatable("options.atlas_config.button"), () -> {
 			assert this.minecraft != null;
 			return new AtlasConfigScreen(this.minecraft.screen, options, Component.translatable("title.atlas_config.name"));

@@ -1,8 +1,12 @@
 package net.atlas.atlaslib;
 
+import net.atlas.atlaslib.command.ConfigCommand;
 import net.atlas.atlaslib.config.AtlasConfig;
+import net.atlas.atlaslib.config.AtlasLibConfig;
+import net.atlas.atlaslib.init.ArgumentInit;
 import net.atlas.atlaslib.util.PrefixLogger;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -14,6 +18,7 @@ import org.apache.logging.log4j.LogManager;
 import org.jetbrains.annotations.NotNull;
 
 public class AtlasLib implements ModInitializer {
+    public static AtlasLibConfig CONFIG = new AtlasLibConfig();
     public static ResourceLocation modDetectionNetworkChannel = id("networking");
     public static final String MOD_ID = "atlas-lib";
     public static final PrefixLogger LOGGER = new PrefixLogger(LogManager.getLogger("Atlas Lib"));
@@ -29,6 +34,8 @@ public class AtlasLib implements ModInitializer {
             }
             AtlasLib.LOGGER.info("Config packets sent to client.");
         });
+        ArgumentInit.registerArguments();
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ConfigCommand.register(dispatcher));
     }
     public static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
