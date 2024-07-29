@@ -85,7 +85,7 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     protected InputStream getDefaultedConfig() {
-        return Thread.currentThread().getContextClassLoader().getResourceAsStream("atlas-lib-config.json");
+        return Thread.currentThread().getContextClassLoader().getResourceAsStream("atlas-core-config.json");
     }
 
     @Override
