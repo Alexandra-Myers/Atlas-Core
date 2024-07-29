@@ -2,7 +2,7 @@
 ***
 ### A mod library for Atlas Projects
 ***
-Have you ever wondered what would happen if you threw an idiot in a room and asked them to write a robust library for your Minecraft mod?  
+Have you ever wondered what would happen if you threw someone in a room unable to leave and asked them to write a robust library for your Minecraft mod?  
 ...  
 No?  
 Well, here's what happens if you do anyways...  
