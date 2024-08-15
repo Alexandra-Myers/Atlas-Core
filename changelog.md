@@ -1,15 +1,7 @@
-### Initial Release:
+### Changes:
 ***
-- Introduction of the Atlas Config system
-
-- Addition of some utility classes
+- Addition of `ConfigRepresentable`, implemented in objects which can be represented in an `ObjectHolder`
 ***
 ### Atlas Config Changes:
 ***
-- Addition of `AtlasConfig`, the base class for all configs
-
-- Addition of `atlas_config` command, for reading, reloading, resetting, and editing of configs while running
-
-- Mod Menu integration to automatically fulfill the default config screen for a particular mod
-
-- Cloth Config integration to build the config screen for a mod client-side
+- Addition of `ObjectHolder` to represent objects as config options

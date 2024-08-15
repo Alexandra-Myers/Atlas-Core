@@ -1,4 +1,10 @@
 {
+  "testObject": {
+    "innerString": "bar",
+    "innerBool": true,
+    "innerInt": 3,
+    "innerDouble": 7.0
+  },
   "testEnum": "foo",
   "testString": "foo",
   "testBool": true,

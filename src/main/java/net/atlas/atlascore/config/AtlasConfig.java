@@ -7,6 +7,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
@@ -14,6 +15,9 @@ import io.netty.buffer.ByteBuf;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.gui.entries.*;
 import net.atlas.atlascore.AtlasCore;
+import net.atlas.atlascore.command.argument.ConfigHolderArgument;
+import net.atlas.atlascore.util.ConfigRepresentable;
+import net.atlas.atlascore.util.JavaToJSONSerialisation;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
@@ -22,6 +26,7 @@ import net.minecraft.CrashReport;
 import net.minecraft.ReportedException;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -31,11 +36,13 @@ import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -51,6 +58,7 @@ public abstract class AtlasConfig {
     final Path configFolderPath;
     File configFile;
     JsonObject configJsonObject;
+    List<ObjectHolder<?>> objectValues;
     List<EnumHolder<?>> enumValues;
     List<StringHolder> stringValues;
     List<BooleanHolder> booleanValues;
@@ -60,6 +68,7 @@ public abstract class AtlasConfig {
 
     public AtlasConfig(ResourceLocation name) {
 		this.name = name;
+        objectValues = new ArrayList<>();
         enumValues = new ArrayList<>();
         stringValues = new ArrayList<>();
         booleanValues = new ArrayList<>();
@@ -147,6 +156,9 @@ public abstract class AtlasConfig {
 
         try {
             configJsonObject = JsonParser.parseReader(new JsonReader(new FileReader(configFile))).getAsJsonObject();
+            for (ObjectHolder<?> objectHolder : objectValues)
+                if (configJsonObject.has(objectHolder.heldValue.name))
+                    objectHolder.setFromJSONObjectAndResetManaged(configJsonObject.getAsJsonObject(objectHolder.heldValue.name));
             for (EnumHolder<?> enumHolder : enumValues)
                 if (configJsonObject.has(enumHolder.heldValue.name))
                     enumHolder.setValueAndResetManaged(getString(configJsonObject, enumHolder.heldValue.name));
@@ -174,6 +186,7 @@ public abstract class AtlasConfig {
     protected abstract void loadExtra(JsonObject jsonObject);
     protected abstract InputStream getDefaultedConfig();
     public AtlasConfig loadFromNetwork(RegistryFriendlyByteBuf buf) {
+        objectValues.forEach(objectHolder -> objectHolder.readFromBuf(buf));
         enumValues.forEach(enumHolder -> enumHolder.readFromBuf(buf));
         stringValues.forEach(stringHolder -> stringHolder.readFromBuf(buf));
         booleanValues.forEach(booleanHolder -> booleanHolder.readFromBuf(buf));
@@ -187,6 +200,7 @@ public abstract class AtlasConfig {
     }
 
     public void saveToNetwork(RegistryFriendlyByteBuf buf) {
+        objectValues.forEach(objectHolder -> objectHolder.writeToBuf(buf));
         enumValues.forEach(enumHolder -> enumHolder.writeToBuf(buf));
         stringValues.forEach(stringHolder -> stringHolder.writeToBuf(buf));
         booleanValues.forEach(booleanHolder -> booleanHolder.writeToBuf(buf));
@@ -201,6 +215,16 @@ public abstract class AtlasConfig {
     }
     public ConfigHolder<?, ? extends ByteBuf> fromValue(ConfigValue<?> value) {
         return valueNameToConfigHolderMap.get(value.name);
+    }
+    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, JavaToJSONSerialisation<T> serialisation, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec) {
+        return createObject(name, defaultInstance, clazz, serialisation, streamCodec, true);
+    }
+    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, JavaToJSONSerialisation<T> serialisation, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, boolean expandByDefault) {
+        ObjectHolder<T> objectHolder = new ObjectHolder<>(new ConfigValue<>(defaultInstance, null, false, name, this), clazz, serialisation, streamCodec, expandByDefault);
+        defaultInstance.setOwnerHolder(objectHolder);
+        objectValues.add(objectHolder);
+        holders.add(objectHolder);
+        return objectHolder;
     }
     public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Function<Enum, Component> names) {
         EnumHolder<E> enumHolder = new EnumHolder<>(new ConfigValue<>(defaultVal, values, false, name, this), clazz, names);
@@ -317,7 +341,7 @@ public abstract class AtlasConfig {
             return result;
         }
     }
-    public static abstract class ConfigHolder<T, B extends ByteBuf> {
+    public static abstract class ConfigHolder<T, B extends ByteBuf> implements ConfigHolderLike<T, B> {
         private T value;
         protected T parsedValue = null;
         public final ConfigValue<T> heldValue;
@@ -330,10 +354,16 @@ public abstract class AtlasConfig {
 		public ConfigHolder(ConfigValue<T> value, StreamCodec<B, T> codec, BiConsumer<JsonWriter, T> update) {
             this.value = value.defaultValue;
             heldValue = value;
-            this.codec = codec;
+            if (codec != null) this.codec = codec;
+            else this.codec = formAlternateCodec();
             value.addAssociation(this);
 			this.update = update;
         }
+
+        protected StreamCodec<B, T> formAlternateCodec() {
+            return null;
+        }
+
         public T get() {
             return value;
         }
@@ -365,7 +395,13 @@ public abstract class AtlasConfig {
             heldValue.emitChanged(newValue);
             value = newValue;
         }
-		public void tieToCategory(Category category) {
+
+        @Override
+        public void resetValue() {
+            setValue(heldValue.defaultValue());
+        }
+
+        public void tieToCategory(Category category) {
 			category.addMember(this);
 		}
 		public void setRestartRequired(boolean restartRequired) {
@@ -387,20 +423,148 @@ public abstract class AtlasConfig {
 
         public abstract Component getValueAsComponent();
 
-        public abstract Class<T> getType();
-
-		@Environment(EnvType.CLIENT)
+        @Environment(EnvType.CLIENT)
 		public abstract AbstractConfigListEntry<?> transformIntoConfigEntry();
 
-        public abstract <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder);
-
-        public abstract T parse(StringReader stringReader) throws CommandSyntaxException;
+        @Override
         public void setToParsedValue() {
             if (parsedValue == null || isNotValid(parsedValue))
                 return;
             heldValue.emitChanged(parsedValue);
             value = parsedValue;
             parsedValue = null;
+        }
+
+        @Override
+        public ConfigHolder<T, B> getAsHolder() {
+            return this;
+        }
+
+        @Override
+        public String getName() {
+            return heldValue.name;
+        }
+
+        // Super dangerous, only use when certain
+        public final void setValueAmbiguousType(Object o) {
+            setValue((T) o);
+        }
+    }
+    public static interface ExtendedHolder {
+        Component getInnerTranslation(String name);
+        Component getInnerValue(String name);
+        void listInner(String name, Consumer<Component> input);
+        void fulfilListing(Consumer<Component> input);
+        ConfigHolderLike<?, ? extends ByteBuf> findInner(StringReader reader) throws CommandSyntaxException;
+        ConfigHolderLike<?, ? extends ByteBuf> retrieveInner(String name) throws CommandSyntaxException;
+        CompletableFuture<Suggestions> suggestInner(StringReader reader, SuggestionsBuilder builder);
+    }
+    public static class ObjectHolder<T extends ConfigRepresentable> extends ConfigHolder<T, RegistryFriendlyByteBuf> implements ExtendedHolder {
+        public final Class<T> clazz;
+        public final JavaToJSONSerialisation<T> serialisation;
+        public final boolean expandByDefault;
+
+        private ObjectHolder(ConfigValue<T> value, Class<T> clazz, JavaToJSONSerialisation<T> serialisation, StreamCodec<RegistryFriendlyByteBuf, T> sync, boolean expandByDefault) {
+            super(value, sync, (writer, t) -> {
+                try {
+                    writer.beginObject();
+                    serialisation.encoder().accept(writer, t);
+                    writer.endObject();
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            });
+            this.clazz = clazz;
+            this.serialisation = serialisation;
+            this.expandByDefault = expandByDefault;
+        }
+
+        public void setFromJSONObject(JsonObject object) {
+            setValue(serialisation.decoder().apply(this, object));
+        }
+
+        public void setFromJSONObjectAndResetManaged(JsonObject object) {
+            setValueAndResetManaged(serialisation.decoder().apply(this, object));
+        }
+
+        @Override
+        public Component getValueAsComponent() {
+            return Component.translatable(getTranslationKey());
+        }
+
+        @Override
+        @Environment(EnvType.CLIENT)
+        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
+            return new MultiElementListEntry<>(Component.translatable(getTranslationKey()), get(), get().transformIntoConfigEntries(), expandByDefault);
+        }
+
+        @Override
+        public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
+            List<String> fields = heldValue.defaultValue().fields();
+            for (String s : fields) {
+                if (s.toLowerCase().startsWith(builder.getRemainingLowerCase())) {
+                    builder.suggest(s.toLowerCase());
+                }
+            }
+            return builder.buildFuture();
+        }
+
+        @Override
+        public <S> T parse(StringReader stringReader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
+            return get();
+        }
+
+        @Override
+        public Component getInnerTranslation(String name) {
+            return get().getFieldName(name);
+        }
+
+        @Override
+        public Component getInnerValue(String name) {
+            return get().getFieldValue(name);
+        }
+
+        @Override
+        public void listInner(String name, Consumer<Component> input) {
+            get().listField(name, input);
+        }
+
+        @Override
+        public void fulfilListing(Consumer<Component> input) {
+            get().listFields(input);
+        }
+
+        @Override
+        public ConfigHolderLike<?, ? extends ByteBuf> findInner(StringReader reader) throws CommandSyntaxException {
+            List<String> fields = heldValue.defaultValue().fields();
+            String name = ConfigHolderArgument.readHolderName(reader);
+            if (!fields.contains(name))
+                throw ConfigHolderArgument.ERROR_MALFORMED_HOLDER.createWithContext(reader, name);
+            Field field = heldValue.defaultValue().fieldRepresentingHolder(name);
+            try {
+                return new FieldHolder(this, field, heldValue.defaultValue().argumentTypeRepresentingHolder(name), field.get(heldValue.defaultValue()), name);
+            } catch (IllegalAccessException e) {
+                throw ConfigHolderArgument.ERROR_MALFORMED_HOLDER.createWithContext(reader, name);
+            }
+        }
+
+        @Override
+        public ConfigHolderLike<?, ? extends ByteBuf> retrieveInner(String name) throws CommandSyntaxException {
+            List<String> fields = heldValue.defaultValue().fields();
+            if (!fields.contains(name))
+                return null;
+            Field field = heldValue.defaultValue().fieldRepresentingHolder(name);
+            try {
+                return new FieldHolder(this, field, heldValue.defaultValue().argumentTypeRepresentingHolder(name), field.get(heldValue.defaultValue()), name);
+            } catch (IllegalAccessException e) {
+                return null;
+            }
+        }
+
+        @Override
+        public CompletableFuture<Suggestions> suggestInner(StringReader reader, SuggestionsBuilder builder) {
+            List<String> fields = heldValue.defaultValue().fields();
+            return SharedSuggestionProvider.suggest(fields, builder);
         }
     }
     public static class EnumHolder<E extends Enum<E>> extends ConfigHolder<E, FriendlyByteBuf> {
@@ -443,11 +607,6 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public Class<E> getType() {
-            return clazz;
-        }
-
-        @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			return new EnumListEntry<>(Component.translatable(getTranslationKey()), clazz, get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, names, tooltip, restartRequired);
@@ -464,7 +623,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public E parse(StringReader stringReader) throws CommandSyntaxException {
+        public <S> E parse(StringReader stringReader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
             String name = stringReader.readString();
             for (E e : heldValue.possibleValues) {
                 if (e.name().toLowerCase().equals(name.toLowerCase())) {
@@ -492,11 +651,6 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public Class<String> getType() {
-            return String.class;
-        }
-
-        @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			return new StringListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
@@ -504,19 +658,12 @@ public abstract class AtlasConfig {
 
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
-            if (heldValue.possibleValues != null) {
-                for (String s : heldValue.possibleValues) {
-                    if (s.toLowerCase().startsWith(builder.getRemainingLowerCase())) {
-                        builder.suggest(s.toLowerCase());
-                    }
-                }
-                return builder.buildFuture();
-            }
+            if (heldValue.possibleValues != null) return SharedSuggestionProvider.suggest(heldValue.possibleValues, builder);
             return Suggestions.empty();
         }
 
         @Override
-        public String parse(StringReader stringReader) throws CommandSyntaxException {
+        public <S> String parse(StringReader stringReader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
             parsedValue = stringReader.readString();
             return parsedValue;
         }
@@ -538,11 +685,6 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public Class<Boolean> getType() {
-            return Boolean.class;
-        }
-
-        @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			return new BooleanListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
@@ -560,7 +702,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public Boolean parse(StringReader stringReader) throws CommandSyntaxException {
+        public <S> Boolean parse(StringReader stringReader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
             parsedValue = stringReader.readBoolean();
             return parsedValue;
         }
@@ -592,11 +734,6 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public Class<Integer> getType() {
-            return Integer.class;
-        }
-
-        @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			if (!heldValue.isRange || !isSlider)
@@ -618,7 +755,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public Integer parse(StringReader reader) throws CommandSyntaxException {
+        public <S> Integer parse(StringReader reader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
             final int start = reader.getCursor();
             final int result = reader.readInt();
             if (heldValue.possibleValues != null) {
@@ -667,11 +804,6 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public Class<Double> getType() {
-            return Double.class;
-        }
-
-        @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			return new DoubleListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
@@ -691,7 +823,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public Double parse(StringReader reader) throws CommandSyntaxException {
+        public <S> Double parse(StringReader reader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
             final int start = reader.getCursor();
             final double result = reader.readDouble();
             if (heldValue.possibleValues != null) {
@@ -757,11 +889,6 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public Class<Integer> getType() {
-            return Integer.class;
-        }
-
-        @Override
         @Environment(EnvType.CLIENT)
         public AbstractConfigListEntry<?> transformIntoConfigEntry() {
             ColorEntry entry = new ColorEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
@@ -776,7 +903,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public Integer parse(StringReader reader) throws CommandSyntaxException {
+        public <S> Integer parse(StringReader reader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
             final String hex = reader.readString();
             stripHexStarter(hex);
             int result = (int) Long.parseLong(hex, 16);
@@ -805,6 +932,11 @@ public abstract class AtlasConfig {
 		isDefault = true;
 		JsonObject configJsonObject = JsonParser.parseReader(new JsonReader(new InputStreamReader(getDefaultedConfig()))).getAsJsonObject();
 
+        for (ObjectHolder<?> objectHolder : objectValues)
+            if (configJsonObject.has(objectHolder.heldValue.name)) {
+                objectHolder.setFromJSONObject(configJsonObject.getAsJsonObject(objectHolder.heldValue.name));
+                objectHolder.serverManaged = true;
+            }
 		for (EnumHolder<?> enumHolder : enumValues)
 			if (configJsonObject.has(enumHolder.heldValue.name)) {
 				enumHolder.setValue(getString(configJsonObject, enumHolder.heldValue.name));
