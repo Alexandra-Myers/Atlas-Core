@@ -566,6 +566,13 @@ public abstract class AtlasConfig {
             List<String> fields = heldValue.defaultValue().fields();
             return SharedSuggestionProvider.suggest(fields, builder);
         }
+
+        @Override
+        public void resetValue() {
+            T val = heldValue.defaultValue();
+            val.setOwnerHolder(this);
+            setValue(val);
+        }
     }
     public static class EnumHolder<E extends Enum<E>> extends ConfigHolder<E, FriendlyByteBuf> {
         public final Class<E> clazz;
