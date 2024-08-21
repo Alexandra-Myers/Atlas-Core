@@ -7,7 +7,6 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
@@ -510,7 +509,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public <S> T parse(StringReader stringReader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
+        public <S> T parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             return get();
         }
 
@@ -630,7 +629,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public <S> E parse(StringReader stringReader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
+        public <S> E parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             String name = stringReader.readString();
             for (E e : heldValue.possibleValues) {
                 if (e.name().toLowerCase().equals(name.toLowerCase())) {
@@ -670,7 +669,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public <S> String parse(StringReader stringReader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
+        public <S> String parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             parsedValue = stringReader.readString();
             return parsedValue;
         }
@@ -709,7 +708,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public <S> Boolean parse(StringReader stringReader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
+        public <S> Boolean parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             parsedValue = stringReader.readBoolean();
             return parsedValue;
         }
@@ -762,7 +761,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public <S> Integer parse(StringReader reader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
+        public <S> Integer parse(StringReader reader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             final int start = reader.getCursor();
             final int result = reader.readInt();
             if (heldValue.possibleValues != null) {
@@ -830,7 +829,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public <S> Double parse(StringReader reader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
+        public <S> Double parse(StringReader reader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             final int start = reader.getCursor();
             final double result = reader.readDouble();
             if (heldValue.possibleValues != null) {
@@ -910,7 +909,7 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public <S> Integer parse(StringReader reader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
+        public <S> Integer parse(StringReader reader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             final String hex = reader.readString();
             stripHexStarter(hex);
             int result = (int) Long.parseLong(hex, 16);

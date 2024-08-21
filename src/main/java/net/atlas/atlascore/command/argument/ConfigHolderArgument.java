@@ -1,9 +1,7 @@
 package net.atlas.atlascore.command.argument;
 
 import com.mojang.brigadier.StringReader;
-import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
@@ -22,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 @SuppressWarnings("unchecked")
-public class ConfigHolderArgument implements ArgumentType<ConfigHolderLike<?, ? extends ByteBuf>>, ExtendedArgumentType<ConfigHolderLike<?, ? extends ByteBuf>> {
+public class ConfigHolderArgument implements ExtendedArgumentType<ConfigHolderLike<?, ? extends ByteBuf>> {
     public static final DynamicCommandExceptionType ERROR_MALFORMED_HOLDER = new DynamicCommandExceptionType(
             (object) -> Component.translatableEscape("arguments.config.holder.malformed", object)
     );
@@ -53,12 +51,8 @@ public class ConfigHolderArgument implements ArgumentType<ConfigHolderLike<?, ? 
     }
 
     @Override
-    public <S> ConfigHolderLike<?, ? extends ByteBuf> parse(StringReader reader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
-        if (!contextBuilder.getArguments().containsKey("config")) {
-            // Literally nothing we can do to change this fate
-            throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
-        }
-        AtlasConfig.ConfigHolder<?, ? extends ByteBuf> configHolder = ((AtlasConfig) contextBuilder.getArguments().get("config").getResult()).valueNameToConfigHolderMap.get(readHolderName(reader));
+    public <S> ConfigHolderLike<?, ? extends ByteBuf> parse(StringReader reader, CommandContext<S> commandContext) throws CommandSyntaxException {
+        AtlasConfig.ConfigHolder<?, ? extends ByteBuf> configHolder = AtlasConfigArgument.getConfig(commandContext, "config").valueNameToConfigHolderMap.get(readHolderName(reader));
         ConfigHolderLike<?, ? extends ByteBuf> inner = null;
         ConfigHolderLike<?, ? extends ByteBuf> baseHolder = configHolder;
         int unresolvedInners = 0;
@@ -117,14 +111,16 @@ public class ConfigHolderArgument implements ArgumentType<ConfigHolderLike<?, ? 
                     unresolvedInners++;
                 } else {
                     if (temp != null) {
-                        visitor.visitSuggestions(this::suggestEnd);
                         isExtended = false;
                         unresolvedInners++;
                     } else reader.setCursor(cursor);
                 }
-                while (!isExtended && reader.canRead() && unresolvedInners > 0) {
-                    reader.expect(']');
-                    unresolvedInners--;
+                if (!isExtended) {
+                    do {
+                        if (!reader.canRead() || reader.peek() != ']') visitor.visitSuggestions(this::suggestEnd);
+                        if (reader.canRead()) reader.expect(']');
+                        unresolvedInners--;
+                    } while (unresolvedInners > 0);
                 }
             } catch (CommandSyntaxException ignored) {
 
@@ -174,7 +170,7 @@ public class ConfigHolderArgument implements ArgumentType<ConfigHolderLike<?, ? 
         }
     }
 
-    public static class ConfigValueArgument implements ArgumentType<Object>, ExtendedArgumentType<Object> {
+    public static class ConfigValueArgument implements ExtendedArgumentType<Object> {
         private static final Collection<String> EXAMPLES = Arrays.asList("1", "2.03", "foo", "string", "true", "#FFFFFF");
 
         public static ConfigValueArgument configValueArgument() {
@@ -186,12 +182,13 @@ public class ConfigHolderArgument implements ArgumentType<ConfigHolderLike<?, ? 
             throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
         }
 
-        public <S> Object parse(final StringReader reader, final CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
-            if (!contextBuilder.getArguments().containsKey("holder")) {
-                // Literally nothing we can do to change this fate
-                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
-            }
-            return ((ConfigHolderLike<?, ? extends ByteBuf>) contextBuilder.getArguments().get("holder").getResult()).parse(reader, contextBuilder);
+        public <S> Object parse(final StringReader reader, S source, final CommandContext<S> context) throws CommandSyntaxException {
+            return ConfigHolderArgument.getConfigHolder(context, "holder").parse(reader, source, context);
+        }
+
+        @Override
+        public <S> Object parse(StringReader reader, CommandContext<S> contextBuilder) throws CommandSyntaxException {
+            return parse(reader, contextBuilder.getSource(), contextBuilder);
         }
 
         public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder) {

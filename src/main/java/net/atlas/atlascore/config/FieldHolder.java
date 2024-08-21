@@ -3,7 +3,6 @@ package net.atlas.atlascore.config;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
@@ -72,9 +71,9 @@ public class FieldHolder implements ConfigHolderLike<Object, RegistryFriendlyByt
     }
 
     @Override
-    public <S> Object parse(StringReader reader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException {
+    public <S> Object parse(StringReader reader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
         Object ret;
-        if (type instanceof ExtendedArgumentType<?> extendedArgumentType) ret = extendedArgumentType.parse(reader, contextBuilder);
+        if (type instanceof ExtendedArgumentType<?> extendedArgumentType) ret = extendedArgumentType.parse(reader, commandContext);
         else ret = type.parse(reader);
         parsedValue = ret;
         return ret;

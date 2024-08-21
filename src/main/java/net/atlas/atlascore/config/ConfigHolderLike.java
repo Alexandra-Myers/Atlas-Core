@@ -2,7 +2,6 @@ package net.atlas.atlascore.config;
 
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
@@ -21,7 +20,7 @@ public interface ConfigHolderLike<T, B extends ByteBuf> {
 
     void resetValue();
 
-    <S> T parse(StringReader reader, CommandContextBuilder<S> contextBuilder) throws CommandSyntaxException;
+    <S> T parse(StringReader reader, S source, CommandContext<S> commandContext) throws CommandSyntaxException;
 
     <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder);
 
