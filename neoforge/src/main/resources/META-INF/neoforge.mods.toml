@@ -26,7 +26,7 @@ side = "BOTH"
 [[dependencies.atlas-core]]
 modId = "minecraft"
 mandatory = true
-versionRange = "[1.21,1.22)"
+versionRange = "[1.21.1,1.22)"
 ordering = "NONE"
 side = "BOTH"
 
