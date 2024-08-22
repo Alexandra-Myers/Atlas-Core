@@ -12,7 +12,10 @@ public class AtlasCoreClient implements ClientModInitializer {
      */
     @Override
     public void onInitializeClient() {
-        ClientPlayNetworking.registerGlobalReceiver(AtlasCore.AtlasConfigPacket.TYPE, (packet, context) -> packet.config().handleExtraSync(packet, context.player(), context.responseSender()));
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> AtlasConfig.configs.forEach((resourceLocation, atlasConfig) -> atlasConfig.reload()));
+        ClientPlayNetworking.registerGlobalReceiver(AtlasCore.AtlasConfigPacket.TYPE, (packet, context) -> AtlasConfig.handleExtraSyncStatic(packet, context.player(), context.responseSender()));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            AtlasConfig.configs.forEach((resourceLocation, atlasConfig) -> atlasConfig.reload());
+            AtlasConfig.alreadyChecked = false;
+        });
     }
 }

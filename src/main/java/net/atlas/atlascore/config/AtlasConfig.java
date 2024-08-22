@@ -21,6 +21,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.ChatFormatting;
 import net.minecraft.CrashReport;
 import net.minecraft.ReportedException;
 import net.minecraft.client.gui.screens.Screen;
@@ -29,6 +30,7 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
@@ -40,10 +42,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
 
 @SuppressWarnings("ALL")
 public abstract class AtlasConfig {
@@ -54,6 +60,7 @@ public abstract class AtlasConfig {
 	public final List<Category> categories;
     public static final Map<ResourceLocation, AtlasConfig> configs = Maps.newHashMap();
 	public static final Map<String, AtlasConfig> menus = Maps.newHashMap();
+    public static boolean alreadyChecked = false;
     final Path configFolderPath;
     File configFile;
     JsonObject configJsonObject;
@@ -342,12 +349,14 @@ public abstract class AtlasConfig {
     }
     public static abstract class ConfigHolder<T, B extends ByteBuf> implements ConfigHolderLike<T, B> {
         private T value;
+        private T prevValue = null;
         protected T parsedValue = null;
         public final ConfigValue<T> heldValue;
         public final StreamCodec<B, T> codec;
 		public final BiConsumer<JsonWriter, T> update;
 		public boolean restartRequired = false;
 		public boolean serverManaged = false;
+        public boolean wasUpdated = false;
 		public Supplier<Optional<Component[]>> tooltip = Optional::empty;
 
 		public ConfigHolder(ConfigValue<T> value, StreamCodec<B, T> codec, BiConsumer<JsonWriter, T> update) {
@@ -366,6 +375,9 @@ public abstract class AtlasConfig {
         public T get() {
             return value;
         }
+        public boolean wasUpdated() {
+            return wasUpdated;
+        }
 		public void writeToJSONFile(JsonWriter writer) throws IOException {
 			writer.name(heldValue.name);
 			update.accept(writer, value);
@@ -377,9 +389,13 @@ public abstract class AtlasConfig {
             T newValue = codec.decode(buf);
             if (isNotValid(newValue))
                 return;
+            if (newValue == value)
+                return;
             heldValue.emitChanged(newValue);
+            prevValue = value;
             value = newValue;
 			serverManaged = true;
+            wasUpdated = true;
         }
         public boolean isNotValid(T newValue) {
             return !heldValue.isValid(newValue);
@@ -387,11 +403,13 @@ public abstract class AtlasConfig {
 		public void setValueAndResetManaged(T newValue) {
 			setValue(newValue);
 			serverManaged = false;
+            wasUpdated = false;
 		}
         public void setValue(T newValue) {
             if (isNotValid(newValue))
                 return;
             heldValue.emitChanged(newValue);
+            prevValue = value;
             value = newValue;
         }
 
@@ -430,8 +448,25 @@ public abstract class AtlasConfig {
             if (parsedValue == null || isNotValid(parsedValue))
                 return;
             heldValue.emitChanged(parsedValue);
+            prevValue = value;
             value = parsedValue;
             parsedValue = null;
+        }
+
+        public void setToPreviousValue(boolean serverManaged) {
+            if (prevValue != null) setValue(prevValue);
+            this.serverManaged = serverManaged;
+        }
+
+        public T getPreviousValue() {
+            return prevValue;
+        }
+
+        public Component getPreviousValueAsComponent() {
+            setToPreviousValue(false);
+            Component ret = getValueAsComponent();
+            setToPreviousValue(false);
+            return ret;
         }
 
         @Override
@@ -976,7 +1011,57 @@ public abstract class AtlasConfig {
 		loadExtra(configJsonObject);
 	}
 
-	public abstract void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender);
+	public static void handleExtraSyncStatic(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender) {
+        if (!packet.forCommand() && !alreadyChecked) {
+            MutableComponent disconnectReason = Component.translatable("text.config.mismatch");
+            AtomicBoolean isMismatched = new AtomicBoolean(false);
+            configs.values().forEach(config -> {
+                List<ConfigHolder<?, ? extends ByteBuf>> restartRequiredHolders = new ArrayList<>();
+                config.holders.forEach(configHolder -> {
+                    if (configHolder.restartRequired && configHolder.wasUpdated)
+                        restartRequiredHolders.add(configHolder);
+                });
+                if (!restartRequiredHolders.isEmpty()) {
+                    isMismatched.set(true);
+                    config.reload();
+                    restartRequiredHolders.forEach(configHolder -> configHolder.setToPreviousValue(true));
+                    try {
+                        config.saveConfig();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    Consumer<MutableComponent> appender = component -> disconnectReason.append(component.append(Component.literal("\n")).withStyle(component.getStyle().withStrikethrough(false)));
+                    appender.accept(separatorLine(config.getFormattedName(), true));
+                    Consumer<ConfigHolder<?, ? extends ByteBuf>> lister = (configHolder) -> {
+                        appender.accept(Component.literal("  » ").append(Component.translatable("text.config.holder.sync_restart_required", Component.translatable(configHolder.getTranslationKey()).withStyle(ChatFormatting.YELLOW))));
+                        if (configHolder instanceof AtlasConfig.ExtendedHolder extendedHolder) {
+                            AtomicReference<MutableComponent> entries = new AtomicReference<>(Component.literal("\n"));
+                            configHolder.setToPreviousValue(false);
+                            extendedHolder.fulfilListing((component) -> entries.set(entries.get().append(Component.literal("    » | ").append(component).append(Component.literal("\n")))));
+                            appender.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_current_value", entries.get())));
+                            configHolder.setToPreviousValue(true);
+                            entries.set(Component.literal("\n"));
+                            extendedHolder.fulfilListing((component) -> entries.set(entries.get().append(Component.literal("    » | ").append(component).append(Component.literal("\n")))));
+                            appender.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_expected_value", entries.get())));
+                            appender.accept(separatorLine(null));
+                        } else {
+                            appender.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_current_value", configHolder.getPreviousValueAsComponent())));
+                            appender.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_expected_value", configHolder.getValueAsComponent())));
+                        }
+                    };
+                    restartRequiredHolders.forEach(lister);
+                    appender.accept(separatorLine(null));
+                }
+            });
+            if (isMismatched.get()) {
+                sender.disconnect(disconnectReason);
+                alreadyChecked = true;
+                return;
+            }
+        }
+        packet.config().handleExtraSync(packet, player, sender);
+    }
+    public abstract void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender);
 	@Environment(EnvType.CLIENT)
 	public abstract Screen createScreen(Screen prevScreen);
 	@Environment(EnvType.CLIENT)

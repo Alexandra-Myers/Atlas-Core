@@ -30,7 +30,7 @@ public class AtlasCore implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(AtlasConfigPacket.TYPE, AtlasConfigPacket.CODEC);
         ServerPlayConnectionEvents.JOIN.register(modDetectionNetworkChannel,(handler, sender, server) -> {
             for (AtlasConfig atlasConfig : AtlasConfig.configs.values()) {
-                ServerPlayNetworking.send(handler.player, new AtlasConfigPacket(atlasConfig));
+                ServerPlayNetworking.send(handler.player, new AtlasConfigPacket(false, atlasConfig));
             }
             AtlasCore.LOGGER.info("Config packets sent to client.");
         });
@@ -41,15 +41,16 @@ public class AtlasCore implements ModInitializer {
         return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
     }
 
-    public record AtlasConfigPacket(AtlasConfig config) implements CustomPacketPayload {
+    public record AtlasConfigPacket(boolean forCommand, AtlasConfig config) implements CustomPacketPayload {
         public static final Type<AtlasConfigPacket> TYPE = new Type<>(id("atlas_config"));
         public static final StreamCodec<RegistryFriendlyByteBuf, AtlasConfigPacket> CODEC = CustomPacketPayload.codec(AtlasConfigPacket::write, AtlasConfigPacket::new);
 
         public AtlasConfigPacket(RegistryFriendlyByteBuf buf) {
-            this(AtlasConfig.staticLoadFromNetwork(buf));
+            this(buf.readBoolean(), AtlasConfig.staticLoadFromNetwork(buf));
         }
 
         public void write(RegistryFriendlyByteBuf buf) {
+            buf.writeBoolean(forCommand);
             buf.writeResourceLocation(config.name);
             config.saveToNetwork(buf);
         }

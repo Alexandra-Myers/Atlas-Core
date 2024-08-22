@@ -13,12 +13,11 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.TextColor;
 
 import java.io.IOException;
 import java.util.function.Consumer;
+
+import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
 
 public class ConfigCommand {
     public static void register(CommandDispatcher<CommandSourceStack> commandDispatcher) {
@@ -71,7 +70,7 @@ public class ConfigCommand {
 
     private static int resetConfig(CommandContext<CommandSourceStack> context, AtlasConfig config) {
         config.reset();
-        context.getSource().getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(config)));
+        context.getSource().getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.reset_config", config.getFormattedName())), true);
         context.getSource().sendSuccess(() -> separatorLine(null), true);
@@ -85,7 +84,7 @@ public class ConfigCommand {
         } catch (IOException e) {
             return 0;
         }
-        context.getSource().getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(config)));
+        context.getSource().getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T, ? extends ByteBuf>)) {
             if (configHolder.getAsHolder().restartRequired) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
@@ -108,7 +107,7 @@ public class ConfigCommand {
         } catch (IOException e) {
             return 0;
         }
-        context.getSource().getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(config)));
+        context.getSource().getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T, ? extends ByteBuf>)) {
             if (configHolder.getAsHolder().restartRequired) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
@@ -148,24 +147,5 @@ public class ConfigCommand {
         config.reload();
         context.getSource().sendSuccess(() -> Component.translatable("commands.config.reload.success"), true);
         return 1;
-    }
-
-    public static MutableComponent separatorLine(MutableComponent title) {
-        return separatorLine(title, false);
-    }
-    public static MutableComponent separatorLine(MutableComponent title, boolean retainFormatting) {
-        String spaces = "                                                                ";
-
-        if (title != null) {
-            int lineLength = spaces.length() - Math.round((float)title.getString().length() * 1.33F) - 4;
-            title = retainFormatting ? title.withStyle(title.getStyle().withStrikethrough(false)) : title.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(AtlasCore.CONFIG.configNameDisplayColour.get())).withStrikethrough(false));
-            return Component.literal(spaces.substring(0, lineLength / 2)).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(AtlasCore.CONFIG.grayFormattingColour.get())).withStrikethrough(true))
-                    .append(Component.literal("[ ").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(AtlasCore.CONFIG.grayFormattingColour.get())).withStrikethrough(false)))
-                    .append(title)
-                    .append(Component.literal(" ]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(AtlasCore.CONFIG.grayFormattingColour.get())).withStrikethrough(false)))
-                    .append(Component.literal(spaces.substring(0, (lineLength + 1) / 2))).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(AtlasCore.CONFIG.grayFormattingColour.get())).withStrikethrough(true));
-        } else {
-            return Component.literal(spaces).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(AtlasCore.CONFIG.grayFormattingColour.get())).withStrikethrough(true));
-        }
     }
 }

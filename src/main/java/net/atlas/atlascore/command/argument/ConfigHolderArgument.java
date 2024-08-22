@@ -182,13 +182,13 @@ public class ConfigHolderArgument implements ExtendedArgumentType<ConfigHolderLi
             throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
         }
 
-        public <S> Object parse(final StringReader reader, S source, final CommandContext<S> context) throws CommandSyntaxException {
-            return ConfigHolderArgument.getConfigHolder(context, "holder").parse(reader, source, context);
+        public <S> Object parse(final StringReader reader, S source, final CommandContext<S> commandContext) throws CommandSyntaxException {
+            return ConfigHolderArgument.getConfigHolder(commandContext, "holder").parse(reader, source, commandContext);
         }
 
         @Override
-        public <S> Object parse(StringReader reader, CommandContext<S> contextBuilder) throws CommandSyntaxException {
-            return parse(reader, contextBuilder.getSource(), contextBuilder);
+        public <S> Object parse(StringReader reader, CommandContext<S> commandContext) throws CommandSyntaxException {
+            return parse(reader, commandContext.getSource(), commandContext);
         }
 
         public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder) {
