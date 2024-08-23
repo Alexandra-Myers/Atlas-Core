@@ -12,6 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class AtlasConfigArgument implements ArgumentType<AtlasConfig> {
@@ -31,7 +32,7 @@ public class AtlasConfigArgument implements ArgumentType<AtlasConfig> {
     }
 
     public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder) {
-        return SharedSuggestionProvider.suggestResource(AtlasConfig.configs.keySet(), suggestionsBuilder);
+        return SharedSuggestionProvider.suggestResource(AtlasConfig.configs.entrySet().stream().filter(entry -> entry.getValue().configSide.existsOnServer()).map(Map.Entry::getKey), suggestionsBuilder);
     }
 
     public Collection<String> getExamples() {

@@ -19,6 +19,7 @@ import net.atlas.atlascore.util.ConfigRepresentable;
 import net.atlas.atlascore.util.JavaToJSONSerialisation;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
@@ -34,6 +35,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
@@ -44,23 +46,21 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
 
 @SuppressWarnings("ALL")
 public abstract class AtlasConfig {
     public final ResourceLocation name;
-	public boolean isDefault;
+    public final SyncMode defaultSyncMode;
+    public final ConfigSide configSide;
+    public boolean isDefault;
     public final Map<String, ConfigHolder<?, ? extends ByteBuf>> valueNameToConfigHolderMap = Maps.newHashMap();
 	List<ConfigHolder<?, ? extends ByteBuf>> holders;
 	public final List<Category> categories;
     public static final Map<ResourceLocation, AtlasConfig> configs = Maps.newHashMap();
 	public static final Map<String, AtlasConfig> menus = Maps.newHashMap();
-    public static boolean alreadyChecked = false;
     final Path configFolderPath;
     File configFile;
     JsonObject configJsonObject;
@@ -72,8 +72,10 @@ public abstract class AtlasConfig {
     List<DoubleHolder> doubleValues;
     List<ColorHolder> colorValues;
 
-    public AtlasConfig(ResourceLocation name) {
-		this.name = name;
+    public AtlasConfig(ResourceLocation name, SyncMode defaultSyncMode, ConfigSide configSide) {
+        this.configSide = configSide;
+        this.defaultSyncMode = defaultSyncMode;
+        this.name = name;
         objectValues = new ArrayList<>();
         enumValues = new ArrayList<>();
         stringValues = new ArrayList<>();
@@ -81,19 +83,28 @@ public abstract class AtlasConfig {
         integerValues = new ArrayList<>();
         doubleValues = new ArrayList<>();
         colorValues = new ArrayList<>();
-		holders = new ArrayList<>();
-		categories = createCategories();
+        holders = new ArrayList<>();
+        categories = createCategories();
         defineConfigHolders();
-        configFolderPath = Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + name.getNamespace());
+        configFolderPath = Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + name.getNamespace() + configSide.getAsDir());
         if (!Files.exists(configFolderPath))
             try {
-                Files.createDirectory(configFolderPath);
+                Files.createDirectories(configFolderPath);
             } catch (IOException e) {
                 throw new ReportedException(new CrashReport("Failed to create config directory for config " + name, e));
             }
 
         load();
         configs.put(name, this);
+    }
+    public AtlasConfig(ResourceLocation name, SyncMode defaultSyncMode) {
+        this(name, defaultSyncMode, ConfigSide.COMMON);
+    }
+    public AtlasConfig(ResourceLocation name, ConfigSide configSide) {
+        this(name, SyncMode.OVERRIDE_CLIENT, configSide);
+    }
+    public AtlasConfig(ResourceLocation name) {
+        this(name, SyncMode.OVERRIDE_CLIENT, ConfigSide.COMMON);
     }
 
     public Component getFormattedName() {
@@ -114,6 +125,8 @@ public abstract class AtlasConfig {
 	public abstract void resetExtraHolders();
 
     public abstract <T> void alertChange(ConfigValue<T> tConfigValue, T newValue);
+
+    public abstract <T> void alertClientValue(ConfigValue<T> tConfigValue, T serverValue, T clientValue);
 
     public static String getString(JsonObject element, String name) {
         return element.get(name).getAsString();
@@ -205,6 +218,21 @@ public abstract class AtlasConfig {
         return configs.get(buf.readResourceLocation()).loadFromNetwork(buf);
     }
 
+    public static AtlasConfig staticReadClientConfigInformation(RegistryFriendlyByteBuf buf) {
+        return configs.get(buf.readResourceLocation()).readClientConfigInformation(buf);
+    }
+
+    private AtlasConfig readClientConfigInformation(RegistryFriendlyByteBuf buf) {
+        objectValues.forEach(objectHolder -> objectHolder.broadcastClientValueRecieved(buf));
+        enumValues.forEach(enumHolder -> enumHolder.broadcastClientValueRecieved(buf));
+        stringValues.forEach(stringHolder -> stringHolder.broadcastClientValueRecieved(buf));
+        booleanValues.forEach(booleanHolder -> booleanHolder.broadcastClientValueRecieved(buf));
+        integerValues.forEach(integerHolder -> integerHolder.broadcastClientValueRecieved(buf));
+        doubleValues.forEach(doubleHolder -> doubleHolder.broadcastClientValueRecieved(buf));
+        colorValues.forEach(colorHolder -> colorHolder.broadcastClientValueRecieved(buf));
+        return this;
+    }
+
     public void saveToNetwork(RegistryFriendlyByteBuf buf) {
         objectValues.forEach(objectHolder -> objectHolder.writeToBuf(buf));
         enumValues.forEach(enumHolder -> enumHolder.writeToBuf(buf));
@@ -222,82 +250,116 @@ public abstract class AtlasConfig {
     public ConfigHolder<?, ? extends ByteBuf> fromValue(ConfigValue<?> value) {
         return valueNameToConfigHolderMap.get(value.name);
     }
+
     public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, JavaToJSONSerialisation<T> serialisation, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec) {
-        return createObject(name, defaultInstance, clazz, serialisation, streamCodec, true);
+        return createObject(name, defaultInstance, clazz, serialisation, streamCodec, true, defaultSyncMode);
     }
     public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, JavaToJSONSerialisation<T> serialisation, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, boolean expandByDefault) {
-        ObjectHolder<T> objectHolder = new ObjectHolder<>(new ConfigValue<>(defaultInstance, null, false, name, this), clazz, serialisation, streamCodec, expandByDefault);
-        defaultInstance.setOwnerHolder(objectHolder);
+        return createObject(name, defaultInstance, clazz, serialisation, streamCodec, expandByDefault, defaultSyncMode);
+    }
+
+    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, JavaToJSONSerialisation<T> serialisation, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, SyncMode syncMode) {
+        return createObject(name, defaultInstance, clazz, serialisation, streamCodec, true, syncMode);
+    }
+    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, JavaToJSONSerialisation<T> serialisation, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, boolean expandByDefault, SyncMode syncMode) {
+        ObjectHolder<T> objectHolder = new ObjectHolder<>(new ConfigValue<>(defaultInstance, null, false, name, this, syncMode), clazz, serialisation, streamCodec, expandByDefault);
         objectValues.add(objectHolder);
         holders.add(objectHolder);
         return objectHolder;
     }
     public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Function<Enum, Component> names) {
-        EnumHolder<E> enumHolder = new EnumHolder<>(new ConfigValue<>(defaultVal, values, false, name, this), clazz, names);
+        return createEnum(name, defaultVal, clazz, values, names, defaultSyncMode);
+    }
+    public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Function<Enum, Component> names, SyncMode syncMode) {
+        EnumHolder<E> enumHolder = new EnumHolder<>(new ConfigValue<>(defaultVal, values, false, name, this, syncMode), clazz, names);
         enumValues.add(enumHolder);
-		holders.add(enumHolder);
+        holders.add(enumHolder);
         return enumHolder;
     }
     public StringHolder createStringRange(String name, String defaultVal, String... values) {
-        StringHolder stringHolder = new StringHolder(new ConfigValue<>(defaultVal, values, false, name, this));
+        return createStringRange(name, defaultVal, defaultSyncMode, values);
+    }
+    public StringHolder createStringRange(String name, String defaultVal, SyncMode syncMode, String... values) {
+        StringHolder stringHolder = new StringHolder(new ConfigValue<>(defaultVal, values, false, name, this, syncMode));
         stringValues.add(stringHolder);
-		holders.add(stringHolder);
+        holders.add(stringHolder);
         return stringHolder;
     }
-	public StringHolder createString(String name, String defaultVal) {
-		StringHolder stringHolder = new StringHolder(new ConfigValue<>(defaultVal, null, false, name, this));
-		stringValues.add(stringHolder);
-		holders.add(stringHolder);
-		return stringHolder;
-	}
+    public StringHolder createString(String name, String defaultVal) {
+        return createString(name, defaultVal, defaultSyncMode);
+    }
+    public StringHolder createString(String name, String defaultVal, SyncMode syncMode) {
+        StringHolder stringHolder = new StringHolder(new ConfigValue<>(defaultVal, null, false, name, this, syncMode));
+        stringValues.add(stringHolder);
+        holders.add(stringHolder);
+        return stringHolder;
+    }
     public BooleanHolder createBoolean(String name, boolean defaultVal) {
-        BooleanHolder booleanHolder = new BooleanHolder(new ConfigValue<>(defaultVal, new Boolean[]{false, true}, false, name, this));
+        return createBoolean(name, defaultVal, defaultSyncMode);
+    }
+    public BooleanHolder createBoolean(String name, boolean defaultVal, SyncMode syncMode) {
+        BooleanHolder booleanHolder = new BooleanHolder(new ConfigValue<>(defaultVal, new Boolean[]{false, true}, false, name, this, syncMode));
         booleanValues.add(booleanHolder);
-		holders.add(booleanHolder);
+        holders.add(booleanHolder);
         return booleanHolder;
     }
     public ColorHolder createColor(String name, Integer defaultVal, boolean alpha) {
-        ColorHolder colorHolder = new ColorHolder(new ConfigValue<>(defaultVal, null, false, name, this), alpha);
+        return createColor(name, defaultVal, alpha, defaultSyncMode);
+    }
+    public ColorHolder createColor(String name, Integer defaultVal, boolean alpha, SyncMode syncMode) {
+        ColorHolder colorHolder = new ColorHolder(new ConfigValue<>(defaultVal, null, false, name, this, defaultSyncMode), alpha);
         colorValues.add(colorHolder);
         holders.add(colorHolder);
         return colorHolder;
     }
-	public IntegerHolder createIntegerUnbound(String name, Integer defaultVal) {
-		IntegerHolder integerHolder = new IntegerHolder(new ConfigValue<>(defaultVal, null, false, name, this), false);
-		integerValues.add(integerHolder);
-		holders.add(integerHolder);
-		return integerHolder;
-	}
+    public IntegerHolder createIntegerUnbound(String name, Integer defaultVal) {
+        return createInteger(name, defaultVal, null, false, false, defaultSyncMode);
+    }
+    public IntegerHolder createIntegerUnbound(String name, Integer defaultVal, SyncMode syncMode) {
+        return createInteger(name, defaultVal, null, false, false, syncMode);
+    }
     public IntegerHolder createInRestrictedValues(String name, Integer defaultVal, Integer... values) {
-        IntegerHolder integerHolder = new IntegerHolder(new ConfigValue<>(defaultVal, values, false, name, this), false);
-        integerValues.add(integerHolder);
-		holders.add(integerHolder);
-        return integerHolder;
+        return createInteger(name, defaultVal, values, false, false, defaultSyncMode);
+    }
+    public IntegerHolder createInRestrictedValues(String name, Integer defaultVal, SyncMode syncMode, Integer... values) {
+        return createInteger(name, defaultVal, values, false, false, syncMode);
     }
     public IntegerHolder createInRange(String name, int defaultVal, int min, int max, boolean isSlider) {
+        return createInRange(name, defaultVal, min, max, isSlider, defaultSyncMode);
+    }
+    public IntegerHolder createInRange(String name, int defaultVal, int min, int max, boolean isSlider, SyncMode syncMode) {
         Integer[] range = new Integer[]{min, max};
-        IntegerHolder integerHolder = new IntegerHolder(new ConfigValue<>(defaultVal, range, true, name, this), isSlider);
+        return createInteger(name, defaultVal, range, true, isSlider, syncMode);
+    }
+    public IntegerHolder createInteger(String name, Integer defaultVal, Integer[] values, boolean isRange, boolean isSlider, SyncMode syncMode) {
+        IntegerHolder integerHolder = new IntegerHolder(new ConfigValue<>(defaultVal, values, isRange, name, this, syncMode), isSlider);
         integerValues.add(integerHolder);
-		holders.add(integerHolder);
+        holders.add(integerHolder);
         return integerHolder;
     }
-	public DoubleHolder createDoubleUnbound(String name, Double defaultVal) {
-		DoubleHolder doubleHolder = new DoubleHolder(new ConfigValue<>(defaultVal, null, false, name, this));
-		doubleValues.add(doubleHolder);
-		holders.add(doubleHolder);
-		return doubleHolder;
-	}
+    public DoubleHolder createDoubleUnbound(String name, Double defaultVal) {
+        return createDouble(name, defaultVal, null, false, defaultSyncMode);
+    }
+    public DoubleHolder createDoubleUnbound(String name, Double defaultVal, SyncMode syncMode) {
+        return createDouble(name, defaultVal, null, false, syncMode);
+    }
     public DoubleHolder createInRestrictedValues(String name, Double defaultVal, Double... values) {
-        DoubleHolder doubleHolder = new DoubleHolder(new ConfigValue<>(defaultVal, values, false, name, this));
-        doubleValues.add(doubleHolder);
-		holders.add(doubleHolder);
-        return doubleHolder;
+        return createDouble(name, defaultVal, values, false, defaultSyncMode);
+    }
+    public DoubleHolder createInRestrictedValues(String name, Double defaultVal, SyncMode syncMode, Double... values) {
+        return createDouble(name, defaultVal, values, false, syncMode);
     }
     public DoubleHolder createInRange(String name, double defaultVal, double min, double max) {
+        return createInRange(name, defaultVal, min, max, defaultSyncMode);
+    }
+    public DoubleHolder createInRange(String name, double defaultVal, double min, double max, SyncMode syncMode) {
         Double[] range = new Double[]{min, max};
-        DoubleHolder doubleHolder = new DoubleHolder(new ConfigValue<>(defaultVal, range, true, name, this));
+        return createDouble(name, defaultVal, range, true, syncMode);
+    }
+    public DoubleHolder createDouble(String name, Double defaultVal, Double[] values, boolean isRange, SyncMode syncMode) {
+        DoubleHolder doubleHolder = new DoubleHolder(new ConfigValue<>(defaultVal, values, isRange, name, this, syncMode));
         doubleValues.add(doubleHolder);
-		holders.add(doubleHolder);
+        holders.add(doubleHolder);
         return doubleHolder;
     }
 
@@ -320,9 +382,56 @@ public abstract class AtlasConfig {
 
 	public abstract void saveExtra(JsonWriter jsonWriter, PrintWriter printWriter);
 
-	public record ConfigValue<T>(T defaultValue, T[] possibleValues, boolean isRange, String name, AtlasConfig owner) {
+    public enum ConfigSide {
+        CLIENT,
+        SERVER,
+        COMMON;
+
+        public String getAsDir() {
+            return switch(this) {
+                case COMMON -> "";
+                case CLIENT -> "/client";
+                case SERVER -> "/server";
+            };
+        }
+        public boolean existsOnServer() {
+            return this != CLIENT;
+        }
+        public boolean existsOnClient() {
+            return this != SERVER;
+        }
+        public boolean isSided() {
+            return this != COMMON;
+        }
+    }
+
+    public enum SyncMode {
+        NONE,
+        INFORM_SERVER,
+        OVERRIDE_CLIENT
+    }
+
+    public enum RestartRequiredMode {
+        NO_RESTART(env -> false),
+        RESTART_CLIENT(env -> env == EnvType.CLIENT),
+        RESTART_BOTH(env -> true);
+        public final Predicate<EnvType> forEnvironment;
+
+        RestartRequiredMode(Predicate<EnvType> predicate) {
+            forEnvironment = predicate;
+        }
+        
+        public boolean restartRequiredOn(EnvType envType) {
+            return forEnvironment.test(envType);
+        }
+    }
+	public record ConfigValue<T>(T defaultValue, T[] possibleValues, boolean isRange, String name, AtlasConfig owner, SyncMode syncMode) {
         public void emitChanged(T newValue) {
             owner.alertChange(this, newValue);
+        }
+
+        public void emitClientValueRecieved(T serverValue, T clientValue) {
+            owner.alertClientValue(this, serverValue, clientValue);
         }
         public boolean isValid(T newValue) {
             return possibleValues == null || Arrays.stream(possibleValues).toList().contains(newValue);
@@ -347,16 +456,17 @@ public abstract class AtlasConfig {
             return result;
         }
     }
+
     public static abstract class ConfigHolder<T, B extends ByteBuf> implements ConfigHolderLike<T, B> {
-        private T value;
-        private T prevValue = null;
+        protected T value;
+        protected T prevValue = null;
+        protected T synchedValue = null;
         protected T parsedValue = null;
         public final ConfigValue<T> heldValue;
         public final StreamCodec<B, T> codec;
 		public final BiConsumer<JsonWriter, T> update;
-		public boolean restartRequired = false;
+		public RestartRequiredMode restartRequired = RestartRequiredMode.NO_RESTART;
 		public boolean serverManaged = false;
-        public boolean wasUpdated = false;
 		public Supplier<Optional<Component[]>> tooltip = Optional::empty;
 
 		public ConfigHolder(ConfigValue<T> value, StreamCodec<B, T> codec, BiConsumer<JsonWriter, T> update) {
@@ -373,29 +483,38 @@ public abstract class AtlasConfig {
         }
 
         public T get() {
+            if (synchedValue != null)
+                return synchedValue;
             return value;
         }
         public boolean wasUpdated() {
-            return wasUpdated;
+            return synchedValue != null;
         }
 		public void writeToJSONFile(JsonWriter writer) throws IOException {
 			writer.name(heldValue.name);
 			update.accept(writer, value);
 		}
         public void writeToBuf(B buf) {
-            codec.encode(buf, value);
+            if (heldValue.syncMode() != SyncMode.NONE)
+                codec.encode(buf, value);
         }
         public void readFromBuf(B buf) {
-            T newValue = codec.decode(buf);
-            if (isNotValid(newValue))
-                return;
-            if (newValue == value)
-                return;
-            heldValue.emitChanged(newValue);
-            prevValue = value;
-            value = newValue;
-			serverManaged = true;
-            wasUpdated = true;
+            if (heldValue.syncMode() != SyncMode.NONE) {
+                T newValue = codec.decode(buf);
+                if (isNotValid(newValue) || heldValue.syncMode == SyncMode.INFORM_SERVER)
+                    return;
+                if (Objects.equals(newValue, value)) {
+                    serverManaged = heldValue.owner.configSide.existsOnServer();
+                    return;
+                }
+                setSynchedValue(newValue);
+            }
+        }
+        public void broadcastClientValueRecieved(B buf) {
+            if (heldValue.syncMode() != SyncMode.NONE) {
+                T clientValue = codec.decode(buf);
+                heldValue.emitClientValueRecieved(value, clientValue);
+            }
         }
         public boolean isNotValid(T newValue) {
             return !heldValue.isValid(newValue);
@@ -403,7 +522,7 @@ public abstract class AtlasConfig {
 		public void setValueAndResetManaged(T newValue) {
 			setValue(newValue);
 			serverManaged = false;
-            wasUpdated = false;
+            synchedValue = null;
 		}
         public void setValue(T newValue) {
             if (isNotValid(newValue))
@@ -411,6 +530,13 @@ public abstract class AtlasConfig {
             heldValue.emitChanged(newValue);
             prevValue = value;
             value = newValue;
+        }
+        public void setSynchedValue(T newValue) {
+            if (isNotValid(newValue))
+                return;
+            heldValue.emitChanged(newValue);
+            synchedValue = newValue;
+            serverManaged = heldValue.owner.configSide.existsOnServer();
         }
 
         @Override
@@ -421,7 +547,7 @@ public abstract class AtlasConfig {
         public void tieToCategory(Category category) {
 			category.addMember(this);
 		}
-		public void setRestartRequired(boolean restartRequired) {
+		public void setRestartRequired(RestartRequiredMode restartRequired) {
 			this.restartRequired = restartRequired;
 		}
 		public void setupTooltip(int length) {
@@ -445,28 +571,10 @@ public abstract class AtlasConfig {
 
         @Override
         public void setToParsedValue() {
-            if (parsedValue == null || isNotValid(parsedValue))
+            if (parsedValue == null)
                 return;
-            heldValue.emitChanged(parsedValue);
-            prevValue = value;
-            value = parsedValue;
+            setValue(parsedValue);
             parsedValue = null;
-        }
-
-        public void setToPreviousValue(boolean serverManaged) {
-            if (prevValue != null) setValue(prevValue);
-            this.serverManaged = serverManaged;
-        }
-
-        public T getPreviousValue() {
-            return prevValue;
-        }
-
-        public Component getPreviousValueAsComponent() {
-            setToPreviousValue(false);
-            Component ret = getValueAsComponent();
-            setToPreviousValue(false);
-            return ret;
         }
 
         @Override
@@ -482,6 +590,14 @@ public abstract class AtlasConfig {
         // Super dangerous, only use when certain
         public final void setValueAmbiguousType(Object o) {
             setValue((T) o);
+        }
+
+        public void setToPreviousValue() {
+            if (prevValue != null) setValue(prevValue);
+        }
+
+        public void setToSynchedValue() {
+            if (synchedValue != null) setValue(synchedValue);
         }
     }
     public static interface ExtendedHolder {
@@ -508,13 +624,14 @@ public abstract class AtlasConfig {
                     throw new RuntimeException(ex);
                 }
             });
+            this.value.setOwnerHolder(this);
             this.clazz = clazz;
             this.serialisation = serialisation;
             this.expandByDefault = expandByDefault;
         }
 
-        public void setFromJSONObject(JsonObject object) {
-            setValue(serialisation.decoder().apply(this, object));
+        public void setSynchedFromJSONObject(JsonObject object) {
+            setSynchedValue(serialisation.decoder().apply(this, object));
         }
 
         public void setFromJSONObjectAndResetManaged(JsonObject object) {
@@ -602,10 +719,15 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        public void resetValue() {
-            T val = heldValue.defaultValue();
-            val.setOwnerHolder(this);
-            setValue(val);
+        public void setValue(T newValue) {
+            newValue.setOwnerHolder(this);
+            super.setValue(newValue);
+        }
+
+        @Override
+        public void setSynchedValue(T newValue) {
+            newValue.setOwnerHolder(this);
+            super.setSynchedValue(newValue);
         }
     }
     public static class EnumHolder<E extends Enum<E>> extends ConfigHolder<E, FriendlyByteBuf> {
@@ -634,12 +756,11 @@ public abstract class AtlasConfig {
         }
 
 		public void setValueAndResetManaged(String name) {
-			setValue(name);
-			serverManaged = false;
-		}
+            setValueAndResetManaged(Enum.valueOf(clazz, name.toUpperCase(Locale.ROOT)));
+        }
 
-		public void setValue(String name) {
-            setValue(Enum.valueOf(clazz, name.toUpperCase(Locale.ROOT)));
+        public void setSynchedValue(String name) {
+            setSynchedValue(Enum.valueOf(clazz, name.toUpperCase(Locale.ROOT)));
         }
 
         @Override
@@ -650,7 +771,7 @@ public abstract class AtlasConfig {
         @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new EnumListEntry<>(Component.translatable(getTranslationKey()), clazz, get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, names, tooltip, restartRequired);
+			return new EnumListEntry<>(Component.translatable(getTranslationKey()), clazz, get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, names, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
 		}
 
         @Override
@@ -694,7 +815,7 @@ public abstract class AtlasConfig {
         @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new StringListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
+			return new StringListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
 		}
 
         @Override
@@ -728,7 +849,7 @@ public abstract class AtlasConfig {
         @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new BooleanListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
+			return new BooleanListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
 		}
 
         @Override
@@ -778,8 +899,8 @@ public abstract class AtlasConfig {
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			if (!heldValue.isRange || !isSlider)
-				return new IntegerListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
-			return new IntegerSliderEntry(Component.translatable(getTranslationKey()), heldValue.possibleValues[0], heldValue.possibleValues[1], get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
+				return new IntegerListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+			return new IntegerSliderEntry(Component.translatable(getTranslationKey()), heldValue.possibleValues[0], heldValue.possibleValues[1], get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
 		}
 
         @Override
@@ -847,7 +968,7 @@ public abstract class AtlasConfig {
         @Override
 		@Environment(EnvType.CLIENT)
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new DoubleListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
+			return new DoubleListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
 		}
 
         @Override
@@ -932,7 +1053,7 @@ public abstract class AtlasConfig {
         @Override
         @Environment(EnvType.CLIENT)
         public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            ColorEntry entry = new ColorEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired);
+            ColorEntry entry = new ColorEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
             if (hasAlpha) entry.withAlpha();
             else entry.withoutAlpha();
             return entry;
@@ -975,93 +1096,116 @@ public abstract class AtlasConfig {
 
         for (ObjectHolder<?> objectHolder : objectValues)
             if (configJsonObject.has(objectHolder.heldValue.name)) {
-                objectHolder.setFromJSONObject(configJsonObject.getAsJsonObject(objectHolder.heldValue.name));
-                objectHolder.serverManaged = true;
+                objectHolder.setSynchedFromJSONObject(configJsonObject.getAsJsonObject(objectHolder.heldValue.name));
             }
 		for (EnumHolder<?> enumHolder : enumValues)
 			if (configJsonObject.has(enumHolder.heldValue.name)) {
-				enumHolder.setValue(getString(configJsonObject, enumHolder.heldValue.name));
-				enumHolder.serverManaged = true;
+				enumHolder.setSynchedValue(getString(configJsonObject, enumHolder.heldValue.name));
 			}
 		for (StringHolder stringHolder : stringValues)
 			if (configJsonObject.has(stringHolder.heldValue.name)) {
-				stringHolder.setValue(getString(configJsonObject, stringHolder.heldValue.name));
-				stringHolder.serverManaged = true;
+				stringHolder.setSynchedValue(getString(configJsonObject, stringHolder.heldValue.name));
 			}
 		for (BooleanHolder booleanHolder : booleanValues)
 			if (configJsonObject.has(booleanHolder.heldValue.name)) {
-				booleanHolder.setValue(getBoolean(configJsonObject, booleanHolder.heldValue.name));
-				booleanHolder.serverManaged = true;
+				booleanHolder.setSynchedValue(getBoolean(configJsonObject, booleanHolder.heldValue.name));
 			}
 		for (IntegerHolder integerHolder : integerValues)
 			if (configJsonObject.has(integerHolder.heldValue.name)) {
-				integerHolder.setValue(getInt(configJsonObject, integerHolder.heldValue.name));
-				integerHolder.serverManaged = true;
+				integerHolder.setSynchedValue(getInt(configJsonObject, integerHolder.heldValue.name));
 			}
 		for (DoubleHolder doubleHolder : doubleValues)
 			if (configJsonObject.has(doubleHolder.heldValue.name)) {
-				doubleHolder.setValue(getDouble(configJsonObject, doubleHolder.heldValue.name));
-				doubleHolder.serverManaged = true;
+				doubleHolder.setSynchedValue(getDouble(configJsonObject, doubleHolder.heldValue.name));
 			}
         for (ColorHolder colorHolder : colorValues)
             if (configJsonObject.has(colorHolder.heldValue.name)) {
-                colorHolder.setValue(getColor(configJsonObject, colorHolder.heldValue.name, colorHolder));
-                colorHolder.serverManaged = true;
+                colorHolder.setSynchedValue(getColor(configJsonObject, colorHolder.heldValue.name, colorHolder));
             }
 		loadExtra(configJsonObject);
 	}
 
+    @Environment(EnvType.CLIENT)
 	public static void handleExtraSyncStatic(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender) {
-        if (!packet.forCommand() && !alreadyChecked) {
+        if (!packet.forCommand()) {
             MutableComponent disconnectReason = Component.translatable("text.config.mismatch");
             AtomicBoolean isMismatched = new AtomicBoolean(false);
             configs.values().forEach(config -> {
+                ClientPlayNetworking.send(new AtlasCore.ClientInformPacket(config));
                 List<ConfigHolder<?, ? extends ByteBuf>> restartRequiredHolders = new ArrayList<>();
                 config.holders.forEach(configHolder -> {
-                    if (configHolder.restartRequired && configHolder.wasUpdated)
+                    if (configHolder.restartRequired.restartRequiredOn(EnvType.CLIENT) && configHolder.wasUpdated())
                         restartRequiredHolders.add(configHolder);
                 });
                 if (!restartRequiredHolders.isEmpty()) {
                     isMismatched.set(true);
-                    config.reload();
-                    restartRequiredHolders.forEach(configHolder -> configHolder.setToPreviousValue(true));
+                    restartRequiredHolders.forEach(configHolder -> configHolder.setToSynchedValue());
                     try {
                         config.saveConfig();
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
-                    Consumer<MutableComponent> appender = component -> disconnectReason.append(component.append(Component.literal("\n")).withStyle(component.getStyle().withStrikethrough(false)));
-                    appender.accept(separatorLine(config.getFormattedName(), true));
+                    Consumer<MutableComponent> appender = component -> disconnectReason.append(component.withStyle(component.getStyle().withStrikethrough(false)));
+                    Consumer<MutableComponent> appenderWithLineBreak = component -> disconnectReason.append(component.append(Component.literal("\n")).withStyle(component.getStyle().withStrikethrough(false)));
+                    appenderWithLineBreak.accept(separatorLine(config.getFormattedName().copy(), true));
                     Consumer<ConfigHolder<?, ? extends ByteBuf>> lister = (configHolder) -> {
-                        appender.accept(Component.literal("  » ").append(Component.translatable("text.config.holder.sync_restart_required", Component.translatable(configHolder.getTranslationKey()).withStyle(ChatFormatting.YELLOW))));
+                        appender.accept(Component.literal("  » ").append(Component.translatable("text.config.holder.sync_mismatch", Component.translatable(configHolder.getTranslationKey()).withStyle(ChatFormatting.YELLOW))));
                         if (configHolder instanceof AtlasConfig.ExtendedHolder extendedHolder) {
                             AtomicReference<MutableComponent> entries = new AtomicReference<>(Component.literal("\n"));
-                            configHolder.setToPreviousValue(false);
+                            appender.accept(entries.get());
+                            configHolder.setToPreviousValue();
                             extendedHolder.fulfilListing((component) -> entries.set(entries.get().append(Component.literal("    » | ").append(component).append(Component.literal("\n")))));
-                            appender.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_current_value", entries.get())));
-                            configHolder.setToPreviousValue(true);
+                            appenderWithLineBreak.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_client_value", entries.get())));
+                            configHolder.setToPreviousValue();
+                            appenderWithLineBreak.accept(separatorLine(null));
                             entries.set(Component.literal("\n"));
                             extendedHolder.fulfilListing((component) -> entries.set(entries.get().append(Component.literal("    » | ").append(component).append(Component.literal("\n")))));
-                            appender.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_expected_value", entries.get())));
-                            appender.accept(separatorLine(null));
+                            appenderWithLineBreak.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_server_value", entries.get())));
+                            appenderWithLineBreak.accept(separatorLine(null));
                         } else {
-                            appender.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_current_value", configHolder.getPreviousValueAsComponent())));
-                            appender.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_expected_value", configHolder.getValueAsComponent())));
+                            appender.accept(Component.translatable("text.config.holder.sync_client_value", configHolder.getValueAsComponent()));
+                            appender.accept(Component.literal(" / "));
+                            appender.accept(Component.translatable("text.config.holder.sync_server_value", configHolder.getValueAsComponent()));
                         }
                     };
                     restartRequiredHolders.forEach(lister);
-                    appender.accept(separatorLine(null));
+                    appenderWithLineBreak.accept(separatorLine(null));
                 }
             });
             if (isMismatched.get()) {
                 sender.disconnect(disconnectReason);
-                alreadyChecked = true;
                 return;
+            }
+        } else {
+            AtomicBoolean isMismatched = new AtomicBoolean(false);
+            configs.values().forEach(config -> {
+                ClientPlayNetworking.send(new AtlasCore.ClientInformPacket(config));
+                List<ConfigHolder<?, ? extends ByteBuf>> restartRequiredHolders = new ArrayList<>();
+                config.holders.forEach(configHolder -> {
+                    if (configHolder.restartRequired.restartRequiredOn(EnvType.CLIENT) && configHolder.wasUpdated())
+                        restartRequiredHolders.add(configHolder);
+                });
+                if (!restartRequiredHolders.isEmpty()) {
+                    isMismatched.set(true);
+                    restartRequiredHolders.forEach(configHolder -> configHolder.setToSynchedValue());
+                    try {
+                        config.saveConfig();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    restartRequiredHolders.forEach(configHolder -> configHolder.setToPreviousValue());
+                    config.holders.forEach(configHolder -> configHolder.setToPreviousValue());
+                }
+            });
+            if (isMismatched.get()) {
+                player.displayClientMessage(Component.translatable("text.config.command.mismatch"), false);
             }
         }
         packet.config().handleExtraSync(packet, player, sender);
     }
+    @Environment(EnvType.CLIENT)
     public abstract void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender);
+    public abstract void handleConfigInformation(AtlasCore.ClientInformPacket packet, ServerPlayer player, PacketSender sender);
 	@Environment(EnvType.CLIENT)
 	public abstract Screen createScreen(Screen prevScreen);
 	@Environment(EnvType.CLIENT)

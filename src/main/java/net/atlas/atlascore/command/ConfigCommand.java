@@ -10,6 +10,7 @@ import net.atlas.atlascore.command.argument.ConfigHolderArgument;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.ConfigHolderLike;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -87,11 +88,11 @@ public class ConfigCommand {
         context.getSource().getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T, ? extends ByteBuf>)) {
-            if (configHolder.getAsHolder().restartRequired) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
+            if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
             else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.reset_holder", ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()))), true);
             context.getSource().sendSuccess(() -> separatorLine(null), true);
             return 1;
-        } else if (configHolder.getAsHolder().restartRequired) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
+        } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
         else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.reset_holder", Component.translatable(configHolder.getAsHolder().getTranslationKey()))), true);
         context.getSource().sendSuccess(() -> separatorLine(null), true);
         return 1;
@@ -110,11 +111,11 @@ public class ConfigCommand {
         context.getSource().getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T, ? extends ByteBuf>)) {
-            if (configHolder.getAsHolder().restartRequired) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
+            if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
             else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.update_holder", ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
             context.getSource().sendSuccess(() -> separatorLine(null), true);
             return 1;
-        } else if (configHolder.getAsHolder().restartRequired) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
+        } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
         else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.update_holder", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
         context.getSource().sendSuccess(() -> separatorLine(null), true);
         return 1;

@@ -28,12 +28,14 @@ public class AtlasCore implements ModInitializer {
     @Override
     public void onInitialize() {
         PayloadTypeRegistry.playS2C().register(AtlasConfigPacket.TYPE, AtlasConfigPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(ClientInformPacket.TYPE, ClientInformPacket.CODEC);
         ServerPlayConnectionEvents.JOIN.register(modDetectionNetworkChannel,(handler, sender, server) -> {
-            for (AtlasConfig atlasConfig : AtlasConfig.configs.values()) {
+            for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isSided()).toList()) {
                 ServerPlayNetworking.send(handler.player, new AtlasConfigPacket(false, atlasConfig));
             }
             AtlasCore.LOGGER.info("Config packets sent to client.");
         });
+        ServerPlayNetworking.registerGlobalReceiver(AtlasCore.ClientInformPacket.TYPE, (packet, context) -> packet.config().handleConfigInformation(packet, context.player(), context.responseSender()));
         ArgumentInit.registerArguments();
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ConfigCommand.register(dispatcher));
     }
@@ -51,6 +53,24 @@ public class AtlasCore implements ModInitializer {
 
         public void write(RegistryFriendlyByteBuf buf) {
             buf.writeBoolean(forCommand);
+            buf.writeResourceLocation(config.name);
+            config.saveToNetwork(buf);
+        }
+
+        @Override
+        public @NotNull Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+    public record ClientInformPacket(AtlasConfig config) implements CustomPacketPayload {
+        public static final Type<ClientInformPacket> TYPE = new Type<>(id("c2s_inform_config"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, ClientInformPacket> CODEC = CustomPacketPayload.codec(ClientInformPacket::write, ClientInformPacket::new);
+
+        public ClientInformPacket(RegistryFriendlyByteBuf buf) {
+            this(AtlasConfig.staticReadClientConfigInformation(buf));
+        }
+
+        public void write(RegistryFriendlyByteBuf buf) {
             buf.writeResourceLocation(config.name);
             config.saveToNetwork(buf);
         }

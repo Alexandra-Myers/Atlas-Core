@@ -21,6 +21,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -232,8 +233,8 @@ public class AtlasCoreConfig extends AtlasConfig {
         List<Category> categoryList = super.createCategories();
         test = new Category(this, "test_options", new ArrayList<>());
         formatting = new Category(this, "text_formatting", new ArrayList<>());
-        categoryList.add(test);
         categoryList.add(formatting);
+        categoryList.add(test);
         return categoryList;
     }
 
@@ -253,6 +254,11 @@ public class AtlasCoreConfig extends AtlasConfig {
     }
 
     @Override
+    public <T> void alertClientValue(ConfigValue<T> tConfigValue, T serverValue, T clientValue) {
+
+    }
+
+    @Override
     protected void loadExtra(JsonObject jsonObject) {
 
     }
@@ -268,11 +274,18 @@ public class AtlasCoreConfig extends AtlasConfig {
     }
 
     @Override
+    @Environment(EnvType.CLIENT)
     public void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender) {
 
     }
 
     @Override
+    public void handleConfigInformation(AtlasCore.ClientInformPacket packet, ServerPlayer player, PacketSender sender) {
+
+    }
+
+    @Override
+    @Environment(EnvType.CLIENT)
     public Screen createScreen(Screen prevScreen) {
         return null;
     }
