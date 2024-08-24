@@ -111,6 +111,7 @@ public class ConfigHolderArgument implements ExtendedArgumentType<ConfigHolderLi
                     unresolvedInners++;
                 } else {
                     if (temp != null) {
+                        visitor.visitSuggestions(SUGGEST_NOTHING);
                         isExtended = false;
                         unresolvedInners++;
                     } else reader.setCursor(cursor);

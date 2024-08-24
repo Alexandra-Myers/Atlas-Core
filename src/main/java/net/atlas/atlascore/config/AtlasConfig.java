@@ -26,7 +26,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.CrashReport;
 import net.minecraft.ReportedException;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -57,7 +56,6 @@ public abstract class AtlasConfig {
     public final ConfigSide configSide;
     public boolean isDefault;
     public final Map<String, ConfigHolder<?, ? extends ByteBuf>> valueNameToConfigHolderMap = Maps.newHashMap();
-	List<ConfigHolder<?, ? extends ByteBuf>> holders;
 	public final List<Category> categories;
     public static final Map<ResourceLocation, AtlasConfig> configs = Maps.newHashMap();
 	public static final Map<String, AtlasConfig> menus = Maps.newHashMap();
@@ -83,7 +81,6 @@ public abstract class AtlasConfig {
         integerValues = new ArrayList<>();
         doubleValues = new ArrayList<>();
         colorValues = new ArrayList<>();
-        holders = new ArrayList<>();
         categories = createCategories();
         defineConfigHolders();
         configFolderPath = Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + name.getNamespace() + configSide.getAsDir());
@@ -264,7 +261,6 @@ public abstract class AtlasConfig {
     public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, JavaToJSONSerialisation<T> serialisation, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, boolean expandByDefault, SyncMode syncMode) {
         ObjectHolder<T> objectHolder = new ObjectHolder<>(new ConfigValue<>(defaultInstance, null, false, name, this, syncMode), clazz, serialisation, streamCodec, expandByDefault);
         objectValues.add(objectHolder);
-        holders.add(objectHolder);
         return objectHolder;
     }
     public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Function<Enum, Component> names) {
@@ -273,7 +269,6 @@ public abstract class AtlasConfig {
     public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Function<Enum, Component> names, SyncMode syncMode) {
         EnumHolder<E> enumHolder = new EnumHolder<>(new ConfigValue<>(defaultVal, values, false, name, this, syncMode), clazz, names);
         enumValues.add(enumHolder);
-        holders.add(enumHolder);
         return enumHolder;
     }
     public StringHolder createStringRange(String name, String defaultVal, String... values) {
@@ -282,7 +277,6 @@ public abstract class AtlasConfig {
     public StringHolder createStringRange(String name, String defaultVal, SyncMode syncMode, String... values) {
         StringHolder stringHolder = new StringHolder(new ConfigValue<>(defaultVal, values, false, name, this, syncMode));
         stringValues.add(stringHolder);
-        holders.add(stringHolder);
         return stringHolder;
     }
     public StringHolder createString(String name, String defaultVal) {
@@ -291,7 +285,6 @@ public abstract class AtlasConfig {
     public StringHolder createString(String name, String defaultVal, SyncMode syncMode) {
         StringHolder stringHolder = new StringHolder(new ConfigValue<>(defaultVal, null, false, name, this, syncMode));
         stringValues.add(stringHolder);
-        holders.add(stringHolder);
         return stringHolder;
     }
     public BooleanHolder createBoolean(String name, boolean defaultVal) {
@@ -300,7 +293,6 @@ public abstract class AtlasConfig {
     public BooleanHolder createBoolean(String name, boolean defaultVal, SyncMode syncMode) {
         BooleanHolder booleanHolder = new BooleanHolder(new ConfigValue<>(defaultVal, new Boolean[]{false, true}, false, name, this, syncMode));
         booleanValues.add(booleanHolder);
-        holders.add(booleanHolder);
         return booleanHolder;
     }
     public ColorHolder createColor(String name, Integer defaultVal, boolean alpha) {
@@ -309,7 +301,6 @@ public abstract class AtlasConfig {
     public ColorHolder createColor(String name, Integer defaultVal, boolean alpha, SyncMode syncMode) {
         ColorHolder colorHolder = new ColorHolder(new ConfigValue<>(defaultVal, null, false, name, this, defaultSyncMode), alpha);
         colorValues.add(colorHolder);
-        holders.add(colorHolder);
         return colorHolder;
     }
     public IntegerHolder createIntegerUnbound(String name, Integer defaultVal) {
@@ -334,7 +325,6 @@ public abstract class AtlasConfig {
     public IntegerHolder createInteger(String name, Integer defaultVal, Integer[] values, boolean isRange, boolean isSlider, SyncMode syncMode) {
         IntegerHolder integerHolder = new IntegerHolder(new ConfigValue<>(defaultVal, values, isRange, name, this, syncMode), isSlider);
         integerValues.add(integerHolder);
-        holders.add(integerHolder);
         return integerHolder;
     }
     public DoubleHolder createDoubleUnbound(String name, Double defaultVal) {
@@ -359,7 +349,6 @@ public abstract class AtlasConfig {
     public DoubleHolder createDouble(String name, Double defaultVal, Double[] values, boolean isRange, SyncMode syncMode) {
         DoubleHolder doubleHolder = new DoubleHolder(new ConfigValue<>(defaultVal, values, isRange, name, this, syncMode));
         doubleValues.add(doubleHolder);
-        holders.add(doubleHolder);
         return doubleHolder;
     }
 
@@ -1126,14 +1115,14 @@ public abstract class AtlasConfig {
 	}
 
     @Environment(EnvType.CLIENT)
-	public static void handleExtraSyncStatic(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender) {
+	public static void handleExtraSyncStatic(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context) {
         if (!packet.forCommand()) {
             MutableComponent disconnectReason = Component.translatable("text.config.mismatch");
             AtomicBoolean isMismatched = new AtomicBoolean(false);
             configs.values().forEach(config -> {
                 ClientPlayNetworking.send(new AtlasCore.ClientInformPacket(config));
                 List<ConfigHolder<?, ? extends ByteBuf>> restartRequiredHolders = new ArrayList<>();
-                config.holders.forEach(configHolder -> {
+                config.valueNameToConfigHolderMap.values().forEach(configHolder -> {
                     if (configHolder.restartRequired.restartRequiredOn(EnvType.CLIENT) && configHolder.wasUpdated())
                         restartRequiredHolders.add(configHolder);
                 });
@@ -1173,7 +1162,7 @@ public abstract class AtlasConfig {
                 }
             });
             if (isMismatched.get()) {
-                sender.disconnect(disconnectReason);
+                context.responseSender().disconnect(disconnectReason);
                 return;
             }
         } else {
@@ -1181,7 +1170,7 @@ public abstract class AtlasConfig {
             configs.values().forEach(config -> {
                 ClientPlayNetworking.send(new AtlasCore.ClientInformPacket(config));
                 List<ConfigHolder<?, ? extends ByteBuf>> restartRequiredHolders = new ArrayList<>();
-                config.holders.forEach(configHolder -> {
+                config.valueNameToConfigHolderMap.values().forEach(configHolder -> {
                     if (configHolder.restartRequired.restartRequiredOn(EnvType.CLIENT) && configHolder.wasUpdated())
                         restartRequiredHolders.add(configHolder);
                 });
@@ -1194,17 +1183,17 @@ public abstract class AtlasConfig {
                         throw new RuntimeException(e);
                     }
                     restartRequiredHolders.forEach(configHolder -> configHolder.setToPreviousValue());
-                    config.holders.forEach(configHolder -> configHolder.setToPreviousValue());
+                    config.valueNameToConfigHolderMap.values().forEach(configHolder -> configHolder.setToPreviousValue());
                 }
             });
             if (isMismatched.get()) {
-                player.displayClientMessage(Component.translatable("text.config.command.mismatch"), false);
+                context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch"), false);
             }
         }
-        packet.config().handleExtraSync(packet, player, sender);
+        packet.config().handleExtraSync(packet, context);
     }
     @Environment(EnvType.CLIENT)
-    public abstract void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender);
+    public abstract void handleExtraSync(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context);
     public abstract void handleConfigInformation(AtlasCore.ClientInformPacket packet, ServerPlayer player, PacketSender sender);
 	@Environment(EnvType.CLIENT)
 	public abstract Screen createScreen(Screen prevScreen);

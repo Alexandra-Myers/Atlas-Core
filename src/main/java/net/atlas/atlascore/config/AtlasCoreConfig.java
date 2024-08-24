@@ -13,10 +13,10 @@ import net.atlas.atlascore.util.ConfigRepresentable;
 import net.atlas.atlascore.util.JavaToJSONSerialisation;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.Util;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -201,8 +201,10 @@ public class AtlasCoreConfig extends AtlasConfig {
     public DoubleHolder testDouble;
     public ColorHolder configNameDisplayColour;
     public ColorHolder grayFormattingColour;
+    public BooleanHolder listClientModsOnJoin;
     private Category test;
     private Category formatting;
+    private Category debug;
     public AtlasCoreConfig() {
         super(AtlasCore.id("atlas-core-config"));
         declareDefaultForMod(AtlasCore.MOD_ID);
@@ -222,10 +224,14 @@ public class AtlasCoreConfig extends AtlasConfig {
         testInt.tieToCategory(test);
         testDouble = createDoubleUnbound("testDouble", 0.0);
         testDouble.tieToCategory(test);
+
         configNameDisplayColour = createColor("configNameDisplayColour", 57343, false);
         configNameDisplayColour.tieToCategory(formatting);
         grayFormattingColour = createColor("grayFormattingColour", 12502994, false);
         grayFormattingColour.tieToCategory(formatting);
+
+        listClientModsOnJoin = createBoolean("listClientModsOnJoin", false);
+        listClientModsOnJoin.tieToCategory(debug);
     }
 
     @Override
@@ -233,7 +239,9 @@ public class AtlasCoreConfig extends AtlasConfig {
         List<Category> categoryList = super.createCategories();
         test = new Category(this, "test_options", new ArrayList<>());
         formatting = new Category(this, "text_formatting", new ArrayList<>());
+        debug = new Category(this, "debug_options", new ArrayList<>());
         categoryList.add(formatting);
+        categoryList.add(debug);
         categoryList.add(test);
         return categoryList;
     }
@@ -275,7 +283,7 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     @Environment(EnvType.CLIENT)
-    public void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender sender) {
+    public void handleExtraSync(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context) {
 
     }
 
