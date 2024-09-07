@@ -1,5 +1,6 @@
 package net.atlas.atlascore.command.argument;
 
+import com.google.gson.JsonObject;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -9,7 +10,10 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import io.netty.buffer.ByteBuf;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.ConfigHolderLike;
+import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.synchronization.ArgumentTypeInfo;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 
 import java.util.Arrays;
@@ -171,6 +175,40 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
         }
     }
 
+    public static class HolderInfo implements ArgumentTypeInfo<ConfigHolderArgument, HolderInfo.Template> {
+        public void serializeToNetwork(HolderInfo.Template template, FriendlyByteBuf friendlyByteBuf) {
+            friendlyByteBuf.writeUtf(template.configArgument);
+        }
+
+        public void serializeToJson(HolderInfo.Template template, JsonObject jsonObject) {
+            jsonObject.addProperty("configArgument", template.configArgument);
+        }
+
+        public HolderInfo.Template deserializeFromNetwork(FriendlyByteBuf friendlyByteBuf) {
+            return new HolderInfo.Template(friendlyByteBuf.readUtf());
+        }
+
+        public HolderInfo.Template unpack(ConfigHolderArgument argumentType) {
+            return new HolderInfo.Template(argumentType.configArgument);
+        }
+
+        public final class Template implements ArgumentTypeInfo.Template<ConfigHolderArgument> {
+            private final String configArgument;
+
+            public Template(final String configArgument) {
+                this.configArgument = configArgument;
+            }
+
+            public ConfigHolderArgument instantiate(CommandBuildContext commandBuildContext) {
+                return configHolderArgument(configArgument);
+            }
+
+            public ArgumentTypeInfo<ConfigHolderArgument, ?> type() {
+                return HolderInfo.this;
+            }
+        }
+    }
+
     public record ConfigValueArgument(String holderArgument) implements ExtendedArgumentType<Object> {
         private static final Collection<String> EXAMPLES = Arrays.asList("1", "2.03", "foo", "string", "true", "#FFFFFF");
 
@@ -198,6 +236,39 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
 
         public Collection<String> getExamples() {
             return EXAMPLES;
+        }
+        public static class ValueInfo implements ArgumentTypeInfo<ConfigValueArgument, ValueInfo.Template> {
+            public void serializeToNetwork(ValueInfo.Template template, FriendlyByteBuf friendlyByteBuf) {
+                friendlyByteBuf.writeUtf(template.holderArgument);
+            }
+
+            public void serializeToJson(ValueInfo.Template template, JsonObject jsonObject) {
+                jsonObject.addProperty("holderArgument", template.holderArgument);
+            }
+
+            public ValueInfo.Template deserializeFromNetwork(FriendlyByteBuf friendlyByteBuf) {
+                return new ValueInfo.Template(friendlyByteBuf.readUtf());
+            }
+
+            public ValueInfo.Template unpack(ConfigValueArgument argumentType) {
+                return new ValueInfo.Template(argumentType.holderArgument);
+            }
+
+            public final class Template implements ArgumentTypeInfo.Template<ConfigValueArgument> {
+                private final String holderArgument;
+
+                public Template(final String holderArgument) {
+                    this.holderArgument = holderArgument;
+                }
+
+                public ConfigValueArgument instantiate(CommandBuildContext commandBuildContext) {
+                    return configValueArgument(holderArgument);
+                }
+
+                public ArgumentTypeInfo<ConfigValueArgument, ?> type() {
+                    return ValueInfo.this;
+                }
+            }
         }
     }
 }

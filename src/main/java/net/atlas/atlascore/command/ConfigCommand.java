@@ -26,7 +26,7 @@ public class ConfigCommand {
                 .then(Commands.literal("reload").executes(ConfigCommand::reloadAll))
                 .then(Commands.literal("read").executes(ConfigCommand::readAll))
                 .then(Commands.literal("reset").executes(ConfigCommand::resetAll))
-                .then(Commands.argument("config", AtlasConfigArgument.noContext())
+                .then(Commands.argument("config", AtlasConfigArgument.context(false))
                         .then(Commands.literal("reload").executes(context -> reload(context, AtlasConfigArgument.getConfig(context, "config"))))
                         .then(Commands.literal("read").executes(context -> readConfig(context, AtlasConfigArgument.getConfig(context, "config"))))
                         .then(Commands.literal("reset").executes(context -> resetConfig(context, AtlasConfigArgument.getConfig(context, "config"))))
