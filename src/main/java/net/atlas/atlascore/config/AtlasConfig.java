@@ -35,6 +35,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
@@ -59,7 +60,6 @@ public abstract class AtlasConfig {
 	public final List<Category> categories;
     public static final Map<ResourceLocation, AtlasConfig> configs = Maps.newHashMap();
 	public static final Map<String, AtlasConfig> menus = Maps.newHashMap();
-    final Path configFolderPath;
     File configFile;
     JsonObject configJsonObject;
     List<ObjectHolder<?>> objectValues;
@@ -83,16 +83,15 @@ public abstract class AtlasConfig {
         colorValues = new ArrayList<>();
         categories = createCategories();
         defineConfigHolders();
-        configFolderPath = Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + name.getNamespace() + configSide.getAsDir());
-        if (!Files.exists(configFolderPath))
+        if (!Files.exists(getConfigFolderPath()))
             try {
-                Files.createDirectories(configFolderPath);
+                Files.createDirectories(getConfigFolderPath());
             } catch (IOException e) {
                 throw new ReportedException(new CrashReport("Failed to create config directory for config " + name, e));
             }
 
         load();
-        configs.put(name, this);
+        if (!configs.containsKey(name)) configs.put(name, this);
     }
     public AtlasConfig(ResourceLocation name, SyncMode defaultSyncMode) {
         this(name, defaultSyncMode, ConfigSide.COMMON);
@@ -152,13 +151,18 @@ public abstract class AtlasConfig {
     public static String stripHexStarter(String hex) {
         return hex.startsWith("#") ? hex.substring(1) : hex;
     }
+    @ApiStatus.Internal
+    protected Path getConfigFolderPath() {
+        return Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + name.getNamespace() + configSide.getAsDir());
+    }
 	public void reload() {
 		resetExtraHolders();
 		load();
 	}
-    public final void load() {
+    @ApiStatus.Internal
+    protected void load() {
 		isDefault = false;
-        configFile = new File(configFolderPath.toAbsolutePath() + "/" + name.getPath() + ".json");
+        configFile = new File(getConfigFolderPath().toAbsolutePath() + "/" + name.getPath() + ".json");
         if (!configFile.exists()) {
             try {
                 configFile.createNewFile();

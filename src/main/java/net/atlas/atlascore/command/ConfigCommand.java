@@ -26,14 +26,14 @@ public class ConfigCommand {
                 .then(Commands.literal("reload").executes(ConfigCommand::reloadAll))
                 .then(Commands.literal("read").executes(ConfigCommand::readAll))
                 .then(Commands.literal("reset").executes(ConfigCommand::resetAll))
-                .then(Commands.argument("config", AtlasConfigArgument.atlasConfig())
+                .then(Commands.argument("config", AtlasConfigArgument.noContext())
                         .then(Commands.literal("reload").executes(context -> reload(context, AtlasConfigArgument.getConfig(context, "config"))))
                         .then(Commands.literal("read").executes(context -> readConfig(context, AtlasConfigArgument.getConfig(context, "config"))))
                         .then(Commands.literal("reset").executes(context -> resetConfig(context, AtlasConfigArgument.getConfig(context, "config"))))
-                        .then(Commands.argument("holder", ConfigHolderArgument.configHolderArgument())
+                        .then(Commands.argument("holder", ConfigHolderArgument.configHolderArgument("config"))
                                 .then(Commands.literal("retrieve").executes(context -> readConfigHolder(context, AtlasConfigArgument.getConfig(context, "config"), ConfigHolderArgument.getConfigHolder(context, "holder"))))
                                 .then(Commands.literal("edit")
-                                        .then(Commands.argument("value", ConfigHolderArgument.ConfigValueArgument.configValueArgument()).executes(context -> updateConfigValue(context, AtlasConfigArgument.getConfig(context, "config"), ConfigHolderArgument.getConfigHolder(context, "holder")))))
+                                        .then(Commands.argument("value", ConfigHolderArgument.ConfigValueArgument.configValueArgument("holder")).executes(context -> updateConfigValue(context, AtlasConfigArgument.getConfig(context, "config"), ConfigHolderArgument.getConfigHolder(context, "holder")))))
                                 .then(Commands.literal("reset").executes(context -> resetConfigValue(context, AtlasConfigArgument.getConfig(context, "config"), ConfigHolderArgument.getConfigHolder(context, "holder")))))));
     }
 

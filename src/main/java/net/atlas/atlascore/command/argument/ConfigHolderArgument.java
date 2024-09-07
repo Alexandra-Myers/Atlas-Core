@@ -20,15 +20,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 @SuppressWarnings("unchecked")
-public class ConfigHolderArgument implements ExtendedArgumentType<ConfigHolderLike<?, ? extends ByteBuf>> {
+public record ConfigHolderArgument(String configArgument) implements ExtendedArgumentType<ConfigHolderLike<?, ? extends ByteBuf>> {
     public static final DynamicCommandExceptionType ERROR_MALFORMED_HOLDER = new DynamicCommandExceptionType(
             (object) -> Component.translatableEscape("arguments.config.holder.malformed", object)
     );
     public static final Function<SuggestionsBuilder, CompletableFuture<Suggestions>> SUGGEST_NOTHING = SuggestionsBuilder::buildFuture;
     private static final Collection<String> EXAMPLES = List.of("grayFormattingColour");
 
-    public static ConfigHolderArgument configHolderArgument() {
-        return new ConfigHolderArgument();
+    public static ConfigHolderArgument configHolderArgument(String parentConfigArgument) {
+        return new ConfigHolderArgument(parentConfigArgument);
     }
 
     public static ConfigHolderLike<?, ? extends ByteBuf> getConfigHolder(final CommandContext<?> context, String name) {
@@ -52,7 +52,7 @@ public class ConfigHolderArgument implements ExtendedArgumentType<ConfigHolderLi
 
     @Override
     public <S> ConfigHolderLike<?, ? extends ByteBuf> parse(StringReader reader, CommandContext<S> commandContext) throws CommandSyntaxException {
-        AtlasConfig.ConfigHolder<?, ? extends ByteBuf> configHolder = AtlasConfigArgument.getConfig(commandContext, "config").valueNameToConfigHolderMap.get(readHolderName(reader));
+        AtlasConfig.ConfigHolder<?, ? extends ByteBuf> configHolder = AtlasConfigArgument.getConfig(commandContext, configArgument).valueNameToConfigHolderMap.get(readHolderName(reader));
         ConfigHolderLike<?, ? extends ByteBuf> inner = null;
         ConfigHolderLike<?, ? extends ByteBuf> baseHolder = configHolder;
         int unresolvedInners = 0;
@@ -77,12 +77,12 @@ public class ConfigHolderArgument implements ExtendedArgumentType<ConfigHolderLi
         StringReader reader = new StringReader(builder.getInput());
         reader.setCursor(builder.getStart());
         SuggestionsVisitor visitor = new SuggestionsVisitor();
-        visitor.visitSuggestions((suggestionsBuilder) -> SharedSuggestionProvider.suggest(AtlasConfigArgument.getConfig(commandContext, "config").valueNameToConfigHolderMap.keySet(), builder));
+        visitor.visitSuggestions((suggestionsBuilder) -> SharedSuggestionProvider.suggest(AtlasConfigArgument.getConfig(commandContext, configArgument).valueNameToConfigHolderMap.keySet(), builder));
         ConfigHolderLike<?, ? extends ByteBuf> configHolderLike;
         int cursor = reader.getCursor();
         String currentHolderName = readHolderName(reader);
         boolean isExtended;
-        Map<String, AtlasConfig.ConfigHolder<?, ? extends ByteBuf>> valueNameToConfigHolderMap = AtlasConfigArgument.getConfig(commandContext, "config").valueNameToConfigHolderMap;
+        Map<String, AtlasConfig.ConfigHolder<?, ? extends ByteBuf>> valueNameToConfigHolderMap = AtlasConfigArgument.getConfig(commandContext, configArgument).valueNameToConfigHolderMap;
         if (valueNameToConfigHolderMap.containsKey(currentHolderName)) {
             configHolderLike = valueNameToConfigHolderMap.get(currentHolderName);
             isExtended = configHolderLike instanceof AtlasConfig.ExtendedHolder;
@@ -171,11 +171,11 @@ public class ConfigHolderArgument implements ExtendedArgumentType<ConfigHolderLi
         }
     }
 
-    public static class ConfigValueArgument implements ExtendedArgumentType<Object> {
+    public record ConfigValueArgument(String holderArgument) implements ExtendedArgumentType<Object> {
         private static final Collection<String> EXAMPLES = Arrays.asList("1", "2.03", "foo", "string", "true", "#FFFFFF");
 
-        public static ConfigValueArgument configValueArgument() {
-            return new ConfigValueArgument();
+        public static ConfigValueArgument configValueArgument(String parentHolderArgument) {
+            return new ConfigValueArgument(parentHolderArgument);
         }
 
         public Object parse(StringReader stringReader) throws CommandSyntaxException {
@@ -184,7 +184,7 @@ public class ConfigHolderArgument implements ExtendedArgumentType<ConfigHolderLi
         }
 
         public <S> Object parse(final StringReader reader, S source, final CommandContext<S> commandContext) throws CommandSyntaxException {
-            return ConfigHolderArgument.getConfigHolder(commandContext, "holder").parse(reader, source, commandContext);
+            return ConfigHolderArgument.getConfigHolder(commandContext, holderArgument).parse(reader, source, commandContext);
         }
 
         @Override
@@ -193,7 +193,7 @@ public class ConfigHolderArgument implements ExtendedArgumentType<ConfigHolderLi
         }
 
         public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder) {
-            return ConfigHolderArgument.getConfigHolder(commandContext, "holder").buildSuggestions(commandContext, suggestionsBuilder);
+            return ConfigHolderArgument.getConfigHolder(commandContext, holderArgument).buildSuggestions(commandContext, suggestionsBuilder);
         }
 
         public Collection<String> getExamples() {

@@ -3,13 +3,12 @@ package net.atlas.atlascore;
 import net.atlas.atlascore.command.ConfigCommand;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.AtlasCoreConfig;
+import net.atlas.atlascore.config.ContextBasedConfig;
 import net.atlas.atlascore.init.ArgumentInit;
-import net.atlas.atlascore.util.ModRepresentation;
-import net.atlas.atlascore.util.NetworkingUtilities;
-import net.atlas.atlascore.util.PrefixLogger;
-import net.atlas.atlascore.util.ServerModsRetrievedEvent;
+import net.atlas.atlascore.util.*;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.networking.v1.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -41,9 +40,15 @@ public class AtlasCore implements ModInitializer {
         PayloadTypeRegistry.configurationS2C().register(ClientboundModListRetrievalPacket.TYPE, ClientboundModListRetrievalPacket.CODEC);
         ServerPlayConnectionEvents.JOIN.register(modDetectionNetworkChannel,(handler, sender, server) -> {
             for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isSided()).toList()) {
+                if (atlasConfig instanceof ContextBasedConfig contextBasedConfig) atlasConfig = contextBasedConfig.getConfig(Context.builder().applyInformationFromEntity(handler.player).build());
                 ServerPlayNetworking.send(handler.player, new AtlasConfigPacket(false, atlasConfig));
             }
             AtlasCore.LOGGER.info("Config packets sent to client.");
+        });
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(modDetectionNetworkChannel, (player, origin, destination) -> {
+            for (ContextBasedConfig contextBasedConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isSided() && atlasConfig instanceof ContextBasedConfig).map(config -> ((ContextBasedConfig) config).getConfig(Context.builder().applyInformationFromLevel(destination).build())).toList()) {
+                ServerPlayNetworking.send(player, new AtlasConfigPacket(false, contextBasedConfig));
+            }
         });
         ServerConfigurationConnectionEvents.CONFIGURE.register((handler, server) -> {
             if (ServerConfigurationNetworking.canSend(handler, ClientboundModListRetrievalPacket.TYPE))
