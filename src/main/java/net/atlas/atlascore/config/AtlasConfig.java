@@ -21,11 +21,13 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.CrashReport;
 import net.minecraft.ReportedException;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -48,6 +50,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
 
+import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
 
 @SuppressWarnings("ALL")
@@ -571,6 +574,11 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public boolean hasParsedValue() {
+            return parsedValue != null;
+        }
+
+        @Override
         public ConfigHolder<T, B> getAsHolder() {
             return this;
         }
@@ -598,9 +606,11 @@ public abstract class AtlasConfig {
         Component getInnerValue(String name);
         void listInner(String name, Consumer<Component> input);
         void fulfilListing(Consumer<Component> input);
+        List<ConfigHolderLike<?, ?>> getUnsetInners();
         ConfigHolderLike<?, ? extends ByteBuf> findInner(StringReader reader) throws CommandSyntaxException;
         ConfigHolderLike<?, ? extends ByteBuf> retrieveInner(String name) throws CommandSyntaxException;
         CompletableFuture<Suggestions> suggestInner(StringReader reader, SuggestionsBuilder builder);
+        int postUpdate(CommandSourceStack commandSourceStack);
     }
     public static class ObjectHolder<T extends ConfigRepresentable> extends ConfigHolder<T, RegistryFriendlyByteBuf> implements ExtendedHolder {
         public final Class<T> clazz;
@@ -644,17 +654,69 @@ public abstract class AtlasConfig {
 
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
-            List<String> fields = heldValue.defaultValue().fields();
-            for (String s : fields) {
-                if (s.toLowerCase().startsWith(builder.getRemainingLowerCase())) {
-                    builder.suggest(s.toLowerCase());
-                }
+            StringReader reader = new StringReader(builder.getInput());
+            reader.setCursor(builder.getStart());
+            SuggestionsVisitor visitor = new SuggestionsVisitor();
+            visitor.visitSuggestions(suggestionsBuilder -> SharedSuggestionProvider.suggest(heldValue.defaultValue.fields(), builder));
+            try {
+                suggestFields(visitor, commandContext, reader);
+            } catch (CommandSyntaxException ignored) {
+
             }
-            return builder.buildFuture();
+            return visitor.resolveSuggestions(builder, reader);
+        }
+
+        private <S> void suggestFields(SuggestionsVisitor visitor, CommandContext<S> context, StringReader reader) throws CommandSyntaxException {
+            int cursor = reader.getCursor();
+            String fieldName = ConfigHolderArgument.readHolderName(reader);
+            if (retrieveInner(fieldName) == null) {
+                reader.setCursor(cursor);
+                throw ConfigHolderArgument.ERROR_UNKNOWN_HOLDER.createWithContext(reader, fieldName);
+            }
+            visitor.visitSuggestions(this::suggestSetValue);
+            reader.expect('=');
+            visitor.visitSuggestions(builder -> {
+                try {
+                    return retrieveInner(fieldName).buildSuggestions(context, builder);
+                } catch (CommandSyntaxException e) {
+                    reader.setCursor(cursor);
+                    return Suggestions.empty();
+                }
+            });
+        }
+
+        private CompletableFuture<Suggestions> suggestSetValue(SuggestionsBuilder suggestionsBuilder) {
+            if (suggestionsBuilder.getRemaining().isEmpty()) {
+                suggestionsBuilder.suggest(String.valueOf('='));
+            }
+
+            return suggestionsBuilder.buildFuture();
+        }
+
+        static class SuggestionsVisitor {
+            private Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestions = SUGGEST_NOTHING;
+
+            public void visitSuggestions(Function<SuggestionsBuilder, CompletableFuture<Suggestions>> function) {
+                this.suggestions = function;
+            }
+
+            public CompletableFuture<Suggestions> resolveSuggestions(SuggestionsBuilder suggestionsBuilder, StringReader stringReader) {
+                return this.suggestions.apply(suggestionsBuilder.createOffset(stringReader.getCursor()));
+            }
         }
 
         @Override
-        public <S> T parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
+        public <S> T parse(StringReader stringReader, S source, CommandContext<S> context) throws CommandSyntaxException {
+            int cursor = stringReader.getCursor();
+            try {
+                FieldHolder field = (FieldHolder) findInner(stringReader);
+                stringReader.expect('=');
+                field.parse(stringReader, source, context);
+                field.setToParsedValue();
+            } catch (CommandSyntaxException e) {
+                stringReader.setCursor(cursor);
+                throw e;
+            }
             return get();
         }
 
@@ -679,11 +741,26 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public List<ConfigHolderLike<?, ?>> getUnsetInners() {
+            List<ConfigHolderLike<?, ?>> inners = new ArrayList<>();
+            List<String> fields = get().fields();
+            for (String field : fields) {
+                try {
+                    ConfigHolderLike<?, ? extends ByteBuf> fieldHolder = retrieveInner(field);
+                    if (fieldHolder.hasParsedValue()) inners.add(fieldHolder);
+                } catch (CommandSyntaxException e) {
+
+                }
+            }
+            return inners;
+        }
+
+        @Override
         public ConfigHolderLike<?, ? extends ByteBuf> findInner(StringReader reader) throws CommandSyntaxException {
             List<String> fields = heldValue.defaultValue().fields();
             String name = ConfigHolderArgument.readHolderName(reader);
             if (!fields.contains(name))
-                throw ConfigHolderArgument.ERROR_MALFORMED_HOLDER.createWithContext(reader, name);
+                throw ConfigHolderArgument.ERROR_UNKNOWN_HOLDER.createWithContext(reader, name);
             Field field = heldValue.defaultValue().fieldRepresentingHolder(name);
             try {
                 return new FieldHolder(this, field, heldValue.defaultValue().argumentTypeRepresentingHolder(name), field.get(heldValue.defaultValue()), name);
@@ -709,6 +786,22 @@ public abstract class AtlasConfig {
         public CompletableFuture<Suggestions> suggestInner(StringReader reader, SuggestionsBuilder builder) {
             List<String> fields = heldValue.defaultValue().fields();
             return SharedSuggestionProvider.suggest(fields, builder);
+        }
+
+        @Override
+        public int postUpdate(CommandSourceStack commandSourceStack) {
+            try {
+                AtlasConfig config = this.heldValue.owner;
+                config.saveConfig();
+                commandSourceStack.getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
+                commandSourceStack.sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
+                if (restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart.no_value", Component.translatable(getTranslationKey()))), true);
+                else commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.update_holder.no_value", Component.translatable(getTranslationKey()))), true);
+                commandSourceStack.sendSuccess(() -> separatorLine(null), true);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            return 1;
         }
 
         @Override

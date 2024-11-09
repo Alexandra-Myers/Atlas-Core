@@ -99,8 +99,16 @@ public class ConfigCommand {
     }
 
     private static <T> int updateConfigValue(CommandContext<CommandSourceStack> context, AtlasConfig config, ConfigHolderLike<T, ? extends ByteBuf> configHolder) throws CommandSyntaxException {
-        if (configHolder instanceof AtlasConfig.ExtendedHolder) {
-            throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
+        if (configHolder instanceof AtlasConfig.ExtendedHolder extendedHolder) {
+            if (extendedHolder.getUnsetInners().isEmpty()) {
+                return extendedHolder.postUpdate(context.getSource());
+            } else {
+                int ret = 1;
+                for (ConfigHolderLike<?, ?> inner : extendedHolder.getUnsetInners()) {
+                    ret &= updateConfigValue(context, config, inner);
+                }
+                return ret;
+            }
         }
         configHolder.setToParsedValue();
         try {
@@ -113,8 +121,6 @@ public class ConfigCommand {
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T, ? extends ByteBuf>)) {
             if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
             else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.update_holder", ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((AtlasConfig.ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
-            context.getSource().sendSuccess(() -> separatorLine(null), true);
-            return 1;
         } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
         else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.update_holder", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
         context.getSource().sendSuccess(() -> separatorLine(null), true);

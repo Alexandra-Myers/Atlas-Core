@@ -23,12 +23,16 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
+
 @SuppressWarnings("unchecked")
 public record ConfigHolderArgument(String configArgument) implements ExtendedArgumentType<ConfigHolderLike<?, ? extends ByteBuf>> {
     public static final DynamicCommandExceptionType ERROR_MALFORMED_HOLDER = new DynamicCommandExceptionType(
             (object) -> Component.translatableEscape("arguments.config.holder.malformed", object)
     );
-    public static final Function<SuggestionsBuilder, CompletableFuture<Suggestions>> SUGGEST_NOTHING = SuggestionsBuilder::buildFuture;
+    public static final DynamicCommandExceptionType ERROR_UNKNOWN_HOLDER = new DynamicCommandExceptionType(
+            (object) -> Component.translatableEscape("arguments.config.holder.unknown", object)
+    );
     private static final Collection<String> EXAMPLES = List.of("grayFormattingColour");
 
     public static ConfigHolderArgument configHolderArgument(String parentConfigArgument) {
@@ -47,7 +51,7 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
     public static String readHolderName(StringReader stringReader) {
         int i = stringReader.getCursor();
 
-        while (stringReader.canRead() && stringReader.peek() != '[' && stringReader.peek() != ']' && !Character.isWhitespace(stringReader.peek())) {
+        while (stringReader.canRead() && stringReader.peek() != '=' && stringReader.peek() != '[' && stringReader.peek() != ']' && !Character.isWhitespace(stringReader.peek())) {
             stringReader.skip();
         }
 
@@ -56,23 +60,34 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
 
     @Override
     public <S> ConfigHolderLike<?, ? extends ByteBuf> parse(StringReader reader, CommandContext<S> commandContext) throws CommandSyntaxException {
-        AtlasConfig.ConfigHolder<?, ? extends ByteBuf> configHolder = AtlasConfigArgument.getConfig(commandContext, configArgument).valueNameToConfigHolderMap.get(readHolderName(reader));
+        int cursor = reader.getCursor();
+        String configHolderName = readHolderName(reader);
+        AtlasConfig.ConfigHolder<?, ? extends ByteBuf> configHolder = AtlasConfigArgument.getConfig(commandContext, configArgument).valueNameToConfigHolderMap.get(configHolderName);
+        if (configHolder == null) {
+            reader.setCursor(cursor);
+            throw ERROR_UNKNOWN_HOLDER.createWithContext(reader, configHolderName);
+        }
         ConfigHolderLike<?, ? extends ByteBuf> inner = null;
         ConfigHolderLike<?, ? extends ByteBuf> baseHolder = configHolder;
-        int unresolvedInners = 0;
-        boolean isExtended = configHolder instanceof AtlasConfig.ExtendedHolder;
-        while (isExtended && reader.canRead() && reader.peek() == '[') {
-            reader.expect('[');
-            inner = ((AtlasConfig.ExtendedHolder)baseHolder).findInner(reader);
-            baseHolder = inner;
-            isExtended = baseHolder instanceof AtlasConfig.ExtendedHolder;
-            unresolvedInners++;
-            if (!isExtended) {
-                while (unresolvedInners > 0 && reader.canRead()) {
-                    reader.expect(']');
-                    unresolvedInners--;
+        try {
+            int unresolvedInners = 0;
+            boolean isExtended = configHolder instanceof AtlasConfig.ExtendedHolder;
+            while (isExtended && reader.canRead() && reader.peek() == '[') {
+                reader.skip();
+                inner = ((AtlasConfig.ExtendedHolder) baseHolder).findInner(reader);
+                baseHolder = inner;
+                isExtended = baseHolder instanceof AtlasConfig.ExtendedHolder;
+                unresolvedInners++;
+                if (!isExtended) {
+                    while (unresolvedInners > 0) {
+                        reader.expect(']');
+                        unresolvedInners--;
+                    }
                 }
             }
+        } catch (CommandSyntaxException e) {
+            reader.setCursor(cursor);
+            throw e;
         }
         return inner == null ? configHolder : inner;
     }
@@ -82,60 +97,72 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
         reader.setCursor(builder.getStart());
         SuggestionsVisitor visitor = new SuggestionsVisitor();
         visitor.visitSuggestions((suggestionsBuilder) -> SharedSuggestionProvider.suggest(AtlasConfigArgument.getConfig(commandContext, configArgument).valueNameToConfigHolderMap.keySet(), builder));
-        ConfigHolderLike<?, ? extends ByteBuf> configHolderLike;
-        int cursor = reader.getCursor();
-        String currentHolderName = readHolderName(reader);
-        boolean isExtended;
-        Map<String, AtlasConfig.ConfigHolder<?, ? extends ByteBuf>> valueNameToConfigHolderMap = AtlasConfigArgument.getConfig(commandContext, configArgument).valueNameToConfigHolderMap;
-        if (valueNameToConfigHolderMap.containsKey(currentHolderName)) {
-            configHolderLike = valueNameToConfigHolderMap.get(currentHolderName);
-            isExtended = configHolderLike instanceof AtlasConfig.ExtendedHolder;
-        } else {
-            reader.setCursor(cursor);
-            return visitor.resolveSuggestions(builder, reader);
-        }
-        if (!isExtended) {
-            reader.setCursor(cursor);
-            return visitor.resolveSuggestions(builder, reader);
-        }
-        visitor.visitSuggestions(this::suggestStartInner);
-        int unresolvedInners = 0;
-        while (isExtended && reader.canRead() && reader.peek() == '[') {
-            visitor.visitSuggestions(SUGGEST_NOTHING);
-            AtlasConfig.ExtendedHolder extendedHolder = (AtlasConfig.ExtendedHolder) configHolderLike;
-            try {
-                reader.expect('[');
-                visitor.visitSuggestions((suggestionsBuilder) -> extendedHolder.suggestInner(reader, suggestionsBuilder));
-                cursor = reader.getCursor();
-                currentHolderName = readHolderName(reader);
-                ConfigHolderLike<?, ? extends ByteBuf> temp = extendedHolder.retrieveInner(currentHolderName);
-                if (temp instanceof AtlasConfig.ExtendedHolder) {
-                    configHolderLike = temp;
-                    visitor.visitSuggestions(this::suggestStartInceptionOrEnd);
-                    unresolvedInners++;
-                } else {
-                    if (temp != null) {
-                        visitor.visitSuggestions(SUGGEST_NOTHING);
-                        isExtended = false;
-                        unresolvedInners++;
-                    } else reader.setCursor(cursor);
-                }
-                if (!isExtended) {
-                    do {
-                        if (!reader.canRead() || reader.peek() != ']') visitor.visitSuggestions(this::suggestEnd);
-                        if (reader.canRead()) reader.expect(']');
-                        unresolvedInners--;
-                    } while (unresolvedInners > 0);
-                }
-            } catch (CommandSyntaxException ignored) {
+        try {
+            parseHolder(visitor, reader, AtlasConfigArgument.getConfig(commandContext, configArgument));
+        } catch (CommandSyntaxException ignored) {
 
-            }
         }
         return visitor.resolveSuggestions(builder, reader);
     }
 
     public Collection<String> getExamples() {
         return EXAMPLES;
+    }
+
+    private void parseHolder(SuggestionsVisitor visitor, StringReader reader, AtlasConfig atlasConfig) throws CommandSyntaxException {
+        ConfigHolderLike<?, ? extends ByteBuf> configHolderLike;
+        int cursor = reader.getCursor();
+        String currentHolderName = readHolderName(reader);
+        boolean isExtended;
+        Map<String, AtlasConfig.ConfigHolder<?, ? extends ByteBuf>> valueNameToConfigHolderMap = atlasConfig.valueNameToConfigHolderMap;
+        if (!valueNameToConfigHolderMap.containsKey(currentHolderName)) {
+            reader.setCursor(cursor);
+            throw ERROR_UNKNOWN_HOLDER.createWithContext(reader, currentHolderName);
+        }
+        configHolderLike = valueNameToConfigHolderMap.get(currentHolderName);
+        isExtended = configHolderLike instanceof AtlasConfig.ExtendedHolder;
+        if (isExtended) {
+            visitor.visitSuggestions(this::suggestStartInner);
+            int unresolvedInners = 0;
+            while (isExtended) {
+                if (reader.canRead() && reader.peek() == ']') {
+                    do {
+                        reader.skip();
+                        unresolvedInners--;
+                    } while (unresolvedInners > 0);
+                    break;
+                }
+                reader.expect('[');
+                AtlasConfig.ExtendedHolder extendedHolder = (AtlasConfig.ExtendedHolder) configHolderLike;
+                visitor.visitSuggestions((suggestionsBuilder) -> extendedHolder.suggestInner(reader, suggestionsBuilder));
+                cursor = reader.getCursor();
+                currentHolderName = readHolderName(reader);
+                ConfigHolderLike<?, ? extends ByteBuf> temp = extendedHolder.retrieveInner(currentHolderName);
+                switch (temp) {
+                    case AtlasConfig.ExtendedHolder ignored -> {
+                        configHolderLike = temp;
+                        visitor.visitSuggestions(this::suggestStartInceptionOrEnd);
+                    }
+                    case null -> {
+                        reader.setCursor(cursor);
+                        throw ERROR_UNKNOWN_HOLDER.createWithContext(reader, currentHolderName);
+                    }
+                    default -> {
+                        visitor.visitSuggestions(SUGGEST_NOTHING);
+                        isExtended = false;
+                    }
+                }
+                unresolvedInners++;
+                if (!isExtended) {
+                    do {
+                        if (!reader.canRead() || reader.peek() != ']')
+                            visitor.visitSuggestions(this::suggestEnd);
+                        reader.expect(']');
+                        unresolvedInners--;
+                    } while (unresolvedInners > 0);
+                }
+            }
+        }
     }
 
     private CompletableFuture<Suggestions> suggestStartInner(SuggestionsBuilder suggestionsBuilder) {

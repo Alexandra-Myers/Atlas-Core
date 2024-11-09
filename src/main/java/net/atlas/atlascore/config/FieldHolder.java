@@ -88,4 +88,9 @@ public class FieldHolder implements ConfigHolderLike<Object, RegistryFriendlyByt
     public String getName() {
         return name;
     }
+
+    @Override
+    public boolean hasParsedValue() {
+        return parsedValue != null;
+    }
 }

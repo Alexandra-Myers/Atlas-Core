@@ -25,4 +25,6 @@ public interface ConfigHolderLike<T, B extends ByteBuf> {
     <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder);
 
     String getName();
+
+    boolean hasParsedValue();
 }
