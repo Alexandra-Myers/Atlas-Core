@@ -226,7 +226,7 @@ public abstract class AtlasConfig {
         return configs.get(buf.readResourceLocation()).readClientConfigInformation(buf);
     }
 
-    private AtlasConfig readClientConfigInformation(RegistryFriendlyByteBuf buf) {
+    public AtlasConfig readClientConfigInformation(RegistryFriendlyByteBuf buf) {
         objectValues.forEach(objectHolder -> objectHolder.broadcastClientValueRecieved(buf));
         enumValues.forEach(enumHolder -> enumHolder.broadcastClientValueRecieved(buf));
         stringValues.forEach(stringHolder -> stringHolder.broadcastClientValueRecieved(buf));
