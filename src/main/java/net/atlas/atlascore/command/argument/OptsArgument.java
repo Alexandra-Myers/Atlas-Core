@@ -117,12 +117,12 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) implements Ex
     public <S> Argument<?> parse(StringReader stringReader, CommandContext<S> commandContext) throws CommandSyntaxException {
         int cursor = stringReader.getCursor();
         String argumentName = readArgumentName(stringReader);
-        Stream<String> argumentNames = arguments.keySet().stream().filter(string -> {
+        List<String> argumentNames = arguments.keySet().stream().filter(string -> {
             AtomicBoolean ret = new AtomicBoolean(true);
             ((CommandContextExtensions) commandContext).getArguments(Argument.class).forEach(arg -> ret.set(ret.get() & !arg.name().equals(string)));
             return ret.get();
-        });
-        if (!argumentNames.toList().contains(argumentName)) {
+        }).toList();
+        if (!argumentNames.contains(argumentName)) {
             stringReader.setCursor(cursor);
             throw ERROR_INVALID_ARGUMENT.createWithContext(stringReader, argumentName);
         }
@@ -148,11 +148,11 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) implements Ex
         StringReader reader = new StringReader(builder.getInput());
         reader.setCursor(builder.getStart());
         SuggestionsVisitor visitor = new SuggestionsVisitor();
-        Stream<String> argumentNames = arguments.keySet().stream().filter(string -> {
+        List<String> argumentNames = arguments.keySet().stream().filter(string -> {
             AtomicBoolean ret = new AtomicBoolean(true);
             ((CommandContextExtensions) context).getArguments(Argument.class).forEach(arg -> ret.set(ret.get() & !arg.name().equals(string)));
             return ret.get();
-        });
+        }).toList();
         visitor.visitSuggestions(suggestionsBuilder -> SharedSuggestionProvider.suggest(argumentNames, builder));
         try {
             suggestArgument(visitor, context, reader, argumentNames);
@@ -162,10 +162,10 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) implements Ex
         return visitor.resolveSuggestions(builder, reader);
     }
 
-    private <S> void suggestArgument(SuggestionsVisitor visitor, CommandContext<S> context, StringReader reader, Stream<String> argumentNames) throws CommandSyntaxException {
+    private <S> void suggestArgument(SuggestionsVisitor visitor, CommandContext<S> context, StringReader reader, List<String> argumentNames) throws CommandSyntaxException {
         int cursor = reader.getCursor();
         String argumentName = readArgumentName(reader);
-        if (!argumentNames.toList().contains(argumentName)) {
+        if (!argumentNames.contains(argumentName)) {
             reader.setCursor(cursor);
             throw ERROR_INVALID_ARGUMENT.createWithContext(reader, argumentName);
         }
