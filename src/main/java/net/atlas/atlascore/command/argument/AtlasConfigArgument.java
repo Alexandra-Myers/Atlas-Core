@@ -27,7 +27,7 @@ public record AtlasConfigArgument(boolean requiresContext) implements ArgumentTy
     private static final Collection<String> EXAMPLES = List.of("foo:bar_config");
 
     public static AtlasConfigArgument context(boolean requiresContext) {
-        return new AtlasConfigArgument(false);
+        return new AtlasConfigArgument(requiresContext);
     }
 
     public static AtlasConfig getConfig(final CommandContext<?> context, String name) {
