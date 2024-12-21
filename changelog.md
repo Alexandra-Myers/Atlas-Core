@@ -6,7 +6,7 @@
 
 - Added `ServerModsRetrievedEvent`, invoked when Atlas Core retrieves the mods on the client, including name, modID, semantic version, and provided mods.
 
-- Addition of Brigadier Opts, (kind of) a partial command library/expansion to Brigadier, but at this point merely a major utility
+- Addition of Brigadier Opts, (kind of) a partial command library/expansion to Brigadier, but at this point merely a major utility, currently not feature-complete
 ***
 ### Atlas Config Changes:
 ***
