@@ -7,7 +7,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import io.netty.buffer.ByteBuf;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.ConfigHolderLike;
 import net.minecraft.commands.CommandBuildContext;
@@ -25,8 +24,7 @@ import java.util.function.Function;
 
 import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 
-@SuppressWarnings("unchecked")
-public record ConfigHolderArgument(String configArgument) implements ExtendedArgumentType<ConfigHolderLike<?, ? extends ByteBuf>> {
+public record ConfigHolderArgument(String configArgument) implements ExtendedArgumentType<ConfigHolderLike<?>> {
     public static final DynamicCommandExceptionType ERROR_MALFORMED_HOLDER = new DynamicCommandExceptionType(
             (object) -> Component.translatableEscape("arguments.config.holder.malformed", object)
     );
@@ -39,11 +37,11 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
         return new ConfigHolderArgument(parentConfigArgument);
     }
 
-    public static ConfigHolderLike<?, ? extends ByteBuf> getConfigHolder(final CommandContext<?> context, String name) {
+    public static ConfigHolderLike<?> getConfigHolder(final CommandContext<?> context, String name) {
         return context.getArgument(name, ConfigHolderLike.class);
     }
 
-    public ConfigHolderLike<?, ? extends ByteBuf> parse(StringReader stringReader) throws CommandSyntaxException {
+    public ConfigHolderLike<?> parse(StringReader stringReader) throws CommandSyntaxException {
         // Literally nothing we can do to change this fate
         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
     }
@@ -59,16 +57,16 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
     }
 
     @Override
-    public <S> ConfigHolderLike<?, ? extends ByteBuf> parse(StringReader reader, CommandContext<S> commandContext) throws CommandSyntaxException {
+    public <S> ConfigHolderLike<?> parse(StringReader reader, CommandContext<S> commandContext) throws CommandSyntaxException {
         int cursor = reader.getCursor();
         String configHolderName = readHolderName(reader);
-        AtlasConfig.ConfigHolder<?, ? extends ByteBuf> configHolder = AtlasConfigArgument.getConfig(commandContext, configArgument).valueNameToConfigHolderMap.get(configHolderName);
+        AtlasConfig.ConfigHolder<?> configHolder = AtlasConfigArgument.getConfig(commandContext, configArgument).valueNameToConfigHolderMap.get(configHolderName);
         if (configHolder == null) {
             reader.setCursor(cursor);
             throw ERROR_UNKNOWN_HOLDER.createWithContext(reader, configHolderName);
         }
-        ConfigHolderLike<?, ? extends ByteBuf> inner = null;
-        ConfigHolderLike<?, ? extends ByteBuf> baseHolder = configHolder;
+        ConfigHolderLike<?> inner = null;
+        ConfigHolderLike<?> baseHolder = configHolder;
         try {
             int unresolvedInners = 0;
             boolean isExtended = configHolder instanceof AtlasConfig.ExtendedHolder;
@@ -110,11 +108,11 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
     }
 
     private void parseHolder(SuggestionsVisitor visitor, StringReader reader, AtlasConfig atlasConfig) throws CommandSyntaxException {
-        ConfigHolderLike<?, ? extends ByteBuf> configHolderLike;
+        ConfigHolderLike<?> configHolderLike;
         int cursor = reader.getCursor();
         String currentHolderName = readHolderName(reader);
         boolean isExtended;
-        Map<String, AtlasConfig.ConfigHolder<?, ? extends ByteBuf>> valueNameToConfigHolderMap = atlasConfig.valueNameToConfigHolderMap;
+        Map<String, AtlasConfig.ConfigHolder<?>> valueNameToConfigHolderMap = atlasConfig.valueNameToConfigHolderMap;
         if (!valueNameToConfigHolderMap.containsKey(currentHolderName)) {
             reader.setCursor(cursor);
             throw ERROR_UNKNOWN_HOLDER.createWithContext(reader, currentHolderName);
@@ -137,7 +135,7 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
                 visitor.visitSuggestions((suggestionsBuilder) -> extendedHolder.suggestInner(reader, suggestionsBuilder));
                 cursor = reader.getCursor();
                 currentHolderName = readHolderName(reader);
-                ConfigHolderLike<?, ? extends ByteBuf> temp = extendedHolder.retrieveInner(currentHolderName);
+                ConfigHolderLike<?> temp = extendedHolder.retrieveInner(currentHolderName);
                 switch (temp) {
                     case AtlasConfig.ExtendedHolder ignored -> {
                         configHolderLike = temp;

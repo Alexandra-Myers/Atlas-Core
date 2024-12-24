@@ -1,5 +1,7 @@
 package net.atlas.atlascore;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import net.atlas.atlascore.command.ConfigCommand;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.AtlasCoreConfig;
@@ -28,6 +30,7 @@ public class AtlasCore implements ModInitializer {
     public static AtlasCoreConfig CONFIG = new AtlasCoreConfig();
     public static ResourceLocation modDetectionNetworkChannel = id("networking");
     public static final String MOD_ID = "atlas-core";
+    public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final PrefixLogger LOGGER = new PrefixLogger(LogManager.getLogger("Atlas Core"));
     /**
      * Runs the mod initializer.

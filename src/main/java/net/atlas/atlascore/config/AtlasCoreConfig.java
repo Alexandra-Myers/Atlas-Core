@@ -1,8 +1,10 @@
 package net.atlas.atlascore.config;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.stream.JsonWriter;
 import com.mojang.brigadier.arguments.*;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.gui.entries.BooleanListEntry;
 import me.shedaniel.clothconfig2.gui.entries.DoubleListEntry;
@@ -10,7 +12,6 @@ import me.shedaniel.clothconfig2.gui.entries.IntegerListEntry;
 import me.shedaniel.clothconfig2.gui.entries.StringListEntry;
 import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.util.ConfigRepresentable;
-import net.atlas.atlascore.util.JavaToJSONSerialisation;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -24,12 +25,9 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.util.*;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -51,14 +49,26 @@ public class AtlasCoreConfig extends AtlasConfig {
             @SuppressWarnings("unchecked")
             public @NotNull TestClass decode(RegistryFriendlyByteBuf registryFriendlyByteBuf) {
                 AtlasConfig config = AtlasConfig.configs.get(registryFriendlyByteBuf.readResourceLocation());
-                return new TestClass((ConfigHolder<TestClass, RegistryFriendlyByteBuf>) config.valueNameToConfigHolderMap.get(registryFriendlyByteBuf.readUtf()), registryFriendlyByteBuf.readUtf(), registryFriendlyByteBuf.readBoolean(), registryFriendlyByteBuf.readVarInt(), registryFriendlyByteBuf.readDouble());
+                return new TestClass((ConfigHolder<TestClass>) config.valueNameToConfigHolderMap.get(registryFriendlyByteBuf.readUtf()), registryFriendlyByteBuf.readUtf(), registryFriendlyByteBuf.readBoolean(), registryFriendlyByteBuf.readVarInt(), registryFriendlyByteBuf.readDouble());
             }
         };
-        public ConfigHolder<TestClass, RegistryFriendlyByteBuf> owner;
+        public ConfigHolder<TestClass> owner;
         public String innerString;
         public Boolean innerBool;
         public Integer innerInt;
         public Double innerDouble;
+        public String innerString() {
+            return innerString;
+        }
+        public Boolean innerBool() {
+            return innerBool;
+        }
+        public Integer innerInt() {
+            return innerInt;
+        }
+        public Double innerDouble() {
+            return innerDouble;
+        }
         public static final Map<String, Field> fields = Util.make(new HashMap<>(), hashMap -> {
             try {
                 hashMap.put("innerString", TestClass.class.getDeclaredField("innerString"));
@@ -85,39 +95,9 @@ public class AtlasCoreConfig extends AtlasConfig {
             }
             return Component.translatable(testClass.owner.getTranslationKey() + "." + string);
         };
-        public static final BiFunction<ConfigHolder<TestClass, RegistryFriendlyByteBuf>, JsonObject, TestClass> decoder = (objectHolder, jsonObject) -> {
-            String innerString = "bar";
-            Boolean innerBool = true;
-            Integer innerInt = 3;
-            Double innerDouble = 7.0;
-            if (jsonObject.has("innerString"))
-                innerString = getString(jsonObject, "innerString");
-            if (jsonObject.has("innerBool"))
-                innerBool = getBoolean(jsonObject, "innerBool");
-            if (jsonObject.has("innerInt"))
-                innerInt = getInt(jsonObject, "innerInt");
-            if (jsonObject.has("innerDouble"))
-                innerDouble = getDouble(jsonObject, "innerDouble");
-            return new TestClass(objectHolder, innerString, innerBool, innerInt, innerDouble);
-        };
-        public static final BiConsumer<JsonWriter, TestClass> encoder = (jsonWriter, testClass) -> fields.forEach((string, field) -> {
-            try {
-                jsonWriter.name(string);
-                var value = field.get(testClass);
-                switch (value) {
-                    case String str -> jsonWriter.value(str);
-                    case Boolean bool -> jsonWriter.value(bool);
-                    case Integer i -> jsonWriter.value(i);
-                    case Double d -> jsonWriter.value(d);
-                    default -> throw new IllegalStateException("Unexpected value: " + value);
-                }
-            } catch (IOException | IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
-        });
         public Supplier<Component> resetTranslation = null;
 
-        public TestClass(ConfigHolder<TestClass, RegistryFriendlyByteBuf> owner, String innerString, Boolean innerBool, Integer innerInt, Double innerDouble) {
+        public TestClass(ConfigHolder<TestClass> owner, String innerString, Boolean innerBool, Integer innerInt, Double innerDouble) {
             this.owner = owner;
             this.innerString = innerString;
             this.innerBool = innerBool;
@@ -126,7 +106,17 @@ public class AtlasCoreConfig extends AtlasConfig {
         }
 
         @Override
-        public void setOwnerHolder(ConfigHolder<TestClass, RegistryFriendlyByteBuf> configHolder) {
+        public Codec<TestClass> getCodec(ConfigHolder<TestClass> owner) {
+            return RecordCodecBuilder.create(instance ->
+                    instance.group(Codec.STRING.optionalFieldOf("innerString", "bar").forGetter(TestClass::innerString),
+                                    Codec.BOOL.optionalFieldOf("innerBool", true).forGetter(TestClass::innerBool),
+                                    Codec.INT.optionalFieldOf("innerInt", 3).forGetter(TestClass::innerInt),
+                                    Codec.DOUBLE.optionalFieldOf("innerDouble", 7.0).forGetter(TestClass::innerDouble))
+                            .apply(instance, (innerString, innerBool, innerInt, innerDouble) -> new TestClass(owner, innerString, innerBool, innerInt, innerDouble)));
+        }
+
+        @Override
+        public void setOwnerHolder(ConfigHolder<TestClass> configHolder) {
             owner = configHolder;
         }
 
@@ -212,7 +202,7 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     public void defineConfigHolders() {
-        testObject = createObject("testObject", new TestClass(testObject, "bar", true, 3, 7.0), TestClass.class, new JavaToJSONSerialisation<>(TestClass.decoder, TestClass.encoder), TestClass.STREAM_CODEC);
+        testObject = createObject("testObject", new TestClass(testObject, "bar", true, 3, 7.0), TestClass.class, TestClass.STREAM_CODEC);
         testObject.tieToCategory(test);
         testEnum = createEnum("testEnum", TestEnum.FOO, TestEnum.class, TestEnum.values(), e -> Component.translatable("text.config.atlas-core-config.option.testEnum." + e.name().toLowerCase(Locale.ROOT)));
         testEnum.tieToCategory(test);
@@ -277,7 +267,7 @@ public class AtlasCoreConfig extends AtlasConfig {
     }
 
     @Override
-    public void saveExtra(JsonWriter jsonWriter, PrintWriter printWriter) {
+    public void saveExtra(JsonElement root) {
 
     }
 
