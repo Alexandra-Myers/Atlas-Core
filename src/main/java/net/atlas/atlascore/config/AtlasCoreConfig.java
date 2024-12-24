@@ -1,6 +1,5 @@
 package net.atlas.atlascore.config;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.brigadier.arguments.*;
 import com.mojang.serialization.Codec;
@@ -264,11 +263,6 @@ public class AtlasCoreConfig extends AtlasConfig {
     @Override
     protected InputStream getDefaultedConfig() {
         return Thread.currentThread().getContextClassLoader().getResourceAsStream("atlas-core-config.json");
-    }
-
-    @Override
-    public void saveExtra(JsonElement root) {
-
     }
 
     @Override

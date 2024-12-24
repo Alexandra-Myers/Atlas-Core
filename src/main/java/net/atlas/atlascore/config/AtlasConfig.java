@@ -332,7 +332,7 @@ public abstract class AtlasConfig {
 	public final void saveConfig() throws IOException {
 		PrintWriter printWriter = new PrintWriter(configFile);
         JsonObject root = new JsonObject();
-		saveExtra(root);
+		root = saveExtra(root).getAsJsonObject();
 		for (Category category : categories) {
             JsonObject categoryRoot = new JsonObject();
             for (ConfigHolder<?> holder : category.members) {
@@ -344,7 +344,9 @@ public abstract class AtlasConfig {
         printWriter.close();
 	}
 
-	public abstract void saveExtra(JsonElement root);
+	public JsonElement saveExtra(JsonElement root) {
+        return root;
+    }
 
     public enum ConfigSide {
         CLIENT,
