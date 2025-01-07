@@ -500,9 +500,9 @@ public abstract class AtlasConfig {
         public void setValue(T newValue) {
             if (isNotValid(newValue))
                 return;
-            heldValue.emitChanged(newValue);
             prevValue = value;
             value = newValue;
+            heldValue.emitChanged(newValue);
         }
         public void loadFromJSONAndSetSynchedValue(JsonObject jsonObject) {
             setSynchedValue(codec.parse(JsonOps.INSTANCE, jsonObject).getOrThrow());
@@ -510,9 +510,9 @@ public abstract class AtlasConfig {
         public void setSynchedValue(T newValue) {
             if (isNotValid(newValue))
                 return;
-            heldValue.emitChanged(newValue);
             synchedValue = newValue;
             serverManaged = heldValue.owner.configSide.existsOnServer();
+            heldValue.emitChanged(newValue);
         }
 
         @Override
