@@ -601,8 +601,7 @@ public abstract class AtlasConfig {
         }
 
         public Tag asNBT(T val) {
-            Tag tag = new CompoundTag();
-            rawCodec.encode(val, NbtOps.INSTANCE, tag);
+            Tag tag = rawCodec.encodeStart(NbtOps.INSTANCE, val).getOrThrow();
             return tag;
         }
 
@@ -628,7 +627,8 @@ public abstract class AtlasConfig {
 
         @Override
         public <S> T parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
-            return loadFromSNBT(stringReader);
+            parsedValue = loadFromSNBT(stringReader);
+            return parsedValue;
         }
     }
     @SuppressWarnings({"rawtypes", "unchecked"})
