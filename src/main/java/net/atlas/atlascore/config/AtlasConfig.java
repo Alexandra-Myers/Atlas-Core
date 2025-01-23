@@ -602,7 +602,7 @@ public abstract class AtlasConfig {
 
         public Tag asNBT(T val) {
             Tag tag = new CompoundTag();
-            rawCodec.encodeStart(NbtOps.INSTANCE, val);
+            rawCodec.encode(val, NbtOps.INSTANCE, tag);
             return tag;
         }
 
