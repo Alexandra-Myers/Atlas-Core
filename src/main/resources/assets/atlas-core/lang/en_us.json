@@ -16,6 +16,7 @@
   "text.config.atlas-core-config.option.listClientModsOnJoin": "List Client Mods on Join",
   "text.config.atlas-core-config.option.configNameDisplayColour": "Config Name Display Color",
   "text.config.atlas-core-config.option.grayFormattingColour": "Gray Formatting Color",
+  "text.config.atlas-core-config.option.testItem": "Test Item Stack",
   "text.config.atlas-core-config.option.testObject": "Test Object",
   "text.config.atlas-core-config.option.testObject.innerString": "Inner String",
   "text.config.atlas-core-config.option.testObject.innerBool": "Inner Boolean",
