@@ -116,6 +116,15 @@ public abstract class AtlasConfig {
         return configHolders;
     }
 
+    public List<ConfigHolder<?>> getUncategorisedHolders() {
+        if (categories.isEmpty()) return configHolders;
+        return configHolders.stream().filter(configHolder -> {
+            AtomicBoolean atomic = new AtomicBoolean(true);
+            categories.forEach(category -> atomic.set(atomic.get() & !category.members.contains(configHolder)));
+            return atomic.get();
+        }).toList();
+    }
+
 	public @NotNull List<Category> createCategories() {
 		return new ArrayList<>();
 	}
@@ -344,7 +353,8 @@ public abstract class AtlasConfig {
                 }
                 root.add(category.name, categoryRoot);
 		    }
-        } else for (ConfigHolder<?> holder : configHolders) root = holder.encodeAsJSON(root).getOrThrow().getAsJsonObject();
+        } 
+        for (ConfigHolder<?> holder : getUncategorisedHolders()) root = holder.encodeAsJSON(root).getOrThrow().getAsJsonObject();
         AtlasCore.GSON.toJson(root, printWriter);
         printWriter.close();
 	}
@@ -579,8 +589,10 @@ public abstract class AtlasConfig {
         }
     }
     public static class TagHolder<T> extends ConfigHolder<T> {
+        private final Codec<T> rawCodec;
         private TagHolder(ConfigValue<T> value, Codec<T> codec) {
             super(value, codec, ByteBufCodecs.fromCodecTrusted(codec).mapStream(buf -> (RegistryFriendlyByteBuf) buf));
+            rawCodec = codec;
         }
 
         @Override
@@ -590,7 +602,7 @@ public abstract class AtlasConfig {
 
         public Tag asNBT(T val) {
             Tag tag = new CompoundTag();
-            codec.encodeStart(NbtOps.INSTANCE, val);
+            rawCodec.encodeStart(NbtOps.INSTANCE, val);
             return tag;
         }
 
@@ -600,13 +612,13 @@ public abstract class AtlasConfig {
 
         public T loadFromSNBT(StringReader reader) throws CommandSyntaxException {
             Tag tag = new TagParser(reader).readValue();
-            return codec.parse(NbtOps.INSTANCE, tag).getOrThrow(s -> CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException().createWithContext(reader, s));
+            return rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow(s -> CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException().createWithContext(reader, s));
         }
 
         @Override
         @Environment(EnvType.CLIENT)
         public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            return new CodecBackedListEntry<>(Component.translatable(getTranslationKey()), codec, asNBT(get()), Component.translatable(getTranslationResetKey()), () -> asNBT(heldValue.defaultValue), tag -> setValue(codec.parse(NbtOps.INSTANCE, tag).getOrThrow()), tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+            return new CodecBackedListEntry<>(Component.translatable(getTranslationKey()), rawCodec, asNBT(get()), Component.translatable(getTranslationResetKey()), () -> asNBT(heldValue.defaultValue), tag -> setValue(rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow()), tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
         }
 
         @Override

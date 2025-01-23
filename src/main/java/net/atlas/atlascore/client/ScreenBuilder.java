@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.io.IOException;
+import java.util.List;
 
 public final class ScreenBuilder {
     private ScreenBuilder() {
@@ -39,9 +40,11 @@ public final class ScreenBuilder {
 					configCategory.addEntry(entry);
 				}
 			}
-		} else {
+		}
+		List<AtlasConfig.ConfigHolder<?>> uncategorised = config.getUncategorisedHolders();
+		if (!uncategorised.isEmpty()) {
 			ConfigCategory configCategory = builder.getOrCreateCategory(Component.translatable("text.config.misc_category"));
-			config.getAllHolders().stream().map(holder -> {
+			uncategorised.stream().map(holder -> {
 				AbstractConfigListEntry<?> entry = holder.transformIntoConfigEntry();
 				entry.setEditable(!holder.serverManaged);
 				return entry;

@@ -16,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.function.Consumer;
 
 import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
@@ -148,12 +149,17 @@ public class ConfigCommand {
                     } else sender.accept(Component.literal("  » ").append(Component.translatable(configHolder.getTranslationKey())).append(Component.literal(": ")).append(configHolder.getValueAsComponent()));
                 }
             }
-        } else for (AtlasConfig.ConfigHolder<?> configHolder : config.getAllHolders()) {
-            if (configHolder instanceof ExtendedHolder extendedHolder) {
-                sender.accept(separatorLine(configHolder.getValueAsComponent().copy()));
-                extendedHolder.fulfilListing((component) -> sender.accept(Component.literal("  » ").append(component)));
-                sender.accept(separatorLine(null));
-            } else sender.accept(Component.literal("  » ").append(Component.translatable(configHolder.getTranslationKey())).append(Component.literal(": ")).append(configHolder.getValueAsComponent()));
+        }
+		List<AtlasConfig.ConfigHolder<?>> uncategorised = config.getUncategorisedHolders();
+		if (!uncategorised.isEmpty()) {
+            if (!config.categories.isEmpty()) sender.accept(separatorLine(Component.translatable("text.config.misc_category")));
+            for (AtlasConfig.ConfigHolder<?> configHolder : config.getUncategorisedHolders()) {
+                if (configHolder instanceof ExtendedHolder extendedHolder) {
+                    sender.accept(separatorLine(configHolder.getValueAsComponent().copy()));
+                    extendedHolder.fulfilListing((component) -> sender.accept(Component.literal("  » ").append(component)));
+                    sender.accept(separatorLine(null));
+                } else sender.accept(Component.literal("  » ").append(Component.translatable(configHolder.getTranslationKey())).append(Component.literal(": ")).append(configHolder.getValueAsComponent()));
+            }
         }
         sender.accept(separatorLine(null));
     }
