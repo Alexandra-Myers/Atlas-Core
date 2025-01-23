@@ -9,6 +9,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.ConfigHolderLike;
+import net.atlas.atlascore.config.ExtendedHolder;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
@@ -69,12 +70,12 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
         ConfigHolderLike<?> baseHolder = configHolder;
         try {
             int unresolvedInners = 0;
-            boolean isExtended = configHolder instanceof AtlasConfig.ExtendedHolder;
+            boolean isExtended = configHolder instanceof ExtendedHolder;
             while (isExtended && reader.canRead() && reader.peek() == '[') {
                 reader.skip();
-                inner = ((AtlasConfig.ExtendedHolder) baseHolder).findInner(reader);
+                inner = ((ExtendedHolder) baseHolder).findInner(reader);
                 baseHolder = inner;
-                isExtended = baseHolder instanceof AtlasConfig.ExtendedHolder;
+                isExtended = baseHolder instanceof ExtendedHolder;
                 unresolvedInners++;
                 if (!isExtended) {
                     while (unresolvedInners > 0) {
@@ -118,7 +119,7 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
             throw ERROR_UNKNOWN_HOLDER.createWithContext(reader, currentHolderName);
         }
         configHolderLike = valueNameToConfigHolderMap.get(currentHolderName);
-        isExtended = configHolderLike instanceof AtlasConfig.ExtendedHolder;
+        isExtended = configHolderLike instanceof ExtendedHolder;
         if (isExtended) {
             visitor.visitSuggestions(this::suggestStartInner);
             int unresolvedInners = 0;
@@ -131,13 +132,13 @@ public record ConfigHolderArgument(String configArgument) implements ExtendedArg
                     break;
                 }
                 reader.expect('[');
-                AtlasConfig.ExtendedHolder extendedHolder = (AtlasConfig.ExtendedHolder) configHolderLike;
+                ExtendedHolder extendedHolder = (ExtendedHolder) configHolderLike;
                 visitor.visitSuggestions((suggestionsBuilder) -> extendedHolder.suggestInner(reader, suggestionsBuilder));
                 cursor = reader.getCursor();
                 currentHolderName = readHolderName(reader);
                 ConfigHolderLike<?> temp = extendedHolder.retrieveInner(currentHolderName);
                 switch (temp) {
-                    case AtlasConfig.ExtendedHolder ignored -> {
+                    case ExtendedHolder ignored -> {
                         configHolderLike = temp;
                         visitor.visitSuggestions(this::suggestStartInceptionOrEnd);
                     }

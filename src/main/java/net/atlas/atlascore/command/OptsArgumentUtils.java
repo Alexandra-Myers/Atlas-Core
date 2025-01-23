@@ -29,6 +29,7 @@ public class OptsArgumentUtils {
      * @see MapUtils#buildHashMapFromAlignedArrays(Object[], Object[])
      * @return An array of both the original argument builder [0], and the new argument builder after adding the arguments.
      */
+    @SuppressWarnings("unchecked")
     public static ArgumentBuilder<CommandSourceStack, ?>[] appendArguments(ArgumentBuilder<CommandSourceStack, ?> openingArg, String[] trueArguments, Command<CommandSourceStack> command, Map<String, ArgumentType<?>> possibleArguments) {
         ArgumentBuilder<CommandSourceStack, ?> base = openingArg;
         for (String arg : trueArguments) {
@@ -36,6 +37,6 @@ public class OptsArgumentUtils {
             base.then(next);
             base = next;
         }
-        return new ArgumentBuilder[] {openingArg, base};
+        return new ArgumentBuilder[]{openingArg, base};
     }
 }

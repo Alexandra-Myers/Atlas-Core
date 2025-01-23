@@ -22,6 +22,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
 import org.jetbrains.annotations.NotNull;
 
 import java.io.InputStream;
@@ -182,6 +185,7 @@ public class AtlasCoreConfig extends AtlasConfig {
         FOO,
         BAR
     }
+    public TagHolder<ItemStack> testItem;
     public ObjectHolder<TestClass> testObject;
     public EnumHolder<TestEnum> testEnum;
     public StringHolder testString;
@@ -201,6 +205,8 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     public void defineConfigHolders() {
+        testItem = createCodecBacked("testItem", new ItemStack(Items.APPLE, 18), ItemStack.STRICT_CODEC);
+        testItem.tieToCategory(test);
         testObject = createObject("testObject", new TestClass(testObject, "bar", true, 3, 7.0), TestClass.class, TestClass.STREAM_CODEC);
         testObject.tieToCategory(test);
         testEnum = createEnum("testEnum", TestEnum.FOO, TestEnum.class, TestEnum.values(), e -> Component.translatable("text.config.atlas-core-config.option.testEnum." + e.name().toLowerCase(Locale.ROOT)));

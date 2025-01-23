@@ -7,6 +7,10 @@
     "listClientModsOnJoin": false
   },
   "test_options": {
+    "testItem": {
+      "id": "minecraft:apple",
+      "count": 18
+    },
     "testObject": {},
     "testEnum": "foo",
     "testString": "foo",

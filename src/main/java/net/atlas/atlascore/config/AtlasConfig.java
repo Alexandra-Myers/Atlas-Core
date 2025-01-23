@@ -16,6 +16,7 @@ import com.mojang.serialization.JsonOps;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.gui.entries.*;
 import net.atlas.atlascore.AtlasCore;
+import net.atlas.atlascore.client.gui.CodecBackedListEntry;
 import net.atlas.atlascore.command.argument.ConfigHolderArgument;
 import net.atlas.atlascore.util.Codecs;
 import net.atlas.atlascore.util.ConfigRepresentable;
@@ -31,6 +32,10 @@ import net.minecraft.ReportedException;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -58,7 +63,6 @@ import java.util.function.Supplier;
 import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
 
-@SuppressWarnings("ALL")
 public abstract class AtlasConfig {
     public final ResourceLocation name;
     public final SyncMode defaultSyncMode;
@@ -108,6 +112,10 @@ public abstract class AtlasConfig {
 		return this;
 	}
 
+    public List<ConfigHolder<?>> getAllHolders() {
+        return configHolders;
+    }
+
 	public @NotNull List<Category> createCategories() {
 		return new ArrayList<>();
 	}
@@ -119,25 +127,6 @@ public abstract class AtlasConfig {
     public abstract <T> void alertChange(ConfigValue<T> tConfigValue, T newValue);
 
     public abstract <T> void alertClientValue(ConfigValue<T> tConfigValue, T serverValue, T clientValue);
-
-    public static String getString(JsonObject element, String name) {
-        return element.get(name).getAsString();
-    }
-
-    public static Integer getInt(JsonObject element, String name) {
-        return element.get(name).getAsInt();
-    }
-
-    public static Double getDouble(JsonObject element, String name) {
-        return element.get(name).getAsDouble();
-    }
-    public static Boolean getBoolean(JsonObject element, String name) {
-        return element.get(name).getAsBoolean();
-    }
-
-    public static Integer getColor(JsonObject element, String name, ColorHolder colorHolder) {
-        return getColor(getString(element, name), colorHolder.get(), colorHolder.hasAlpha);
-    }
 
     public static Integer getColor(String hex, Integer otherwise, boolean hasAlpha) {
         String color = stripHexStarter(hex);
@@ -224,6 +213,15 @@ public abstract class AtlasConfig {
     public ConfigHolder<?> fromValue(ConfigValue<?> value) {
         return valueNameToConfigHolderMap.get(value.name);
     }
+    
+    public <T> TagHolder<T> createCodecBacked(String name, T defaultVal, Codec<T> codec) {
+        return createCodecBacked(name, defaultVal, codec, defaultSyncMode);
+    }
+    public <T> TagHolder<T> createCodecBacked(String name, T defaultVal, Codec<T> codec, SyncMode syncMode) {
+        TagHolder<T> tagHolder = new TagHolder<>(new ConfigValue<>(defaultVal, null, false, name, this, syncMode), codec);
+        configHolders.add(tagHolder);
+        return tagHolder;
+    }
 
     public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec) {
         return createObject(name, defaultInstance, clazz, streamCodec, true, defaultSyncMode);
@@ -231,7 +229,6 @@ public abstract class AtlasConfig {
     public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, boolean expandByDefault) {
         return createObject(name, defaultInstance, clazz, streamCodec, expandByDefault, defaultSyncMode);
     }
-
     public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, SyncMode syncMode) {
         return createObject(name, defaultInstance, clazz, streamCodec, true, syncMode);
     }
@@ -240,6 +237,7 @@ public abstract class AtlasConfig {
         configHolders.add(objectHolder);
         return objectHolder;
     }
+
     public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Function<Enum, Component> names) {
         return createEnum(name, defaultVal, clazz, values, names, defaultSyncMode);
     }
@@ -248,6 +246,7 @@ public abstract class AtlasConfig {
         configHolders.add(enumHolder);
         return enumHolder;
     }
+
     public StringHolder createStringRange(String name, String defaultVal, String... values) {
         return createStringRange(name, defaultVal, defaultSyncMode, values);
     }
@@ -264,6 +263,7 @@ public abstract class AtlasConfig {
         configHolders.add(stringHolder);
         return stringHolder;
     }
+
     public BooleanHolder createBoolean(String name, boolean defaultVal) {
         return createBoolean(name, defaultVal, defaultSyncMode);
     }
@@ -272,6 +272,7 @@ public abstract class AtlasConfig {
         configHolders.add(booleanHolder);
         return booleanHolder;
     }
+
     public ColorHolder createColor(String name, Integer defaultVal, boolean alpha) {
         return createColor(name, defaultVal, alpha, defaultSyncMode);
     }
@@ -280,6 +281,7 @@ public abstract class AtlasConfig {
         configHolders.add(colorHolder);
         return colorHolder;
     }
+
     public IntegerHolder createIntegerUnbound(String name, Integer defaultVal) {
         return createInteger(name, defaultVal, null, false, false, defaultSyncMode);
     }
@@ -304,6 +306,7 @@ public abstract class AtlasConfig {
         configHolders.add(integerHolder);
         return integerHolder;
     }
+
     public DoubleHolder createDoubleUnbound(String name, Double defaultVal) {
         return createDouble(name, defaultVal, null, false, defaultSyncMode);
     }
@@ -333,13 +336,15 @@ public abstract class AtlasConfig {
 		PrintWriter printWriter = new PrintWriter(configFile);
         JsonObject root = new JsonObject();
 		root = saveExtra(root).getAsJsonObject();
-		for (Category category : categories) {
-            JsonObject categoryRoot = new JsonObject();
-            for (ConfigHolder<?> holder : category.members) {
-                categoryRoot = holder.encodeAsJSON(categoryRoot).getOrThrow().getAsJsonObject();
-            }
-            root.add(category.name, categoryRoot);
-		}
+		if (!categories.isEmpty()) {
+            for (Category category : categories) {
+                JsonObject categoryRoot = new JsonObject();
+                for (ConfigHolder<?> holder : category.members) {
+                    categoryRoot = holder.encodeAsJSON(categoryRoot).getOrThrow().getAsJsonObject();
+                }
+                root.add(category.name, categoryRoot);
+		    }
+        } else for (ConfigHolder<?> holder : configHolders) root = holder.encodeAsJSON(root).getOrThrow().getAsJsonObject();
         AtlasCore.GSON.toJson(root, printWriter);
         printWriter.close();
 	}
@@ -350,24 +355,16 @@ public abstract class AtlasConfig {
 
     public enum ConfigSide {
         CLIENT,
-        SERVER,
         COMMON;
 
         public String getAsDir() {
             return switch(this) {
                 case COMMON -> "";
                 case CLIENT -> "/client";
-                case SERVER -> "/server";
             };
         }
-        public boolean existsOnServer() {
-            return this != CLIENT;
-        }
-        public boolean existsOnClient() {
-            return this != SERVER;
-        }
-        public boolean isSided() {
-            return this != COMMON;
+        public boolean isCommon() {
+            return this == COMMON;
         }
     }
 
@@ -474,7 +471,7 @@ public abstract class AtlasConfig {
                 if (isNotValid(newValue) || heldValue.syncMode == SyncMode.INFORM_SERVER)
                     return;
                 if (Objects.equals(newValue, value)) {
-                    serverManaged = heldValue.owner.configSide.existsOnServer();
+                    serverManaged = heldValue.owner.configSide.isCommon();
                     return;
                 }
                 setSynchedValue(newValue);
@@ -511,7 +508,7 @@ public abstract class AtlasConfig {
             if (isNotValid(newValue))
                 return;
             synchedValue = newValue;
-            serverManaged = heldValue.owner.configSide.existsOnServer();
+            serverManaged = heldValue.owner.configSide.isCommon();
             heldValue.emitChanged(newValue);
         }
 
@@ -581,17 +578,48 @@ public abstract class AtlasConfig {
             if (synchedValue != null) setValue(synchedValue);
         }
     }
-    public static interface ExtendedHolder {
-        Component getInnerTranslation(String name);
-        Component getInnerValue(String name);
-        void listInner(String name, Consumer<Component> input);
-        void fulfilListing(Consumer<Component> input);
-        List<ConfigHolderLike<?>> getUnsetInners();
-        ConfigHolderLike<?> findInner(StringReader reader) throws CommandSyntaxException;
-        ConfigHolderLike<?> retrieveInner(String name) throws CommandSyntaxException;
-        CompletableFuture<Suggestions> suggestInner(StringReader reader, SuggestionsBuilder builder);
-        int postUpdate(CommandSourceStack commandSourceStack);
+    public static class TagHolder<T> extends ConfigHolder<T> {
+        private TagHolder(ConfigValue<T> value, Codec<T> codec) {
+            super(value, codec, ByteBufCodecs.fromCodecTrusted(codec).mapStream(buf -> (RegistryFriendlyByteBuf) buf));
+        }
+
+        @Override
+        public Component getValueAsComponent() {
+            return Component.literal(asSNBT(get()));
+        }
+
+        public Tag asNBT(T val) {
+            Tag tag = new CompoundTag();
+            codec.encodeStart(NbtOps.INSTANCE, val);
+            return tag;
+        }
+
+        public String asSNBT(T val) {
+            return asNBT(val).getAsString();
+        }
+
+        public T loadFromSNBT(StringReader reader) throws CommandSyntaxException {
+            Tag tag = new TagParser(reader).readValue();
+            return codec.parse(NbtOps.INSTANCE, tag).getOrThrow(s -> CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException().createWithContext(reader, s));
+        }
+
+        @Override
+        @Environment(EnvType.CLIENT)
+        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
+            return new CodecBackedListEntry<>(Component.translatable(getTranslationKey()), codec, asNBT(get()), Component.translatable(getTranslationResetKey()), () -> asNBT(heldValue.defaultValue), tag -> setValue(codec.parse(NbtOps.INSTANCE, tag).getOrThrow()), tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+        }
+
+        @Override
+        public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
+            return Suggestions.empty();
+        }
+
+        @Override
+        public <S> T parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
+            return loadFromSNBT(stringReader);
+        }
     }
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public static class ObjectHolder<T extends ConfigRepresentable> extends ConfigHolder<T> implements ExtendedHolder {
         public final Class<T> clazz;
         public final boolean expandByDefault;
@@ -1096,6 +1124,15 @@ public abstract class AtlasConfig {
 		isDefault = true;
 		JsonObject configJsonObject = JsonParser.parseReader(new JsonReader(new InputStreamReader(getDefaultedConfig()))).getAsJsonObject();
 
+        for (Category category : categories) {
+            JsonObject categoryRoot = new JsonObject();
+            if (configJsonObject.has(category.name))
+                categoryRoot = configJsonObject.getAsJsonObject(category.name);
+            for (ConfigHolder<?> holder : category.members) {
+                if (categoryRoot.has(holder.heldValue.name))
+                    holder.loadFromJSONAndResetManaged(categoryRoot);
+            }
+        }
         for (ConfigHolder<?> configHolder : valueNameToConfigHolderMap.values())
             if (configJsonObject.has(configHolder.heldValue.name))
                 configHolder.loadFromJSONAndSetSynchedValue(configJsonObject);
@@ -1127,7 +1164,7 @@ public abstract class AtlasConfig {
                     appenderWithLineBreak.accept(separatorLine(config.getFormattedName().copy(), true));
                     Consumer<ConfigHolder<?>> lister = (configHolder) -> {
                         appender.accept(Component.literal("  » ").append(Component.translatable("text.config.holder.sync_mismatch", Component.translatable(configHolder.getTranslationKey()).withStyle(ChatFormatting.YELLOW))));
-                        if (configHolder instanceof AtlasConfig.ExtendedHolder extendedHolder) {
+                        if (configHolder instanceof ExtendedHolder extendedHolder) {
                             AtomicReference<MutableComponent> entries = new AtomicReference<>(Component.literal("\n"));
                             appender.accept(entries.get());
                             configHolder.setToPreviousValue();

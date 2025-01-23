@@ -6,7 +6,6 @@ import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;

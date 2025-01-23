@@ -10,9 +10,15 @@
 ***
 ### Atlas Config Changes:
 ***
+- Addition of `TagHolder`, parallel of `ObjectHolder` whose identity is edited in GUI and in commands using SNBT, slightly decreasing ease of use for the user, meant for cases which cannot easily be converted into an `ObjectHolder`.
+
 - Addition of `SyncMode`, defines how the configs will be synched, can be set as a default for a config and changed for particular config holders.
 
 - Addition of `ConfigSide`, defining which side the config belongs to. **ALL** configs must *exist* and be *aware* of each other on both sides, however this controls particular behaviour.
+
+- Movement towards codecs for parsing configs.
+
+- More effective saving system for configs, can handle more types of data.
 
 - Added a disconnect when there is a mismatch between the server and the client.
 

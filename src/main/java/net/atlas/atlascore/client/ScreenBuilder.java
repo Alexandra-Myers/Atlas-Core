@@ -31,12 +31,21 @@ public final class ScreenBuilder {
 			});
 		if (prevScreen != null) builder.setParentScreen(prevScreen);
 
-		for (AtlasConfig.Category category : config.categories) {
-			ConfigCategory configCategory = builder.getOrCreateCategory(Component.translatable(category.translationKey()));
-
-			for (AbstractConfigListEntry<?> entry : category.membersAsCloth()) {
-				configCategory.addEntry(entry);
+		if (!config.categories.isEmpty()) {
+			for (AtlasConfig.Category category : config.categories) {
+				ConfigCategory configCategory = builder.getOrCreateCategory(Component.translatable(category.translationKey()));
+	
+				for (AbstractConfigListEntry<?> entry : category.membersAsCloth()) {
+					configCategory.addEntry(entry);
+				}
 			}
+		} else {
+			ConfigCategory configCategory = builder.getOrCreateCategory(Component.translatable("text.config.misc_category"));
+			config.getAllHolders().stream().map(holder -> {
+				AbstractConfigListEntry<?> entry = holder.transformIntoConfigEntry();
+				entry.setEditable(!holder.serverManaged);
+				return entry;
+			}).forEach(configCategory::addEntry);
 		}
 
 		return builder.build();

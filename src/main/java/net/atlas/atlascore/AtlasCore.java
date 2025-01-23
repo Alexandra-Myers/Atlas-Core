@@ -42,14 +42,14 @@ public class AtlasCore implements ModInitializer {
         PayloadTypeRegistry.configurationC2S().register(ServerboundClientModPacket.TYPE, ServerboundClientModPacket.CODEC);
         PayloadTypeRegistry.configurationS2C().register(ClientboundModListRetrievalPacket.TYPE, ClientboundModListRetrievalPacket.CODEC);
         ServerPlayConnectionEvents.JOIN.register(modDetectionNetworkChannel,(handler, sender, server) -> {
-            for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isSided()).toList()) {
+            for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> atlasConfig.configSide.isCommon()).toList()) {
                 if (atlasConfig instanceof ContextBasedConfig contextBasedConfig) atlasConfig = contextBasedConfig.getConfig(Context.builder().applyInformationFromEntity(handler.player).build());
                 ServerPlayNetworking.send(handler.player, new AtlasConfigPacket(false, atlasConfig));
             }
             AtlasCore.LOGGER.info("Config packets sent to client.");
         });
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(modDetectionNetworkChannel, (player, origin, destination) -> {
-            for (ContextBasedConfig contextBasedConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isSided() && atlasConfig instanceof ContextBasedConfig).map(config -> ((ContextBasedConfig) config).getConfig(Context.builder().applyInformationFromLevel(destination).build())).toList()) {
+            for (ContextBasedConfig contextBasedConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> atlasConfig.configSide.isCommon() && atlasConfig instanceof ContextBasedConfig).map(config -> ((ContextBasedConfig) config).getConfig(Context.builder().applyInformationFromLevel(destination).build())).toList()) {
                 ServerPlayNetworking.send(player, new AtlasConfigPacket(false, contextBasedConfig));
             }
         });

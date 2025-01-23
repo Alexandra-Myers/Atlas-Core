@@ -2,6 +2,7 @@
   "arguments.chosen.argument.invalid": "Invalid command argument: '%s'",
   "arguments.config.holder.malformed": "Malformed config holder: '%s'",
   "arguments.config.holder.unknown": "Unknown config holder: '%s'",
+  "text.config.misc_category": "Default Category",
   "text.config.mismatch": "Cannot join: This client requires a restart due to mismatch between the following configs: ",
   "text.config.command.mismatch": "A config holder which requires a restart was updated. \nPlease restart Minecraft for the changes to take effect",
   "text.config.holder.sync_mismatch": "The given config holder requires a restart to join this server: %s",

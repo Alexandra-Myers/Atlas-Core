@@ -6,39 +6,77 @@
 package net.atlas.atlascore.client.gui;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import me.shedaniel.clothconfig2.gui.entries.TextFieldListEntry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.ApiStatus.Internal;
 
 @Environment(EnvType.CLIENT)
-public class StringListEntry extends TextFieldListEntry<String> {
+public class CodecBackedListEntry<T> extends TextFieldListEntry<Tag> {
+    private final Codec<T> codec;
     /** @deprecated */
     @Deprecated
     @Internal
-    public StringListEntry(Component fieldName, String value, Component resetButtonKey, Supplier<String> defaultValue, Consumer<String> saveConsumer) {
+    public CodecBackedListEntry(Component fieldName, Codec<T> codec, Tag value, Component resetButtonKey, Supplier<Tag> defaultValue, Consumer<Tag> saveConsumer) {
         super(fieldName, value, resetButtonKey, defaultValue);
         this.saveCallback = saveConsumer;
+        this.codec = codec;
     }
 
     /** @deprecated */
     @Deprecated
     @Internal
-    public StringListEntry(Component fieldName, String value, Component resetButtonKey, Supplier<String> defaultValue, Consumer<String> saveConsumer, Supplier<Optional<Component[]>> tooltipSupplier) {
-        this(fieldName, value, resetButtonKey, defaultValue, saveConsumer, tooltipSupplier, false);
+    public CodecBackedListEntry(Component fieldName, Codec<T> codec, Tag value, Component resetButtonKey, Supplier<Tag> defaultValue, Consumer<Tag> saveConsumer, Supplier<Optional<Component[]>> tooltipSupplier) {
+        this(fieldName, codec, value, resetButtonKey, defaultValue, saveConsumer, tooltipSupplier, false);
     }
 
     /** @deprecated */
     @Deprecated
     @Internal
-    public StringListEntry(Component fieldName, String value, Component resetButtonKey, Supplier<String> defaultValue, Consumer<String> saveConsumer, Supplier<Optional<Component[]>> tooltipSupplier, boolean requiresRestart) {
+    public CodecBackedListEntry(Component fieldName, Codec<T> codec, Tag value, Component resetButtonKey, Supplier<Tag> defaultValue, Consumer<Tag> saveConsumer, Supplier<Optional<Component[]>> tooltipSupplier, boolean requiresRestart) {
         super(fieldName, value, resetButtonKey, defaultValue, tooltipSupplier, requiresRestart);
         this.saveCallback = saveConsumer;
+        this.codec = codec;
     }
 
-    public String getValue() {
-        return this.textFieldWidget.getValue();
+    @Override
+    protected boolean isChanged(Tag original, String s) {
+        return !original.getAsString().equals(s);
+    }
+
+    public Tag getValue() {
+        StringReader reader = new StringReader(this.textFieldWidget.getValue());
+        try {
+            return new TagParser(reader).readValue();
+        } catch (CommandSyntaxException e) {
+            return new CompoundTag();
+        }
+    }
+
+    @Override
+    public Optional<Component> getError() {
+        StringReader reader = new StringReader(this.textFieldWidget.getValue());
+        AtomicReference<Optional<Component>> optional = new AtomicReference<>(Optional.empty());
+        try {
+            Tag tag = new TagParser(reader).readValue();
+            DataResult<T> dataResult = codec.parse(NbtOps.INSTANCE, tag);
+            dataResult.ifError(error -> optional.set(Optional.of(Component.literal(error.toString()))));
+        } catch (CommandSyntaxException e) {
+            return Optional.of(Component.literal(e.toString()));
+        }
+        return optional.get();
     }
 }
