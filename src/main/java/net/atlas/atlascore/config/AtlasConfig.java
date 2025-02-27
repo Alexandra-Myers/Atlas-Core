@@ -485,6 +485,7 @@ public abstract class AtlasConfig {
                 if (isNotValid(newValue) || heldValue.syncMode == SyncMode.INFORM_SERVER)
                     return;
                 if (Objects.equals(newValue, value)) {
+                    synchedValue = null;
                     serverManaged = heldValue.owner.configSide.isCommon();
                     return;
                 }
