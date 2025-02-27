@@ -32,7 +32,6 @@ import net.minecraft.ReportedException;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
@@ -107,6 +106,11 @@ public abstract class AtlasConfig {
         return Component.translatable("text.config." + name.getPath() + ".title");
     }
 
+    /**
+     * Declares the current config the default for the given mod.
+     * @param modID - The Mod ID for the mod in question
+     * @return This current config.
+     */
 	public AtlasConfig declareDefaultForMod(String modID) {
 		menus.put(modID, this);
 		return this;
@@ -195,7 +199,7 @@ public abstract class AtlasConfig {
     protected abstract void loadExtra(JsonObject jsonObject);
     protected abstract InputStream getDefaultedConfig();
     public AtlasConfig loadFromNetwork(RegistryFriendlyByteBuf buf) {
-        configHolders.forEach(objectHolder -> objectHolder.readFromBuf(buf));
+        configHolders.forEach(configHolder -> configHolder.readFromBuf(buf));
         return this;
     }
     public static AtlasConfig staticLoadFromNetwork(RegistryFriendlyByteBuf buf) {
@@ -468,7 +472,7 @@ public abstract class AtlasConfig {
         public boolean wasUpdated() {
             return synchedValue != null;
         }
-		public DataResult<JsonElement> encodeAsJSON(JsonObject root) throws IOException {
+		public DataResult<JsonElement> encodeAsJSON(JsonObject root) {
 			return codec.encode(value, JsonOps.INSTANCE, root);
 		}
         public void writeToBuf(RegistryFriendlyByteBuf buf) {
@@ -534,8 +538,14 @@ public abstract class AtlasConfig {
 			this.restartRequired = restartRequired;
 		}
 		public void setupTooltip(int length) {
+            if (length == 0) {
+                AtlasCore.LOGGER.warn("Config holder given a tooltip without any lines!");
+                this.tooltip = () -> Optional.of(new Component[0]);
+                return;
+            }
 			Component[] components = new Component[length];
-			for (int i = 0; i < length; i++) {
+            components[0] = Component.translatable(getTranslationKey() + ".tooltip");
+			for (int i = 1; i < length; i++) {
 				components[i] = Component.translatable(getTranslationKey() + ".tooltip." + i);
 			}
 			this.tooltip = () -> Optional.of(components);
@@ -1153,76 +1163,73 @@ public abstract class AtlasConfig {
 
     @Environment(EnvType.CLIENT)
 	public static void handleExtraSyncStatic(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context) {
+        AtlasConfig config = packet.config();
         if (!packet.forCommand()) {
             MutableComponent disconnectReason = Component.translatable("text.config.mismatch");
             AtomicBoolean isMismatched = new AtomicBoolean(false);
-            configs.values().forEach(config -> {
-                ClientPlayNetworking.send(new AtlasCore.ClientInformPacket(config));
-                List<ConfigHolder<?>> restartRequiredHolders = new ArrayList<>();
-                config.valueNameToConfigHolderMap.values().forEach(configHolder -> {
-                    if (configHolder.restartRequired.restartRequiredOn(EnvType.CLIENT) && configHolder.wasUpdated())
-                        restartRequiredHolders.add(configHolder);
-                });
-                if (!restartRequiredHolders.isEmpty()) {
-                    isMismatched.set(true);
-                    restartRequiredHolders.forEach(configHolder -> configHolder.setToSynchedValue());
-                    try {
-                        config.saveConfig();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                    Consumer<MutableComponent> appender = component -> disconnectReason.append(component.withStyle(component.getStyle().withStrikethrough(false)));
-                    Consumer<MutableComponent> appenderWithLineBreak = component -> disconnectReason.append(component.append(Component.literal("\n")).withStyle(component.getStyle().withStrikethrough(false)));
-                    appenderWithLineBreak.accept(separatorLine(config.getFormattedName().copy(), true));
-                    Consumer<ConfigHolder<?>> lister = (configHolder) -> {
-                        appender.accept(Component.literal("  » ").append(Component.translatable("text.config.holder.sync_mismatch", Component.translatable(configHolder.getTranslationKey()).withStyle(ChatFormatting.YELLOW))));
-                        if (configHolder instanceof ExtendedHolder extendedHolder) {
-                            AtomicReference<MutableComponent> entries = new AtomicReference<>(Component.literal("\n"));
-                            appender.accept(entries.get());
-                            configHolder.setToPreviousValue();
-                            extendedHolder.fulfilListing((component) -> entries.set(entries.get().append(Component.literal("    » | ").append(component).append(Component.literal("\n")))));
-                            appenderWithLineBreak.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_client_value", entries.get())));
-                            configHolder.setToPreviousValue();
-                            appenderWithLineBreak.accept(separatorLine(null));
-                            entries.set(Component.literal("\n"));
-                            extendedHolder.fulfilListing((component) -> entries.set(entries.get().append(Component.literal("    » | ").append(component).append(Component.literal("\n")))));
-                            appenderWithLineBreak.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_server_value", entries.get())));
-                            appenderWithLineBreak.accept(separatorLine(null));
-                        } else {
-                            appender.accept(Component.translatable("text.config.holder.sync_client_value", configHolder.getValueAsComponent()));
-                            appender.accept(Component.literal(" / "));
-                            appender.accept(Component.translatable("text.config.holder.sync_server_value", configHolder.getValueAsComponent()));
-                        }
-                    };
-                    restartRequiredHolders.forEach(lister);
-                    appenderWithLineBreak.accept(separatorLine(null));
-                }
+            ClientPlayNetworking.send(new AtlasCore.ClientInformPacket(config));
+            List<ConfigHolder<?>> restartRequiredHolders = new ArrayList<>();
+            config.valueNameToConfigHolderMap.values().forEach(configHolder -> {
+                if (configHolder.restartRequired.restartRequiredOn(EnvType.CLIENT) && configHolder.wasUpdated())
+                    restartRequiredHolders.add(configHolder);
             });
+            if (!restartRequiredHolders.isEmpty()) {
+                isMismatched.set(true);
+                restartRequiredHolders.forEach(ConfigHolder::setToSynchedValue);
+                try {
+                    config.saveConfig();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                Consumer<MutableComponent> appender = component -> disconnectReason.append(component.withStyle(component.getStyle().withStrikethrough(false)));
+                Consumer<MutableComponent> appenderWithLineBreak = component -> disconnectReason.append(component.append(Component.literal("\n")).withStyle(component.getStyle().withStrikethrough(false)));
+                appenderWithLineBreak.accept(separatorLine(config.getFormattedName().copy(), true));
+                Consumer<ConfigHolder<?>> lister = (configHolder) -> {
+                    appender.accept(Component.literal("  » ").append(Component.translatable("text.config.holder.sync_mismatch", Component.translatable(configHolder.getTranslationKey()).withStyle(ChatFormatting.YELLOW))));
+                    if (configHolder instanceof ExtendedHolder extendedHolder) {
+                        AtomicReference<MutableComponent> entries = new AtomicReference<>(Component.literal("\n"));
+                        appender.accept(entries.get());
+                        configHolder.setToPreviousValue();
+                        extendedHolder.fulfilListing((component) -> entries.set(entries.get().append(Component.literal("    » | ").append(component).append(Component.literal("\n")))));
+                        appenderWithLineBreak.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_client_value", entries.get())));
+                        configHolder.setToPreviousValue();
+                        appenderWithLineBreak.accept(separatorLine(null));
+                        entries.set(Component.literal("\n"));
+                        extendedHolder.fulfilListing((component) -> entries.set(entries.get().append(Component.literal("    » | ").append(component).append(Component.literal("\n")))));
+                        appenderWithLineBreak.accept(Component.literal("  » | ").append(Component.translatable("text.config.holder.sync_server_value", entries.get())));
+                        appenderWithLineBreak.accept(separatorLine(null));
+                    } else {
+                        appender.accept(Component.translatable("text.config.holder.sync_client_value", configHolder.getValueAsComponent()));
+                        appender.accept(Component.literal(" / "));
+                        appender.accept(Component.translatable("text.config.holder.sync_server_value", configHolder.getValueAsComponent()));
+                    }
+                };
+                restartRequiredHolders.forEach(lister);
+                appenderWithLineBreak.accept(separatorLine(null));
+            }
             if (isMismatched.get()) {
                 context.responseSender().disconnect(disconnectReason);
                 return;
             }
         } else {
             AtomicBoolean isMismatched = new AtomicBoolean(false);
-            configs.values().forEach(config -> {
-                ClientPlayNetworking.send(new AtlasCore.ClientInformPacket(config));
-                List<ConfigHolder<?>> restartRequiredHolders = new ArrayList<>();
-                config.valueNameToConfigHolderMap.values().forEach(configHolder -> {
-                    if (configHolder.restartRequired.restartRequiredOn(EnvType.CLIENT) && configHolder.wasUpdated())
-                        restartRequiredHolders.add(configHolder);
-                });
-                if (!restartRequiredHolders.isEmpty()) {
-                    isMismatched.set(true);
-                    restartRequiredHolders.forEach(configHolder -> configHolder.setToSynchedValue());
-                    try {
-                        config.saveConfig();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                    restartRequiredHolders.forEach(configHolder -> configHolder.setToPreviousValue());
-                    config.valueNameToConfigHolderMap.values().forEach(configHolder -> configHolder.setToPreviousValue());
-                }
+            ClientPlayNetworking.send(new AtlasCore.ClientInformPacket(config));
+            List<ConfigHolder<?>> restartRequiredHolders = new ArrayList<>();
+            config.valueNameToConfigHolderMap.values().forEach(configHolder -> {
+                if (configHolder.restartRequired.restartRequiredOn(EnvType.CLIENT) && configHolder.wasUpdated())
+                    restartRequiredHolders.add(configHolder);
             });
+            if (!restartRequiredHolders.isEmpty()) {
+                isMismatched.set(true);
+                restartRequiredHolders.forEach(ConfigHolder::setToSynchedValue);
+                try {
+                    config.saveConfig();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                restartRequiredHolders.forEach(ConfigHolder::setToPreviousValue);
+                config.valueNameToConfigHolderMap.values().forEach(ConfigHolder::setToPreviousValue);
+            }
             if (isMismatched.get()) {
                 context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch"), false);
             }

@@ -177,7 +177,6 @@ public class AtlasCoreConfig extends AtlasConfig {
             entries.add(new BooleanListEntry(convertFieldToNameComponent.apply(this, "innerBool"), innerBool, resetTranslation.get(), () -> true, bool -> innerBool = bool, Optional::empty, false));
             entries.add(new IntegerListEntry(convertFieldToNameComponent.apply(this, "innerInt"), innerInt, resetTranslation.get(), () -> 3, integer -> innerInt = integer, Optional::empty, false));
             entries.add(new DoubleListEntry(convertFieldToNameComponent.apply(this, "innerDouble"), innerDouble, resetTranslation.get(), () -> 7.0, aDouble -> innerDouble = aDouble, Optional::empty, false));
-            entries.forEach(entry -> entry.setEditable(!owner.serverManaged));
             return entries;
         }
     }

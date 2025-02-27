@@ -167,8 +167,8 @@ public class ConfigCommand {
     private static int reloadAll(CommandContext<CommandSourceStack> context) {
         for (AtlasConfig config : AtlasConfig.configs.values()) {
             config.reload();
-            context.getSource().sendSuccess(() -> Component.translatable("commands.config.reload_all.success"), true);
         }
+        context.getSource().sendSuccess(() -> Component.translatable("commands.config.reload_all.success"), true);
         return 1;
     }
 
