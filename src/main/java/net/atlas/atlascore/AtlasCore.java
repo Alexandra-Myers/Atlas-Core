@@ -1,5 +1,7 @@
 package net.atlas.atlascore;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import net.atlas.atlascore.command.ConfigCommand;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.AtlasCoreConfig;
@@ -28,6 +30,7 @@ public class AtlasCore implements ModInitializer {
     public static AtlasCoreConfig CONFIG = new AtlasCoreConfig();
     public static ResourceLocation modDetectionNetworkChannel = id("networking");
     public static final String MOD_ID = "atlas-core";
+    public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final PrefixLogger LOGGER = new PrefixLogger(LogManager.getLogger("Atlas Core"));
     /**
      * Runs the mod initializer.
@@ -39,14 +42,14 @@ public class AtlasCore implements ModInitializer {
         PayloadTypeRegistry.configurationC2S().register(ServerboundClientModPacket.TYPE, ServerboundClientModPacket.CODEC);
         PayloadTypeRegistry.configurationS2C().register(ClientboundModListRetrievalPacket.TYPE, ClientboundModListRetrievalPacket.CODEC);
         ServerPlayConnectionEvents.JOIN.register(modDetectionNetworkChannel,(handler, sender, server) -> {
-            for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isSided()).toList()) {
+            for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isCommon()).toList()) {
                 if (atlasConfig instanceof ContextBasedConfig contextBasedConfig) atlasConfig = contextBasedConfig.getConfig(Context.builder().applyInformationFromEntity(handler.player).build());
                 ServerPlayNetworking.send(handler.player, new AtlasConfigPacket(false, atlasConfig));
             }
             AtlasCore.LOGGER.info("Config packets sent to client.");
         });
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(modDetectionNetworkChannel, (player, origin, destination) -> {
-            for (ContextBasedConfig contextBasedConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isSided() && atlasConfig instanceof ContextBasedConfig).map(config -> ((ContextBasedConfig) config).getConfig(Context.builder().applyInformationFromLevel(destination).build())).toList()) {
+            for (ContextBasedConfig contextBasedConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isCommon() && atlasConfig instanceof ContextBasedConfig).map(config -> ((ContextBasedConfig) config).getConfig(Context.builder().applyInformationFromLevel(destination).build())).toList()) {
                 ServerPlayNetworking.send(player, new AtlasConfigPacket(false, contextBasedConfig));
             }
         });

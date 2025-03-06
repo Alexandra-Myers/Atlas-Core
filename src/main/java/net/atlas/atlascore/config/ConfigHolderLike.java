@@ -5,14 +5,13 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import io.netty.buffer.ByteBuf;
 
 import java.util.concurrent.CompletableFuture;
 
-public interface ConfigHolderLike<T, B extends ByteBuf> {
+public interface ConfigHolderLike<T> {
     void setToParsedValue();
 
-    AtlasConfig.ConfigHolder<T, B> getAsHolder();
+    AtlasConfig.ConfigHolder<T> getAsHolder();
 
     T get();
 

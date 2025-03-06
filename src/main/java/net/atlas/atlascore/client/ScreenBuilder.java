@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.io.IOException;
+import java.util.List;
 
 public final class ScreenBuilder {
     private ScreenBuilder() {
@@ -31,12 +32,23 @@ public final class ScreenBuilder {
 			});
 		if (prevScreen != null) builder.setParentScreen(prevScreen);
 
-		for (AtlasConfig.Category category : config.categories) {
-			ConfigCategory configCategory = builder.getOrCreateCategory(Component.translatable(category.translationKey()));
+		if (!config.categories.isEmpty()) {
+			for (AtlasConfig.Category category : config.categories) {
+				ConfigCategory configCategory = builder.getOrCreateCategory(Component.translatable(category.translationKey()));
 
-			for (AbstractConfigListEntry<?> entry : category.membersAsCloth()) {
-				configCategory.addEntry(entry);
+				for (AbstractConfigListEntry<?> entry : category.membersAsCloth()) {
+					configCategory.addEntry(entry);
+				}
 			}
+		}
+		List<AtlasConfig.ConfigHolder<?>> uncategorised = config.getUncategorisedHolders();
+		if (!uncategorised.isEmpty()) {
+			ConfigCategory configCategory = builder.getOrCreateCategory(Component.translatable("text.config.misc_category"));
+			uncategorised.stream().map(holder -> {
+				AbstractConfigListEntry<?> entry = holder.transformIntoConfigEntry();
+				entry.setEditable(!holder.serverManaged);
+				return entry;
+			}).forEach(configCategory::addEntry);
 		}
 
 		return builder.build();

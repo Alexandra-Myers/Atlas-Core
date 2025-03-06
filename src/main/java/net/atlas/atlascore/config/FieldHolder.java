@@ -7,20 +7,19 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.atlas.atlascore.command.argument.ExtendedArgumentType;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
 
-public class FieldHolder implements ConfigHolderLike<Object, RegistryFriendlyByteBuf> {
-    public final AtlasConfig.ConfigHolder<?, RegistryFriendlyByteBuf> owner;
+public class FieldHolder implements ConfigHolderLike<Object> {
+    public final AtlasConfig.ConfigHolder<?> owner;
     private final Field field;
     private final ArgumentType<?> type;
     private final Object defaultValue;
     private final String name;
     public Object parsedValue;
 
-    public FieldHolder(AtlasConfig.ConfigHolder<?, RegistryFriendlyByteBuf> owner,
+    public FieldHolder(AtlasConfig.ConfigHolder<?> owner,
                        Field field,
                        ArgumentType<?> type,
                        Object defaultValue,
@@ -41,8 +40,8 @@ public class FieldHolder implements ConfigHolderLike<Object, RegistryFriendlyByt
 
     @Override
     @SuppressWarnings("unchecked")
-    public AtlasConfig.ConfigHolder<Object, RegistryFriendlyByteBuf> getAsHolder() {
-        return (AtlasConfig.ConfigHolder<Object, RegistryFriendlyByteBuf>) owner;
+    public AtlasConfig.ConfigHolder<Object> getAsHolder() {
+        return (AtlasConfig.ConfigHolder<Object>) owner;
     }
 
     @Override

@@ -11,6 +11,7 @@
   "contact": {},
   "license": "GPL-3.0",
   "icon": "assets/atlas-core/icon.png",
+  "accessWidener": "atlas-core.accesswidener",
 
   "environment": "*",
   "entrypoints": {
