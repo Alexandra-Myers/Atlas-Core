@@ -1,9 +1,7 @@
 package net.atlas.atlascore.config;
 
 import com.google.common.collect.Maps;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 import com.google.gson.stream.JsonReader;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
@@ -82,6 +80,8 @@ public abstract class AtlasConfig {
         this.name = name;
         configHolders = new ArrayList<>();
         categories = createCategories();
+        configFile = null;
+        configJsonObject = null;
         defineConfigHolders();
         if (!Files.exists(getConfigFolderPath()))
             try {
@@ -165,20 +165,18 @@ public abstract class AtlasConfig {
     @ApiStatus.Internal
     protected void load() {
         isDefault = false;
-        configFile = new File(getConfigFolderPath().toAbsolutePath() + "/" + name.getPath() + ".json");
+        if (configFile == null) configFile = new File(getConfigFolderPath().toAbsolutePath() + "/" + name.getPath() + ".json");
         if (!configFile.exists()) {
             try {
                 configFile.createNewFile();
-                try (InputStream inputStream = getDefaultedConfig()) {
-                    Files.write(configFile.toPath(), inputStream.readAllBytes());
-                }
+                saveConfig();
             } catch (IOException e) {
                 throw new ReportedException(new CrashReport("Failed to create config file for config " + name, e));
             }
         }
 
         try {
-            configJsonObject = JsonParser.parseReader(new JsonReader(new FileReader(configFile))).getAsJsonObject();
+            if (configJsonObject == null) configJsonObject = JsonParser.parseReader(new JsonReader(new FileReader(configFile))).getAsJsonObject();
             for (Category category : categories) {
                 JsonObject categoryRoot = new JsonObject();
                 if (configJsonObject.has(category.name))
@@ -193,12 +191,15 @@ public abstract class AtlasConfig {
                     configHolder.loadFromJSONAndResetManaged(configJsonObject);
             loadExtra(configJsonObject);
         } catch (IOException | IllegalStateException e) {
-            e.printStackTrace();
+            AtlasCore.LOGGER.error("Failed to load config from file!", e);
         }
     }
 
     protected abstract void loadExtra(JsonObject jsonObject);
-    protected abstract InputStream getDefaultedConfig();
+    @Deprecated(forRemoval = true)
+    protected InputStream getDefaultedConfig() {
+        return null;
+    }
     public AtlasConfig loadFromNetwork(RegistryFriendlyByteBuf buf) {
         configHolders.forEach(configHolder -> configHolder.readFromBuf(buf));
         return this;
@@ -517,8 +518,11 @@ public abstract class AtlasConfig {
             value = newValue;
             heldValue.emitChanged(newValue);
         }
-        public void loadFromJSONAndSetSynchedValue(JsonObject jsonObject) {
-            setSynchedValue(codec.parse(JsonOps.INSTANCE, jsonObject).getOrThrow());
+        public void resetToDefaultAndResetManaged() {
+            setValueAndResetManaged(heldValue.defaultValue);
+        }
+        public void resetToDefaultAndSetSynchedValue() {
+            setSynchedValue(heldValue.defaultValue);
         }
         public void setSynchedValue(T newValue) {
             if (isNotValid(newValue))
@@ -1134,9 +1138,9 @@ public abstract class AtlasConfig {
 
     public void reset() {
         try {
-            try (InputStream inputStream = getDefaultedConfig()) {
-                Files.write(configFile.toPath(), inputStream.readAllBytes());
-            }
+            resetExtraHolders();
+            valueNameToConfigHolderMap.values().forEach(ConfigHolder::resetToDefaultAndResetManaged);
+            saveConfig();
         } catch (IOException e) {
             throw new ReportedException(new CrashReport("Failed to recreate config file for config " + name, e));
         }
@@ -1146,21 +1150,8 @@ public abstract class AtlasConfig {
     public void reloadFromDefault() {
         resetExtraHolders();
         isDefault = true;
-        JsonObject configJsonObject = JsonParser.parseReader(new JsonReader(new InputStreamReader(getDefaultedConfig()))).getAsJsonObject();
 
-        for (Category category : categories) {
-            JsonObject categoryRoot = new JsonObject();
-            if (configJsonObject.has(category.name))
-                categoryRoot = configJsonObject.getAsJsonObject(category.name);
-            for (ConfigHolder<?> holder : category.members) {
-                if (categoryRoot.has(holder.heldValue.name))
-                    holder.loadFromJSONAndResetManaged(categoryRoot);
-            }
-        }
-        for (ConfigHolder<?> configHolder : valueNameToConfigHolderMap.values())
-            if (configJsonObject.has(configHolder.heldValue.name))
-                configHolder.loadFromJSONAndSetSynchedValue(configJsonObject);
-        loadExtra(configJsonObject);
+        valueNameToConfigHolderMap.values().forEach(ConfigHolder::resetToDefaultAndSetSynchedValue);
     }
 
     @Environment(EnvType.CLIENT)
