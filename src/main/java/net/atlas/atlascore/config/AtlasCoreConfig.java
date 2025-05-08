@@ -27,7 +27,6 @@ import net.minecraft.world.item.Items;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.BiFunction;
@@ -263,11 +262,6 @@ public class AtlasCoreConfig extends AtlasConfig {
     @Override
     protected void loadExtra(JsonObject jsonObject) {
 
-    }
-
-    @Override
-    protected InputStream getDefaultedConfig() {
-        return Thread.currentThread().getContextClassLoader().getResourceAsStream("atlas-core-config.json");
     }
 
     @Override
