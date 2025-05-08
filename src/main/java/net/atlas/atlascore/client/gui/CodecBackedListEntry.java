@@ -1,8 +1,3 @@
-//
-// Source code recreated from a .class file by IntelliJ IDEA
-// (powered by FernFlower decompiler)
-//
-
 package net.atlas.atlascore.client.gui;
 
 import java.util.Optional;
@@ -54,13 +49,13 @@ public class CodecBackedListEntry<T> extends TextFieldListEntry<Tag> {
 
     @Override
     protected boolean isChanged(Tag original, String s) {
-        return !original.getAsString().equals(s);
+        return !original.toString().equals(s);
     }
 
     public Tag getValue() {
         StringReader reader = new StringReader(this.textFieldWidget.getValue());
         try {
-            return new TagParser(reader).readValue();
+            return TagParser.create(NbtOps.INSTANCE).parseAsArgument(reader);
         } catch (CommandSyntaxException e) {
             return new CompoundTag();
         }
@@ -71,7 +66,7 @@ public class CodecBackedListEntry<T> extends TextFieldListEntry<Tag> {
         StringReader reader = new StringReader(this.textFieldWidget.getValue());
         AtomicReference<Optional<Component>> optional = new AtomicReference<>(Optional.empty());
         try {
-            Tag tag = new TagParser(reader).readValue();
+            Tag tag = TagParser.create(NbtOps.INSTANCE).parseAsArgument(reader);
             DataResult<T> dataResult = codec.parse(NbtOps.INSTANCE, tag);
             dataResult.ifError(error -> optional.set(Optional.of(Component.literal(error.toString()))));
         } catch (CommandSyntaxException e) {

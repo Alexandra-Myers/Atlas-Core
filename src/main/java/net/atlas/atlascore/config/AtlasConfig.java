@@ -612,16 +612,15 @@ public abstract class AtlasConfig {
         }
 
         public Tag asNBT(T val) {
-            Tag tag = rawCodec.encodeStart(NbtOps.INSTANCE, val).getOrThrow();
-            return tag;
+            return rawCodec.encodeStart(NbtOps.INSTANCE, val).getOrThrow();
         }
 
         public String asSNBT(T val) {
-            return asNBT(val).getAsString();
+            return asNBT(val).toString();
         }
 
         public T loadFromSNBT(StringReader reader) throws CommandSyntaxException {
-            Tag tag = new TagParser(reader).readValue();
+            Tag tag = TagParser.create(NbtOps.INSTANCE).parseAsArgument(reader);
             return rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow(s -> CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException().createWithContext(reader, s));
         }
 
