@@ -266,11 +266,6 @@ public class AtlasCoreConfig extends AtlasConfig {
     }
 
     @Override
-    protected InputStream getDefaultedConfig() {
-        return Thread.currentThread().getContextClassLoader().getResourceAsStream("atlas-core-config.json");
-    }
-
-    @Override
     @Environment(EnvType.CLIENT)
     public void handleExtraSync(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context) {
 

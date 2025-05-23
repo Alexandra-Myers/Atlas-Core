@@ -27,16 +27,17 @@ import java.util.Comparator;
 import java.util.function.Consumer;
 
 public class AtlasCore implements ModInitializer {
-    public static AtlasCoreConfig CONFIG = new AtlasCoreConfig();
-    public static ResourceLocation modDetectionNetworkChannel = id("networking");
     public static final String MOD_ID = "atlas-core";
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final PrefixLogger LOGGER = new PrefixLogger(LogManager.getLogger("Atlas Core"));
+    public static AtlasCoreConfig CONFIG;
+    public static ResourceLocation modDetectionNetworkChannel = id("networking");
     /**
      * Runs the mod initializer.
      */
     @Override
     public void onInitialize() {
+        CONFIG = new AtlasCoreConfig();
         PayloadTypeRegistry.playS2C().register(AtlasConfigPacket.TYPE, AtlasConfigPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(ClientInformPacket.TYPE, ClientInformPacket.CODEC);
         PayloadTypeRegistry.configurationC2S().register(ServerboundClientModPacket.TYPE, ServerboundClientModPacket.CODEC);

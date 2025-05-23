@@ -25,6 +25,10 @@ public class PrefixLogger {
         logger.warn(LOG_FORMAT, prefix, message);
     }
 
+    public void error(String message, Throwable throwable) {
+        logger.error(LOG_FORMAT, prefix, message, throwable);
+    }
+
     public Logger unwrap() {
         return logger;
     }
