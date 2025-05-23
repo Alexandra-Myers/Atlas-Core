@@ -1148,8 +1148,8 @@ public abstract class AtlasConfig {
     }
 
     public void reloadFromDefault() {
-        resetExtraHolders();
         isDefault = true;
+        resetExtraHolders();
 
         valueNameToConfigHolderMap.values().forEach(ConfigHolder::resetToDefaultAndSetSynchedValue);
     }
