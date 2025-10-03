@@ -1,23 +1,25 @@
 package net.atlas.atlascore.config;
 
 import net.atlas.atlascore.client.ScreenBuilder;
+import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.SimpleOptionsSubScreen;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class AtlasConfigScreen extends OptionsSubScreen {
+public class AtlasConfigScreen extends SimpleOptionsSubScreen {
 	public AtlasConfigScreen(Screen screen, Options options, Component component) {
-		super(screen, options, component);
+		super(screen, options, component, new OptionInstance[0]);
 	}
 
 	@Override
-	protected void addOptions() {
+	protected void init() {
+		super.init();
 		List<AbstractWidget> configButtons = new ArrayList<>();
 		AtlasConfig.configs.forEach((resourceLocation, config) -> {
 			if (config.hasScreen()) configButtons.add(Button.builder(Component.translatable("text.config." + config.name.getPath() + ".title"), button -> this.minecraft.setScreen(ScreenBuilder.buildAtlasConfig(this, config))).build());

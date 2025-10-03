@@ -74,7 +74,7 @@ public class AtlasCore implements ModInitializer {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ConfigCommand.register(dispatcher));
     }
     public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+        return new ResourceLocation(MOD_ID, path);
     }
 
     public record AtlasConfigPacket(boolean forCommand, AtlasConfig config) implements CustomPacketPayload {

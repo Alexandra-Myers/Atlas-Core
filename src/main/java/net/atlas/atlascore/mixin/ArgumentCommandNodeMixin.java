@@ -14,12 +14,12 @@ import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(ArgumentCommandNode.class)
 public class ArgumentCommandNodeMixin {
-    @WrapOperation(method = "parse", at = @At(value = "INVOKE", target = "Lcom/mojang/brigadier/arguments/ArgumentType;parse(Lcom/mojang/brigadier/StringReader;Ljava/lang/Object;)Ljava/lang/Object;"), remap = false)
-    public <T, S> T modifyParseCall(ArgumentType<T> instance, StringReader reader, S source, Operation<T> original, @Local(ordinal = 0, argsOnly = true) CommandContextBuilder<S> commandContextBuilder) throws CommandSyntaxException {
+    @WrapOperation(method = "parse", at = @At(value = "INVOKE", target = "Lcom/mojang/brigadier/arguments/ArgumentType;parse(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"), remap = false)
+    public <T, S> T modifyParseCall(ArgumentType<?> instance, StringReader reader, Operation<T> original, @Local(ordinal = 0, argsOnly = true) CommandContextBuilder<S> commandContextBuilder) throws CommandSyntaxException {
         if (instance instanceof ExtendedArgumentType<?>) {
-            return ((ExtendedArgumentType<T>)instance).parse(reader, source, commandContextBuilder.copy().build(reader.getRead()));
+            return ((ExtendedArgumentType<T>)instance).parse(reader, commandContextBuilder.getSource(), commandContextBuilder.copy().build(reader.getRead()));
         } else {
-            return original.call(instance, reader, source); // This is lying, it does work, S is a type parameter, so it is confused
+            return original.call(instance, reader);
         }
     }
 }

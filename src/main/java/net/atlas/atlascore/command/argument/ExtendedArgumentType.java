@@ -10,6 +10,6 @@ public interface ExtendedArgumentType<T> extends ArgumentType<T> {
         return parse(reader, commandContext);
     }
     default <S> T parse(final StringReader reader, final CommandContext<S> commandContext) throws CommandSyntaxException {
-        return parse(reader, commandContext.getSource());
+        return parse(reader);
     }
 }

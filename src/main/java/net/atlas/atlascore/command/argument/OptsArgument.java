@@ -132,7 +132,7 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) implements Ex
 
     @SuppressWarnings("unchecked")
     private <S, T> Argument<T> buildArgument(StringReader stringReader, CommandContext<S> commandContext, ArgumentType<T> type, String argumentName) throws CommandSyntaxException {
-        T result = type instanceof ExtendedArgumentType<T> extendedArgumentType ? extendedArgumentType.parse(stringReader, commandContext.getSource(), commandContext) : type.parse(stringReader, commandContext.getSource());
+        T result = type instanceof ExtendedArgumentType<T> extendedArgumentType ? extendedArgumentType.parse(stringReader, commandContext.getSource(), commandContext) : type.parse(stringReader);
         return new Argument<>(argumentName, result, (Class<T>) result.getClass());
     }
 
