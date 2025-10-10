@@ -14,6 +14,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.Permissions;
 
 import java.io.IOException;
 import java.util.List;
@@ -23,7 +24,7 @@ import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
 
 public class ConfigCommand {
     public static void register(CommandDispatcher<CommandSourceStack> commandDispatcher) {
-        commandDispatcher.register(Commands.literal("atlas_config").requires((commandSourceStack) -> commandSourceStack.hasPermission(2))
+        commandDispatcher.register(Commands.literal("atlas_config").requires((commandSourceStack) -> commandSourceStack.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                 .then(Commands.literal("reload").executes(ConfigCommand::reloadAll))
                 .then(Commands.literal("read").executes(ConfigCommand::readAll))
                 .then(Commands.literal("reset").executes(ConfigCommand::resetAll))
