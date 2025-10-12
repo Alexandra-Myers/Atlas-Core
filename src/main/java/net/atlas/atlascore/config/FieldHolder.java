@@ -6,7 +6,6 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.atlas.atlascore.command.argument.ExtendedArgumentType;
 
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
@@ -71,9 +70,7 @@ public class FieldHolder implements ConfigHolderLike<Object> {
 
     @Override
     public <S> Object parse(StringReader reader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
-        Object ret;
-        if (type instanceof ExtendedArgumentType<?> extendedArgumentType) ret = extendedArgumentType.parse(reader, commandContext);
-        else ret = type.parse(reader);
+        Object ret = type.parse(reader);
         parsedValue = ret;
         return ret;
     }
@@ -81,6 +78,11 @@ public class FieldHolder implements ConfigHolderLike<Object> {
     @Override
     public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder) {
         return type.listSuggestions(commandContext, suggestionsBuilder);
+    }
+
+    @Override
+    public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+        type.parse(reader);
     }
 
     @Override

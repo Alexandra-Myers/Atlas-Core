@@ -3,10 +3,7 @@
   "minVersion": "0.8",
   "package": "net.atlas.atlascore.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [
-    "ArgumentCommandNodeMixin",
-    "CommandContextMixin"
-  ],
+  "mixins": [],
   "client": [
     "OptionsScreenMixin"
   ],
