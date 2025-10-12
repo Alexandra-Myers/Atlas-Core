@@ -21,12 +21,12 @@ public class PrefixLogger {
         logger.error(LOG_FORMAT, prefix, message);
     }
 
-    public void warn(String message) {
-        logger.warn(LOG_FORMAT, prefix, message);
-    }
-
     public void error(String message, Throwable throwable) {
         logger.error(LOG_FORMAT, prefix, message, throwable);
+    }
+
+    public void warn(String message) {
+        logger.warn(LOG_FORMAT, prefix, message);
     }
 
     public Logger unwrap() {

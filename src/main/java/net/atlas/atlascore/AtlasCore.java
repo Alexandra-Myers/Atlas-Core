@@ -6,7 +6,6 @@ import net.atlas.atlascore.command.ConfigCommand;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.AtlasCoreConfig;
 import net.atlas.atlascore.config.ContextBasedConfig;
-import net.atlas.atlascore.init.ArgumentInit;
 import net.atlas.atlascore.util.*;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -62,8 +61,7 @@ public class AtlasCore implements ModInitializer {
             ServerModsRetrievedEvent.RETRIEVAL.invoker().onModsReceived(context.networkHandler(), context.responseSender(), payload.modRepresentations());
             context.networkHandler().completeTask(ClientModRetrievalTask.TYPE);
         });
-        ServerPlayNetworking.registerGlobalReceiver(AtlasCore.ClientInformPacket.TYPE, (packet, context) -> packet.config().handleConfigInformation(packet, context.player(), context.responseSender()));
-        ArgumentInit.registerArguments();
+        ServerPlayNetworking.registerGlobalReceiver(ClientInformPacket.TYPE, (packet, context) -> packet.config().handleConfigInformation(packet, context.player(), context.responseSender()));
         ServerModsRetrievedEvent.RETRIEVAL.register((handler, sender, mods) -> {
             if (CONFIG.listClientModsOnJoin.get()) {
                 final String[] list = {"Client mods: \n"};
@@ -116,7 +114,7 @@ public class AtlasCore implements ModInitializer {
     }
 
     public record ClientModRetrievalTask() implements ConfigurationTask {
-        public static final ConfigurationTask.Type TYPE = new ConfigurationTask.Type(id("client_mods_retrieval").toString());
+        public static final Type TYPE = new Type(id("client_mods_retrieval").toString());
 
         @Override
         public void start(Consumer<Packet<?>> sender) {
