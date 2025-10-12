@@ -6,7 +6,6 @@ import net.atlas.atlascore.command.ConfigCommand;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.AtlasCoreConfig;
 import net.atlas.atlascore.config.ContextBasedConfig;
-import net.atlas.atlascore.init.ArgumentInit;
 import net.atlas.atlascore.util.*;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -63,7 +62,6 @@ public class AtlasCore implements ModInitializer {
             context.networkHandler().completeTask(ClientModRetrievalTask.TYPE);
         });
         ServerPlayNetworking.registerGlobalReceiver(AtlasCore.ClientInformPacket.TYPE, (packet, context) -> packet.config().handleConfigInformation(packet, context.player(), context.responseSender()));
-        ArgumentInit.registerArguments();
         ServerModsRetrievedEvent.RETRIEVAL.register((handler, sender, mods) -> {
             if (CONFIG.listClientModsOnJoin.get()) {
                 final String[] list = {"Client mods: \n"};
