@@ -23,6 +23,8 @@ public interface ConfigHolderLike<T> {
 
     <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder);
 
+    <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException;
+
     String getName();
 
     boolean hasParsedValue();

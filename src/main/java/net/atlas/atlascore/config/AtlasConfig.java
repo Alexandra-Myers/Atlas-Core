@@ -1,7 +1,9 @@
 package net.atlas.atlascore.config;
 
 import com.google.common.collect.Maps;
-import com.google.gson.*;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
@@ -60,16 +62,15 @@ import java.util.function.Supplier;
 import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
 
-@SuppressWarnings("unused")
 public abstract class AtlasConfig {
     public final ResourceLocation name;
     public final SyncMode defaultSyncMode;
     public final ConfigSide configSide;
     public boolean isDefault;
     public final Map<String, ConfigHolder<?>> valueNameToConfigHolderMap = Maps.newHashMap();
-    public final List<Category> categories;
+	public final List<Category> categories;
     public static final Map<ResourceLocation, AtlasConfig> configs = Maps.newHashMap();
-    public static final Map<String, AtlasConfig> menus = Maps.newHashMap();
+	public static final Map<String, AtlasConfig> menus = Maps.newHashMap();
     File configFile;
     JsonObject configJsonObject;
     List<ConfigHolder<?>> configHolders;
@@ -104,7 +105,7 @@ public abstract class AtlasConfig {
     }
 
     public Component getFormattedName() {
-        return Component.translatable("text.config." + name.getPath() + ".title");
+        return Component.translatableWithFallback("text.config." + name.getPath() + ".title", "Atlas Config");
     }
 
     /**
@@ -112,10 +113,10 @@ public abstract class AtlasConfig {
      * @param modID - The Mod ID for the mod in question
      * @return This current config.
      */
-    public AtlasConfig declareDefaultForMod(String modID) {
-        menus.put(modID, this);
-        return this;
-    }
+	public AtlasConfig declareDefaultForMod(String modID) {
+		menus.put(modID, this);
+		return this;
+	}
 
     public List<ConfigHolder<?>> getAllHolders() {
         return configHolders;
@@ -130,13 +131,13 @@ public abstract class AtlasConfig {
         }).toList();
     }
 
-    public @NotNull List<Category> createCategories() {
-        return new ArrayList<>();
-    }
+	public @NotNull List<Category> createCategories() {
+		return new ArrayList<>();
+	}
 
-    public abstract void defineConfigHolders();
+	public abstract void defineConfigHolders();
 
-    public abstract void resetExtraHolders();
+	public abstract void resetExtraHolders();
 
     public abstract <T> void alertChange(ConfigValue<T> tConfigValue, T newValue);
 
@@ -158,13 +159,13 @@ public abstract class AtlasConfig {
     protected Path getConfigFolderPath() {
         return Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + name.getNamespace() + configSide.getAsDir());
     }
-    public void reload() {
-        resetExtraHolders();
-        load();
-    }
+	public void reload() {
+		resetExtraHolders();
+		load();
+	}
     @ApiStatus.Internal
     protected void load() {
-        isDefault = false;
+		isDefault = false;
         if (configFile == null) configFile = new File(getConfigFolderPath().toAbsolutePath() + "/" + name.getPath() + ".json");
         if (!configFile.exists()) {
             try {
@@ -228,7 +229,7 @@ public abstract class AtlasConfig {
     public ConfigHolder<?> fromValue(ConfigValue<?> value) {
         return valueNameToConfigHolderMap.get(value.name);
     }
-
+    
     public <T> TagHolder<T> createCodecBacked(String name, T defaultVal, Codec<T> codec) {
         return createCodecBacked(name, defaultVal, codec, defaultSyncMode);
     }
@@ -347,25 +348,25 @@ public abstract class AtlasConfig {
         return doubleHolder;
     }
 
-    public final void saveConfig() throws IOException {
-        PrintWriter printWriter = new PrintWriter(configFile);
+	public final void saveConfig() throws IOException {
+		PrintWriter printWriter = new PrintWriter(configFile);
         JsonObject root = new JsonObject();
-        root = saveExtra(root).getAsJsonObject();
-        if (!categories.isEmpty()) {
+		root = saveExtra(root).getAsJsonObject();
+		if (!categories.isEmpty()) {
             for (Category category : categories) {
                 JsonObject categoryRoot = new JsonObject();
                 for (ConfigHolder<?> holder : category.members) {
                     categoryRoot = holder.encodeAsJSON(categoryRoot).getOrThrow().getAsJsonObject();
                 }
                 root.add(category.name, categoryRoot);
-            }
-        }
+		    }
+        } 
         for (ConfigHolder<?> holder : getUncategorisedHolders()) root = holder.encodeAsJSON(root).getOrThrow().getAsJsonObject();
         AtlasCore.GSON.toJson(root, printWriter);
         printWriter.close();
-    }
+	}
 
-    public JsonElement saveExtra(JsonElement root) {
+	public JsonElement saveExtra(JsonElement root) {
         return root;
     }
 
@@ -399,12 +400,12 @@ public abstract class AtlasConfig {
         RestartRequiredMode(Predicate<EnvType> predicate) {
             forEnvironment = predicate;
         }
-
+        
         public boolean restartRequiredOn(EnvType envType) {
             return forEnvironment.test(envType);
         }
     }
-    public record ConfigValue<T>(T defaultValue, T[] possibleValues, boolean isRange, String name, AtlasConfig owner, SyncMode syncMode) {
+	public record ConfigValue<T>(T defaultValue, T[] possibleValues, boolean isRange, String name, AtlasConfig owner, SyncMode syncMode) {
         public void emitChanged(T newValue) {
             owner.alertChange(this, newValue);
         }
@@ -444,11 +445,11 @@ public abstract class AtlasConfig {
         public final ConfigValue<T> heldValue;
         public final StreamCodec<RegistryFriendlyByteBuf, T> streamCodec;
         public final Codec<T> codec;
-        public RestartRequiredMode restartRequired = RestartRequiredMode.NO_RESTART;
-        public boolean serverManaged = false;
-        public Supplier<Optional<Component[]>> tooltip = Optional::empty;
+		public RestartRequiredMode restartRequired = RestartRequiredMode.NO_RESTART;
+		public boolean serverManaged = false;
+		public Supplier<Optional<Component[]>> tooltip = Optional::empty;
 
-        public ConfigHolder(ConfigValue<T> value, Codec<T> codec, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec) {
+		public ConfigHolder(ConfigValue<T> value, Codec<T> codec, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec) {
             this.value = value.defaultValue;
             heldValue = value;
             if (streamCodec != null) this.streamCodec = streamCodec;
@@ -474,9 +475,9 @@ public abstract class AtlasConfig {
         public boolean wasUpdated() {
             return synchedValue != null;
         }
-        public DataResult<JsonElement> encodeAsJSON(JsonObject root) {
-            return codec.encode(value, JsonOps.INSTANCE, root);
-        }
+		public DataResult<JsonElement> encodeAsJSON(JsonObject root) {
+			return codec.encode(value, JsonOps.INSTANCE, root);
+		}
         public void writeToBuf(RegistryFriendlyByteBuf buf) {
             if (heldValue.syncMode() != SyncMode.NONE)
                 streamCodec.encode(buf, value);
@@ -506,11 +507,11 @@ public abstract class AtlasConfig {
         public void loadFromJSONAndResetManaged(JsonObject jsonObject) {
             setValueAndResetManaged(codec.parse(JsonOps.INSTANCE, jsonObject).getOrThrow());
         }
-        public void setValueAndResetManaged(T newValue) {
-            setValue(newValue);
-            serverManaged = false;
+		public void setValueAndResetManaged(T newValue) {
+			setValue(newValue);
+			serverManaged = false;
             synchedValue = null;
-        }
+		}
         public void setValue(T newValue) {
             if (isNotValid(newValue))
                 return;
@@ -538,35 +539,35 @@ public abstract class AtlasConfig {
         }
 
         public void tieToCategory(Category category) {
-            category.addMember(this);
-        }
-        public void setRestartRequired(RestartRequiredMode restartRequired) {
-            this.restartRequired = restartRequired;
-        }
-        public void setupTooltip(int length) {
+			category.addMember(this);
+		}
+		public void setRestartRequired(RestartRequiredMode restartRequired) {
+			this.restartRequired = restartRequired;
+		}
+		public void setupTooltip(int length) {
             if (length == 0) {
                 AtlasCore.LOGGER.warn("Config holder given a tooltip without any lines!");
                 this.tooltip = () -> Optional.of(new Component[0]);
                 return;
             }
-            Component[] components = new Component[length];
+			Component[] components = new Component[length];
             components[0] = Component.translatable(getTranslationKey() + ".tooltip");
-            for (int i = 1; i < length; i++) {
-                components[i] = Component.translatable(getTranslationKey() + ".tooltip." + i);
-            }
-            this.tooltip = () -> Optional.of(components);
-        }
-        public String getTranslationKey() {
-            return "text.config." + heldValue.owner.name.getPath() + ".option." + heldValue.name;
-        }
-        public String getTranslationResetKey() {
-            return "text.config." + heldValue.owner.name.getPath() + ".reset";
-        }
+			for (int i = 1; i < length; i++) {
+				components[i] = Component.translatable(getTranslationKey() + ".tooltip." + i);
+			}
+			this.tooltip = () -> Optional.of(components);
+		}
+		public String getTranslationKey() {
+			return "text.config." + heldValue.owner.name.getPath() + ".option." + heldValue.name;
+		}
+		public String getTranslationResetKey() {
+			return "text.config." + heldValue.owner.name.getPath() + ".reset";
+		}
 
         public abstract Component getValueAsComponent();
 
         @Environment(EnvType.CLIENT)
-        public abstract AbstractConfigListEntry<?> transformIntoConfigEntry();
+		public abstract AbstractConfigListEntry<?> transformIntoConfigEntry();
 
         @Override
         public void setToParsedValue() {
@@ -642,6 +643,11 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            loadFromSNBT(reader);
+        }
+
+        @Override
         public <S> T parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             parsedValue = loadFromSNBT(stringReader);
             return parsedValue;
@@ -682,22 +688,28 @@ public abstract class AtlasConfig {
             SuggestionsVisitor visitor = new SuggestionsVisitor();
             visitor.visitSuggestions(suggestionsBuilder -> SharedSuggestionProvider.suggest(heldValue.defaultValue.fields(), builder));
             try {
-                suggestFields(visitor, commandContext, reader);
+                suggestFields(visitor, commandContext, reader, builder.getStart());
             } catch (CommandSyntaxException ignored) {
 
             }
             return visitor.resolveSuggestions(builder, reader);
         }
 
-        private <S> void suggestFields(SuggestionsVisitor visitor, CommandContext<S> context, StringReader reader) throws CommandSyntaxException {
-            int cursor = reader.getCursor();
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            FieldHolder field = (FieldHolder) findInner(reader);
+            reader.expect(':');
+            field.verifySuggestionsArePresent(commandContext, reader);
+        }
+
+        private <S> void suggestFields(SuggestionsVisitor visitor, CommandContext<S> context, StringReader reader, int cursor) throws CommandSyntaxException {
             String fieldName = ConfigHolderArgument.readHolderName(reader);
             if (retrieveInner(fieldName) == null) {
                 reader.setCursor(cursor);
                 throw ConfigHolderArgument.ERROR_UNKNOWN_HOLDER.createWithContext(reader, fieldName);
             }
             visitor.visitSuggestions(this::suggestSetValue);
-            reader.expect('=');
+            reader.expect(':');
             visitor.visitSuggestions(builder -> {
                 try {
                     return retrieveInner(fieldName).buildSuggestions(context, builder);
@@ -710,7 +722,7 @@ public abstract class AtlasConfig {
 
         private CompletableFuture<Suggestions> suggestSetValue(SuggestionsBuilder suggestionsBuilder) {
             if (suggestionsBuilder.getRemaining().isEmpty()) {
-                suggestionsBuilder.suggest(String.valueOf('='));
+                suggestionsBuilder.suggest(String.valueOf(':'));
             }
 
             return suggestionsBuilder.buildFuture();
@@ -733,7 +745,7 @@ public abstract class AtlasConfig {
             int cursor = stringReader.getCursor();
             try {
                 FieldHolder field = (FieldHolder) findInner(stringReader);
-                stringReader.expect('=');
+                stringReader.expect(':');
                 field.parse(stringReader, source, context);
                 field.setToParsedValue();
             } catch (CommandSyntaxException e) {
@@ -771,7 +783,7 @@ public abstract class AtlasConfig {
                 try {
                     ConfigHolderLike<?> fieldHolder = retrieveInner(field);
                     if (fieldHolder.hasParsedValue()) inners.add(fieldHolder);
-                } catch (CommandSyntaxException ignored) {
+                } catch (CommandSyntaxException e) {
 
                 }
             }
@@ -818,8 +830,8 @@ public abstract class AtlasConfig {
                 config.saveConfig();
                 commandSourceStack.getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
                 commandSourceStack.sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
-                if (restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart.no_value", Component.translatable(getTranslationKey()))), true);
-                else commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.update_holder.no_value", Component.translatable(getTranslationKey()))), true);
+                if (restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart.no_value", "The value for %s has been saved successfully, however changes will not take effect without a restart.", Component.translatable(getTranslationKey()))), true);
+                else commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.update_holder.no_value", "The value for config holder %s was changed successfully.", Component.translatable(getTranslationKey()))), true);
                 commandSourceStack.sendSuccess(() -> separatorLine(null), true);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -841,12 +853,12 @@ public abstract class AtlasConfig {
     }
     public static class EnumHolder<E extends Enum<E>> extends ConfigHolder<E> {
         public final Class<E> clazz;
-        public final Function<Enum, Component> names;
+		public final Function<Enum, Component> names;
         private EnumHolder(ConfigValue<E> value, Class<E> clazz, Function<Enum, Component> names) {
-            super(value, Codec.STRING.validate(string -> Arrays.stream(value.possibleValues).noneMatch(e -> e.name().equalsIgnoreCase(string)) ? DataResult.error(() -> "Invalid enum constant for type " + clazz.getSimpleName() + ": " + string) : DataResult.success(string)).xmap(s -> Enum.valueOf(clazz, s.toUpperCase()), e -> e.name().toLowerCase()),
+            super(value, Codec.STRING.validate(string -> Arrays.stream(value.possibleValues).noneMatch(e -> e.name().toUpperCase().equals(string.toUpperCase())) ? DataResult.error(() -> "Invalid enum constant for type " + clazz.getSimpleName() + ": " + string) : DataResult.success(string)).xmap(s -> Enum.valueOf(clazz, s.toUpperCase()), e -> e.name().toLowerCase()),
                     StreamCodec.of(RegistryFriendlyByteBuf::writeEnum, buf -> buf.readEnum(clazz)));
             this.clazz = clazz;
-            this.names = names;
+			this.names = names;
         }
 
         @Override
@@ -855,10 +867,10 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        @Environment(EnvType.CLIENT)
-        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            return new EnumListEntry<>(Component.translatable(getTranslationKey()), clazz, get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, names, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
-        }
+		@Environment(EnvType.CLIENT)
+		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
+			return new EnumListEntry<>(Component.translatable(getTranslationKey()), clazz, get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, names, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+		}
 
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
@@ -871,10 +883,21 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            String name = reader.readString();
+            for (E entry : heldValue.possibleValues) {
+                if (entry.name().toLowerCase().equals(name.toLowerCase())) {
+                    return;
+                }
+            }
+            throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerExpectedSymbol().create("a valid enum input");
+        }
+
+        @Override
         public <S> E parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             String name = stringReader.readString();
             for (E e : heldValue.possibleValues) {
-                if (e.name().equalsIgnoreCase(name)) {
+                if (e.name().toLowerCase().equals(name.toLowerCase())) {
                     parsedValue = e;
                     return e;
                 }
@@ -884,7 +907,7 @@ public abstract class AtlasConfig {
     }
     public static class StringHolder extends ConfigHolder<String> {
         private StringHolder(ConfigValue<String> value) {
-            super(value, Codec.STRING.validate(s -> value.possibleValues == null || Arrays.asList(value.possibleValues).contains(s) ? DataResult.success(s) : DataResult.error(() -> "Expected a string matching one of the following: " + Arrays.toString(value.possibleValues) + "\nFound: " + s)), ByteBufCodecs.STRING_UTF8.mapStream(buf -> buf));
+            super(value, Codec.STRING.validate(s -> value.possibleValues == null || Arrays.stream(value.possibleValues).anyMatch(s1 -> s1.equals(s)) ? DataResult.success(s) : DataResult.error(() -> "Expected a string matching one of the following: " + value.possibleValues + "\nFound: " + s)), ByteBufCodecs.STRING_UTF8.mapStream(buf -> buf));
         }
 
         @Override
@@ -893,10 +916,10 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        @Environment(EnvType.CLIENT)
-        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            return new StringListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
-        }
+		@Environment(EnvType.CLIENT)
+		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
+			return new StringListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+		}
 
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
@@ -905,8 +928,16 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            String read = reader.readString();
+            if (heldValue.possibleValues != null && Arrays.stream(heldValue.possibleValues).noneMatch(read::equals)) throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
+        }
+
+        @Override
         public <S> String parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
-            parsedValue = stringReader.readString();
+            String read = stringReader.readString();
+            if (heldValue.possibleValues != null && Arrays.stream(heldValue.possibleValues).noneMatch(read::equals)) throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
+            parsedValue = read;
             return parsedValue;
         }
     }
@@ -921,10 +952,10 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        @Environment(EnvType.CLIENT)
-        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            return new BooleanListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
-        }
+		@Environment(EnvType.CLIENT)
+		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
+			return new BooleanListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+		}
 
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
@@ -938,23 +969,28 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            if (!(reader.getRemaining().equals("true") || reader.getRemaining().equals("false"))) throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerExpectedBool().create();
+        }
+
+        @Override
         public <S> Boolean parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             parsedValue = stringReader.readBoolean();
             return parsedValue;
         }
     }
     public static class IntegerHolder extends ConfigHolder<Integer> {
-        public final boolean isSlider;
+		public final boolean isSlider;
         private IntegerHolder(ConfigValue<Integer> value, boolean isSlider) {
             super(value, value.possibleValues == null ? Codec.INT : value.isRange ? ExtraCodecs.intRange(value.possibleValues[0], value.possibleValues[1]) :
-                    Codec.INT.validate(integer -> Arrays.asList(value.possibleValues).contains(integer) ? DataResult.success(integer) : DataResult.error(() -> "Expected an integer within the following: " + Arrays.toString(value.possibleValues) + "\nFound: " + integer)), ByteBufCodecs.VAR_INT.mapStream(buf -> buf));
+                    Codec.INT.validate(integer -> Arrays.stream(value.possibleValues).anyMatch(integer::equals) ? DataResult.success(integer) : DataResult.error(() -> "Expected an integer within the following: " + value.possibleValues + "\nFound: " + integer)), ByteBufCodecs.VAR_INT.mapStream(buf -> buf));
             this.isSlider = isSlider;
         }
 
         @Override
         public boolean isNotValid(Integer newValue) {
-            if (heldValue.possibleValues == null)
-                return super.isNotValid(newValue);
+			if (heldValue.possibleValues == null)
+				return super.isNotValid(newValue);
             boolean inRange = heldValue.isRange && newValue >= heldValue.possibleValues[0] && newValue <= heldValue.possibleValues[1];
             return super.isNotValid(newValue) && !inRange;
         }
@@ -965,12 +1001,12 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        @Environment(EnvType.CLIENT)
-        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            if (!heldValue.isRange || !isSlider)
-                return new IntegerListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
-            return new IntegerSliderEntry(Component.translatable(getTranslationKey()), heldValue.possibleValues[0], heldValue.possibleValues[1], get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
-        }
+		@Environment(EnvType.CLIENT)
+		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
+			if (!heldValue.isRange || !isSlider)
+				return new IntegerListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+			return new IntegerSliderEntry(Component.translatable(getTranslationKey()), heldValue.possibleValues[0], heldValue.possibleValues[1], get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+		}
 
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
@@ -983,6 +1019,29 @@ public abstract class AtlasConfig {
                 return builder.buildFuture();
             }
             return Suggestions.empty();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            final int start = reader.getCursor();
+            final int result = reader.readInt();
+            if (heldValue.possibleValues != null) {
+                if (heldValue.isRange) {
+                    if (result < heldValue.possibleValues[0]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.integerTooLow().createWithContext(reader, result, heldValue.possibleValues[0]);
+                    }
+                    if (result > heldValue.possibleValues[1]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.integerTooHigh().createWithContext(reader, result, heldValue.possibleValues[1]);
+                    }
+                } else {
+                    if (Arrays.stream(heldValue.possibleValues).noneMatch(integer -> integer == result)) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
+                    }
+                }
+            }
         }
 
         @Override
@@ -1013,13 +1072,13 @@ public abstract class AtlasConfig {
     public static class DoubleHolder extends ConfigHolder<Double> {
         private DoubleHolder(ConfigValue<Double> value) {
             super(value, value.possibleValues == null ? Codec.DOUBLE : value.isRange ? Codecs.doubleRange(value.possibleValues[0], value.possibleValues[1]) :
-                    Codec.DOUBLE.validate(d -> Arrays.asList(value.possibleValues).contains(d) ? DataResult.success(d) : DataResult.error(() -> "Expected an double within the following: " + Arrays.toString(value.possibleValues) + "\nFound: " + d)), ByteBufCodecs.DOUBLE.mapStream(buf -> buf));
+                    Codec.DOUBLE.validate(d -> Arrays.stream(value.possibleValues).anyMatch(d::equals) ? DataResult.success(d) : DataResult.error(() -> "Expected an double within the following: " + value.possibleValues + "\nFound: " + d)), ByteBufCodecs.DOUBLE.mapStream(buf -> buf));
         }
 
         @Override
         public boolean isNotValid(Double newValue) {
-            if (heldValue.possibleValues == null)
-                return super.isNotValid(newValue);
+			if (heldValue.possibleValues == null)
+				return super.isNotValid(newValue);
             boolean inRange = heldValue.isRange && newValue >= heldValue.possibleValues[0] && newValue <= heldValue.possibleValues[1];
             return super.isNotValid(newValue) && !inRange;
         }
@@ -1030,10 +1089,10 @@ public abstract class AtlasConfig {
         }
 
         @Override
-        @Environment(EnvType.CLIENT)
-        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            return new DoubleListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
-        }
+		@Environment(EnvType.CLIENT)
+		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
+			return new DoubleListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+		}
 
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
@@ -1046,6 +1105,29 @@ public abstract class AtlasConfig {
                 return builder.buildFuture();
             }
             return Suggestions.empty();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            final int start = reader.getCursor();
+            final double result = reader.readDouble();
+            if (heldValue.possibleValues != null) {
+                if (heldValue.isRange) {
+                    if (result < heldValue.possibleValues[0]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.doubleTooLow().createWithContext(reader, result, heldValue.possibleValues[0]);
+                    }
+                    if (result > heldValue.possibleValues[1]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.doubleTooHigh().createWithContext(reader, result, heldValue.possibleValues[1]);
+                    }
+                } else {
+                    if (Arrays.stream(heldValue.possibleValues).noneMatch(integer -> integer == result)) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidDouble().createWithContext(reader, result);
+                    }
+                }
+            }
         }
 
         @Override
@@ -1072,7 +1154,7 @@ public abstract class AtlasConfig {
             parsedValue = result;
             return result;
         }
-    }
+	}
     public static class ColorHolder extends ConfigHolder<Integer> {
         private boolean hasAlpha;
 
@@ -1123,6 +1205,17 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            final String hex = reader.readString();
+            stripHexStarter(hex);
+            int result = (int) Long.parseLong(hex, 16);
+            if (hex.length() > 8)
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
+            if (!hasAlpha && hex.length() > 6)
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
+        }
+
+        @Override
         public <S> Integer parse(StringReader reader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             final String hex = reader.readString();
             stripHexStarter(hex);
@@ -1147,15 +1240,15 @@ public abstract class AtlasConfig {
         reload();
     }
 
-    public void reloadFromDefault() {
+	public void reloadFromDefault() {
         isDefault = true;
-        resetExtraHolders();
+		resetExtraHolders();
 
         valueNameToConfigHolderMap.values().forEach(ConfigHolder::resetToDefaultAndSetSynchedValue);
-    }
+	}
 
     @Environment(EnvType.CLIENT)
-    public static void handleExtraSyncStatic(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context) {
+	public static void handleExtraSyncStatic(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context) {
         AtlasConfig config = packet.config();
         if (!packet.forCommand()) {
             MutableComponent disconnectReason = Component.translatable("text.config.mismatch");
@@ -1232,30 +1325,30 @@ public abstract class AtlasConfig {
     @Environment(EnvType.CLIENT)
     public abstract void handleExtraSync(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context);
     public abstract void handleConfigInformation(AtlasCore.ClientInformPacket packet, ServerPlayer player, PacketSender sender);
-    @Environment(EnvType.CLIENT)
-    public abstract Screen createScreen(Screen prevScreen);
-    @Environment(EnvType.CLIENT)
-    public boolean hasScreen() {
-        return true;
-    }
+	@Environment(EnvType.CLIENT)
+	public abstract Screen createScreen(Screen prevScreen);
+	@Environment(EnvType.CLIENT)
+	public boolean hasScreen() {
+		return true;
+	}
 
-    public record Category(AtlasConfig config, String name, List<ConfigHolder<?>> members) {
-        public String translationKey() {
-            return "text.config." + config.name.getPath() + ".category." + name;
-        }
-        public void addMember(ConfigHolder<?> member) {
-            members.add(member);
-        }
+	public record Category(AtlasConfig config, String name, List<ConfigHolder<?>> members) {
+		public String translationKey() {
+			return "text.config." + config.name.getPath() + ".category." + name;
+		}
+		public void addMember(ConfigHolder<?> member) {
+			members.add(member);
+		}
 
-        @Environment(EnvType.CLIENT)
-        public List<AbstractConfigListEntry<?>> membersAsCloth() {
-            List<AbstractConfigListEntry<?>> transformed = new ArrayList<>();
-            members.forEach(configHolder -> {
-                AbstractConfigListEntry<?> entry = configHolder.transformIntoConfigEntry();
-                entry.setEditable(!configHolder.serverManaged);
-                transformed.add(entry);
-            });
-            return transformed;
-        }
-    }
+		@Environment(EnvType.CLIENT)
+		public List<AbstractConfigListEntry<?>> membersAsCloth() {
+			List<AbstractConfigListEntry<?>> transformed = new ArrayList<>();
+			members.forEach(configHolder -> {
+				AbstractConfigListEntry<?> entry = configHolder.transformIntoConfigEntry();
+				entry.setEditable(!configHolder.serverManaged);
+				transformed.add(entry);
+			});
+			return transformed;
+		}
+	}
 }

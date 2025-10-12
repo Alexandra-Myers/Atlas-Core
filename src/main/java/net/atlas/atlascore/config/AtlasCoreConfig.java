@@ -72,10 +72,10 @@ public class AtlasCoreConfig extends AtlasConfig {
         }
         public static final Map<String, Field> fields = Util.make(new HashMap<>(), hashMap -> {
             try {
-                hashMap.put("innerString", TestClass.class.getDeclaredField("innerString"));
-                hashMap.put("innerBool", TestClass.class.getDeclaredField("innerBool"));
-                hashMap.put("innerInt", TestClass.class.getDeclaredField("innerInt"));
-                hashMap.put("innerDouble", TestClass.class.getDeclaredField("innerDouble"));
+                hashMap.put("inner_string", TestClass.class.getDeclaredField("innerString"));
+                hashMap.put("inner_bool", TestClass.class.getDeclaredField("innerBool"));
+                hashMap.put("inner_int", TestClass.class.getDeclaredField("innerInt"));
+                hashMap.put("inner_double", TestClass.class.getDeclaredField("innerDouble"));
             } catch (NoSuchFieldException ignored) {
             }
         });
@@ -109,10 +109,10 @@ public class AtlasCoreConfig extends AtlasConfig {
         @Override
         public Codec<TestClass> getCodec(ConfigHolder<TestClass> owner) {
             return RecordCodecBuilder.create(instance ->
-                    instance.group(Codec.STRING.optionalFieldOf("innerString", "bar").forGetter(TestClass::innerString),
-                                    Codec.BOOL.optionalFieldOf("innerBool", true).forGetter(TestClass::innerBool),
-                                    Codec.INT.optionalFieldOf("innerInt", 3).forGetter(TestClass::innerInt),
-                                    Codec.DOUBLE.optionalFieldOf("innerDouble", 7.0).forGetter(TestClass::innerDouble))
+                    instance.group(Codec.STRING.optionalFieldOf("inner_string", "bar").forGetter(TestClass::innerString),
+                                    Codec.BOOL.optionalFieldOf("inner_bool", true).forGetter(TestClass::innerBool),
+                                    Codec.INT.optionalFieldOf("inner_int", 3).forGetter(TestClass::innerInt),
+                                    Codec.DOUBLE.optionalFieldOf("inner_double", 7.0).forGetter(TestClass::innerDouble))
                             .apply(instance, (innerString, innerBool, innerInt, innerDouble) -> new TestClass(owner, innerString, innerBool, innerInt, innerDouble)));
         }
 
@@ -172,10 +172,10 @@ public class AtlasCoreConfig extends AtlasConfig {
             if (resetTranslation == null)
                 resetTranslation = () -> Component.translatable(owner.getTranslationResetKey());
             List<AbstractConfigListEntry<?>> entries = new ArrayList<>();
-            entries.add(new StringListEntry(convertFieldToNameComponent.apply(this, "innerString"), innerString, resetTranslation.get(), () -> "bar", string -> innerString = string, Optional::empty, false));
-            entries.add(new BooleanListEntry(convertFieldToNameComponent.apply(this, "innerBool"), innerBool, resetTranslation.get(), () -> true, bool -> innerBool = bool, Optional::empty, false));
-            entries.add(new IntegerListEntry(convertFieldToNameComponent.apply(this, "innerInt"), innerInt, resetTranslation.get(), () -> 3, integer -> innerInt = integer, Optional::empty, false));
-            entries.add(new DoubleListEntry(convertFieldToNameComponent.apply(this, "innerDouble"), innerDouble, resetTranslation.get(), () -> 7.0, aDouble -> innerDouble = aDouble, Optional::empty, false));
+            entries.add(new StringListEntry(convertFieldToNameComponent.apply(this, "inner_string"), innerString, resetTranslation.get(), () -> "bar", string -> innerString = string, Optional::empty, false));
+            entries.add(new BooleanListEntry(convertFieldToNameComponent.apply(this, "inner_bool"), innerBool, resetTranslation.get(), () -> true, bool -> innerBool = bool, Optional::empty, false));
+            entries.add(new IntegerListEntry(convertFieldToNameComponent.apply(this, "inner_int"), innerInt, resetTranslation.get(), () -> 3, integer -> innerInt = integer, Optional::empty, false));
+            entries.add(new DoubleListEntry(convertFieldToNameComponent.apply(this, "inner_double"), innerDouble, resetTranslation.get(), () -> 7.0, aDouble -> innerDouble = aDouble, Optional::empty, false));
             return entries;
         }
     }
@@ -241,7 +241,7 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     public Component getFormattedName() {
-        return Component.translatable("text.config." + name.getPath() + ".title").withStyle(Style.EMPTY.withColor(configNameDisplayColour.get()));
+        return Component.translatableWithFallback("text.config." + name.getPath() + ".title", "Atlas Core").withStyle(Style.EMPTY.withColor(configNameDisplayColour.get()));
     }
 
     @Override

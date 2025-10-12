@@ -35,7 +35,7 @@ public final class ScreenBuilder {
 		if (!config.categories.isEmpty()) {
 			for (AtlasConfig.Category category : config.categories) {
 				ConfigCategory configCategory = builder.getOrCreateCategory(Component.translatable(category.translationKey()));
-
+	
 				for (AbstractConfigListEntry<?> entry : category.membersAsCloth()) {
 					configCategory.addEntry(entry);
 				}
