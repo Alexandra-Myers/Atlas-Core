@@ -7,12 +7,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.atlas.atlascore.util.Codecs;
 import net.atlas.atlascore.util.MapUtils;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -84,31 +81,29 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) {
     }
 
     /**
-     * Obtains an {@link Argument} from the {@link CommandContext}.
+     * Parses and obtains all {@link Argument}s from the {@link CommandContext}.
      *
      * @param context The context for the command, as provided by Brigadier.
-     * @param name The name for the Brigadier argument. This is separate to the resulting argument's name.
-     * @return The previously parsed {@link Argument} inside of the command context.
+     * @param name The name for the argument in Brigadier.
+     * @return Parsed {@link Argument}s from the {@link CommandContext}.
      */
-    public @Nullable Argument<?> getArgument(final CommandContext<?> context, String name) throws CommandSyntaxException {
-        StringReader stringReader = new StringReader(context.getArgument(name, ResourceLocation.class).toString());
-        String argumentName = readArgumentName(stringReader);
-        List<Argument<?>> args = readArguments(context);
-        return args.stream().filter(argument -> argument.name().equals(argumentName)).findFirst().orElse(null);
+    public List<Argument<?>> readArguments(final CommandContext<?> context, String name) throws CommandSyntaxException {
+        return readArgumentsRaw(context, context.getArgument(name, String.class));
     }
     /**
      * Parses and obtains all {@link Argument}s from the {@link CommandContext}.
      *
      * @param context The context for the command, as provided by Brigadier.
+     * @param input The input for the command.
      * @return Parsed {@link Argument}s from the {@link CommandContext}.
      */
-    public List<Argument<?>> readArguments(final CommandContext<?> context) throws CommandSyntaxException {
+    public List<Argument<?>> readArgumentsRaw(final CommandContext<?> context, String input) throws CommandSyntaxException {
         List<Argument<?>> args = new ArrayList<>();
-        for (String realArgument : Codecs.getArguments(context, String.class)) {
-            StringReader stringReader = new StringReader(context.getArgument(realArgument, String.class));
+        for (String realArgument : input.split("\s")) {
+            StringReader stringReader = new StringReader(realArgument);
             String argumentName = readArgumentName(stringReader);
             if (!arguments.containsKey(argumentName)) continue; // Must not be an argument, then...
-            stringReader.expect(':');
+            stringReader.expect('=');
             ArgumentType<?> type = arguments.get(argumentName);
             Argument<?> ret = buildArgument(stringReader, context, type, argumentName);
             args.add(ret);
@@ -119,7 +114,7 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) {
     private static String readArgumentName(StringReader stringReader) {
         int i = stringReader.getCursor();
 
-        while (stringReader.canRead() && stringReader.peek() != ':' && !Character.isWhitespace(stringReader.peek())) {
+        while (stringReader.canRead() && stringReader.peek() != '=' && !Character.isWhitespace(stringReader.peek())) {
             stringReader.skip();
         }
 
@@ -140,17 +135,34 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) {
      * @return A {@link CompletableFuture} for the suggestions provided by the command.
      */
     public <S> CompletableFuture<Suggestions> suggestions(CommandContext<S> context, SuggestionsBuilder builder) throws CommandSyntaxException {
+        return suggestionsInternal(context, builder, builder.getStart());
+    }
+    private <S> CompletableFuture<Suggestions> suggestionsInternal(CommandContext<S> context, SuggestionsBuilder builder, int start) {
         StringReader reader = new StringReader(builder.getInput());
         reader.setCursor(builder.getStart());
+        int original = reader.getCursor();
+        while (reader.canRead() && !Character.isWhitespace(reader.peek())) reader.skip();
         SuggestionsVisitor visitor = new SuggestionsVisitor();
-        List<Argument<?>> args = readArguments(context);
+        List<Argument<?>> args;
+        try {
+            args = readArgumentsRaw(context, reader.getString().substring(start, reader.getCursor()));
+        } catch (CommandSyntaxException ignored) {
+            args = Collections.emptyList();
+        }
+        List<Argument<?>> finalArgs = args;
         List<String> argumentNames = arguments.keySet().stream().filter(string -> {
             AtomicBoolean ret = new AtomicBoolean(true);
-            args.forEach(arg -> ret.set(ret.get() & !arg.name().equals(string)));
+            finalArgs.forEach(arg -> ret.set(ret.get() & !arg.name().equals(string)));
             return ret.get();
         }).toList();
         visitor.visitSuggestions(suggestionsBuilder -> SharedSuggestionProvider.suggest(argumentNames, builder));
         try {
+            if (!argumentNames.isEmpty() && reader.canRead() && Character.isWhitespace(reader.peek())) {
+                CompletableFuture<Suggestions> tryInception = suggestionsInternal(context, builder.createOffset(reader.getCursor() + 1), start);
+                visitor.visitSuggestions(builder1 -> tryInception);
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
+            }
+            reader.setCursor(original);
             suggestArgument(visitor, context, reader, argumentNames);
         } catch (CommandSyntaxException ignored) {
 
@@ -166,13 +178,14 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) {
             throw ERROR_INVALID_ARGUMENT.createWithContext(reader, argumentName);
         }
         visitor.visitSuggestions(this::suggestSetValue);
-        reader.expect(':');
+        reader.expect('=');
         visitor.visitSuggestions(builder -> arguments.get(argumentName).listSuggestions(context, builder));
+        reader.expect('\s');
     }
 
     private CompletableFuture<Suggestions> suggestSetValue(SuggestionsBuilder suggestionsBuilder) {
         if (suggestionsBuilder.getRemaining().isEmpty()) {
-            suggestionsBuilder.suggest(String.valueOf(':'));
+            suggestionsBuilder.suggest(String.valueOf('='));
         }
 
         return suggestionsBuilder.buildFuture();

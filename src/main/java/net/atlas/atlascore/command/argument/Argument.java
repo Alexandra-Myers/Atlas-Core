@@ -12,17 +12,14 @@ public record Argument<T>(String name, T data, Class<T> clazz) {
      * Produces a set of {@link Arguments} from a {@link CommandContext} to make it possible to use the opts arguments as you need them.
      *
      * @param context The command context for this command.
-     * @param trueArguments The names representing the arguments as they are inside Brigadier. Example: {"argument", "argument2", etc.}
+     * @param argumentsName The name representing the arguments as they are inside Brigadier. Example: "argument"
      * @return A newly constructed instance of {@link Arguments} which can be used to get opts arguments for the command.
      * @param <S> The command source type for the {@link CommandContext}.
      */
-    public static <S> Arguments argumentMap(OptsArgument optsArgument, CommandContext<S> context, String[] trueArguments) throws CommandSyntaxException {
+    public static <S> Arguments argumentMap(OptsArgument optsArgument, CommandContext<S> context, String argumentsName) throws CommandSyntaxException {
         List<Argument<?>> arguments = new ArrayList<>();
-        for (String argument : trueArguments) {
-            if (Codecs.hasArgument(context, argument)) {
-                Argument<?> arg = optsArgument.getArgument(context, argument);
-                arguments.add(arg);
-            }
+        if (Codecs.hasArgument(context, argumentsName)) {
+            arguments.addAll(optsArgument.readArguments(context, argumentsName));
         }
         return new Arguments(arguments);
     }

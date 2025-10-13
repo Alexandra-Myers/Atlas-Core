@@ -10,11 +10,8 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.ConfigHolderLike;
 import net.atlas.atlascore.config.ExtendedHolder;
-import net.atlas.atlascore.util.ComponentUtils;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -46,20 +43,12 @@ public record ConfigHolderArgument(String configArgument) {
         ConfigHolderLike<?> inner = null;
         ConfigHolderLike<?> baseHolder = configHolder;
         try {
-            int unresolvedInners = 0;
             boolean isExtended = configHolder instanceof ExtendedHolder;
-            while (isExtended && reader.canRead() && reader.peek() == '[') {
+            while (isExtended && reader.canRead() && reader.peek() == '.') {
                 reader.skip();
                 inner = ((ExtendedHolder) baseHolder).findInner(reader);
                 baseHolder = inner;
                 isExtended = baseHolder instanceof ExtendedHolder;
-                unresolvedInners++;
-                if (!isExtended) {
-                    while (unresolvedInners > 0) {
-                        reader.expect(']');
-                        unresolvedInners--;
-                    }
-                }
             }
         } catch (CommandSyntaxException e) {
             reader.setCursor(cursor);
@@ -71,7 +60,7 @@ public record ConfigHolderArgument(String configArgument) {
     public static String readHolderName(StringReader stringReader) {
         int i = stringReader.getCursor();
 
-        while (stringReader.canRead() && stringReader.peek() != ':' && stringReader.peek() != '[' && stringReader.peek() != ']' && !Character.isWhitespace(stringReader.peek())) {
+        while (stringReader.canRead() && stringReader.peek() != '=' && stringReader.peek() != '.' && !Character.isWhitespace(stringReader.peek())) {
             stringReader.skip();
         }
 
@@ -105,16 +94,8 @@ public record ConfigHolderArgument(String configArgument) {
         isExtended = configHolderLike instanceof ExtendedHolder;
         if (isExtended) {
             visitor.visitSuggestions(ConfigHolderArgument::suggestStartInner);
-            int unresolvedInners = 0;
             while (isExtended) {
-                if (reader.canRead() && reader.peek() == ']') {
-                    do {
-                        reader.skip();
-                        unresolvedInners--;
-                    } while (unresolvedInners > 0);
-                    break;
-                }
-                reader.expect('[');
+                reader.expect('.');
                 ExtendedHolder extendedHolder = (ExtendedHolder) configHolderLike;
                 visitor.visitSuggestions((suggestionsBuilder) -> extendedHolder.suggestInner(reader, suggestionsBuilder));
                 cursor = reader.getCursor();
@@ -123,7 +104,7 @@ public record ConfigHolderArgument(String configArgument) {
                 switch (temp) {
                     case ExtendedHolder ignored -> {
                         configHolderLike = temp;
-                        visitor.visitSuggestions(ConfigHolderArgument::suggestStartInceptionOrEnd);
+                        visitor.visitSuggestions(ConfigHolderArgument::suggestStartInner);
                     }
                     case null -> {
                         reader.setCursor(cursor);
@@ -134,39 +115,13 @@ public record ConfigHolderArgument(String configArgument) {
                         isExtended = false;
                     }
                 }
-                unresolvedInners++;
-                if (!isExtended) {
-                    do {
-                        if (!reader.canRead() || reader.peek() != ']')
-                            visitor.visitSuggestions(ConfigHolderArgument::suggestEnd);
-                        reader.expect(']');
-                        unresolvedInners--;
-                    } while (unresolvedInners > 0);
-                }
             }
         }
     }
 
     private static CompletableFuture<Suggestions> suggestStartInner(SuggestionsBuilder suggestionsBuilder) {
         if (suggestionsBuilder.getRemaining().isEmpty()) {
-            suggestionsBuilder.suggest(String.valueOf('['));
-        }
-
-        return suggestionsBuilder.buildFuture();
-    }
-
-    private static CompletableFuture<Suggestions> suggestStartInceptionOrEnd(SuggestionsBuilder suggestionsBuilder) {
-        if (suggestionsBuilder.getRemaining().isEmpty()) {
-            suggestionsBuilder.suggest(String.valueOf('['));
-            suggestionsBuilder.suggest(String.valueOf(']'));
-        }
-
-        return suggestionsBuilder.buildFuture();
-    }
-
-    private static CompletableFuture<Suggestions> suggestEnd(SuggestionsBuilder suggestionsBuilder) {
-        if (suggestionsBuilder.getRemaining().isEmpty()) {
-            suggestionsBuilder.suggest(String.valueOf(']'));
+            suggestionsBuilder.suggest(String.valueOf('.'));
         }
 
         return suggestionsBuilder.buildFuture();
@@ -185,12 +140,8 @@ public record ConfigHolderArgument(String configArgument) {
     }
 
     public record ConfigValueArgument() {
-        public static ResourceLocationArgument configValueArgument() {
-            return ResourceLocationArgument.id();
-        }
-
         public static <S> void readArgument(CommandContext<S> commandContext, String name, ConfigHolderLike<?> holder) throws CommandSyntaxException {
-            StringReader reader = new StringReader(ComponentUtils.toSimpleLocation(commandContext.getArgument(name, ResourceLocation.class)));
+            StringReader reader = new StringReader(commandContext.getArgument(name, String.class));
             holder.parse(reader, commandContext.getSource(), commandContext);
         }
 

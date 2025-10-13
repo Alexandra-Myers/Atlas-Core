@@ -24,9 +24,9 @@ public class OptsArgumentUtils {
      *
      * @param openingArg The argument builder the appended arguments should come after
      * @param trueArguments The official names for these arguments inside Brigadier. These should be generic names as the order is unspecified.
-     * @param command The command to execute when any of these arguments are sent in. For how to receive an instance of {@link Argument.Arguments}, refer to the method {@link Argument#argumentMap(OptsArgument, CommandContext, String[])}
+     * @param command The command to execute when any of these arguments are sent in. For how to receive an instance of {@link Argument.Arguments}, refer to the method {@link Argument#argumentMap(OptsArgument, CommandContext, String)}
      * @param possibleArguments The actual opts arguments, mapped from the name to an instantiated argument type to be used to parse them.
-     * @see Argument#argumentMap(OptsArgument, CommandContext, String[])
+     * @see Argument#argumentMap(OptsArgument, CommandContext, String)
      * @see MapUtils#buildHashMapFromAlignedArrays(Object[], Object[])
      * @return An array of both the original argument builder [0], and the new argument builder after adding the arguments.
      */
