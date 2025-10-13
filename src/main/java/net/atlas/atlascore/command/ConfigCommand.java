@@ -1,6 +1,7 @@
 package net.atlas.atlascore.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.command.argument.AtlasConfigArgument;
@@ -37,7 +38,7 @@ public class ConfigCommand {
                                 .suggests((commandContext, suggestionsBuilder) -> ConfigHolderArgument.suggestions(commandContext, suggestionsBuilder, "config"))
                                 .then(Commands.literal("retrieve").executes(context -> readConfigHolder(context, AtlasConfigArgument.getConfig(context, "config", false), ConfigHolderArgument.getConfigHolder(context, "holder", "config"))))
                                 .then(Commands.literal("edit")
-                                        .then(Commands.argument("value", ConfigHolderArgument.ConfigValueArgument.configValueArgument())
+                                        .then(Commands.argument("value", StringArgumentType.greedyString())
                                                 .suggests((commandContext, suggestionsBuilder) -> ConfigHolderArgument.ConfigValueArgument.suggestions(commandContext, suggestionsBuilder, "holder", "config"))
                                                 .executes(context -> {
                                                     ConfigHolderLike<?> configHolder = ConfigHolderArgument.getConfigHolder(context, "holder", "config");

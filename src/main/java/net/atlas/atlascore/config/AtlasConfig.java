@@ -697,7 +697,7 @@ public abstract class AtlasConfig {
         @Override
         public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
             FieldHolder field = (FieldHolder) findInner(reader);
-            reader.expect(':');
+            reader.expect('=');
             field.verifySuggestionsArePresent(commandContext, reader);
         }
 
@@ -708,7 +708,7 @@ public abstract class AtlasConfig {
                 throw ConfigHolderArgument.ERROR_UNKNOWN_HOLDER.createWithContext(reader, fieldName);
             }
             visitor.visitSuggestions(this::suggestSetValue);
-            reader.expect(':');
+            reader.expect('=');
             visitor.visitSuggestions(builder -> {
                 try {
                     return retrieveInner(fieldName).buildSuggestions(context, builder);
@@ -721,7 +721,7 @@ public abstract class AtlasConfig {
 
         private CompletableFuture<Suggestions> suggestSetValue(SuggestionsBuilder suggestionsBuilder) {
             if (suggestionsBuilder.getRemaining().isEmpty()) {
-                suggestionsBuilder.suggest(String.valueOf(':'));
+                suggestionsBuilder.suggest(String.valueOf('='));
             }
 
             return suggestionsBuilder.buildFuture();
@@ -744,7 +744,7 @@ public abstract class AtlasConfig {
             int cursor = stringReader.getCursor();
             try {
                 FieldHolder field = (FieldHolder) findInner(stringReader);
-                stringReader.expect(':');
+                stringReader.expect('=');
                 field.parse(stringReader, source, context);
                 field.setToParsedValue();
             } catch (CommandSyntaxException e) {
