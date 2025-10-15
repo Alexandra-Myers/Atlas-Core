@@ -198,7 +198,6 @@ public class AtlasCoreConfig extends AtlasConfig {
     private Category debug;
     public AtlasCoreConfig() {
         super(AtlasCore.id("atlas-core-config"));
-        declareDefaultForMod(AtlasCore.MOD_ID);
     }
 
     @Override
