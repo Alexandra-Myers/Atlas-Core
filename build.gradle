@@ -18,7 +18,7 @@ version = "$project.mod_version.$project.sub_version"
 group = project.maven_group
 
 base {
-    archivesName = "$project.archives_base_name-$project.minecraft_version"
+    archivesName = "$project.archives_base_name-$project.minecraft_version-Neo"
 }
 
 repositories {
