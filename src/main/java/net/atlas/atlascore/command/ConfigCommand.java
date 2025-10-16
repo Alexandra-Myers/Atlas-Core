@@ -10,11 +10,11 @@ import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.ConfigHolderLike;
 import net.atlas.atlascore.config.ExtendedHolder;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.fml.loading.FMLEnvironment;
 
 import java.io.IOException;
 import java.util.List;
@@ -104,11 +104,11 @@ public class ConfigCommand {
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T>)) {
-            if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
+            if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FMLEnvironment.dist)) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
             else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.reset_holder", "The value for config holder %s was reset successfully.", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()))), true);
             context.getSource().sendSuccess(() -> separatorLine(null), true);
             return 1;
-        } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
+        } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FMLEnvironment.dist)) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
         else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.reset_holder", "The value for config holder %s was reset successfully.", Component.translatable(configHolder.getAsHolder().getTranslationKey()))), true);
         context.getSource().sendSuccess(() -> separatorLine(null), true);
         return 1;
@@ -137,9 +137,9 @@ public class ConfigCommand {
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T>)) {
-            if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
+            if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FMLEnvironment.dist)) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
             else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.update_holder", "The value for config holder %s was set to %s successfully.", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
-        } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
+        } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FMLEnvironment.dist)) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
         else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.update_holder", "The value for config holder %s was set to %s successfully.", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
         context.getSource().sendSuccess(() -> separatorLine(null), true);
         return 1;
