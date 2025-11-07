@@ -104,7 +104,7 @@ public abstract class AtlasConfig {
     }
 
     public Component getFormattedName() {
-        return Component.translatable("text.config." + name.getPath() + ".title");
+        return Component.translatableWithFallback("text.config." + name.getPath() + ".title", "Atlas Config");
     }
 
     /**
@@ -642,6 +642,11 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            loadFromSNBT(reader);
+        }
+
+        @Override
         public <S> T parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             parsedValue = loadFromSNBT(stringReader);
             return parsedValue;
@@ -682,15 +687,21 @@ public abstract class AtlasConfig {
             SuggestionsVisitor visitor = new SuggestionsVisitor();
             visitor.visitSuggestions(suggestionsBuilder -> SharedSuggestionProvider.suggest(heldValue.defaultValue.fields(), builder));
             try {
-                suggestFields(visitor, commandContext, reader);
+                suggestFields(visitor, commandContext, reader, builder.getStart());
             } catch (CommandSyntaxException ignored) {
 
             }
             return visitor.resolveSuggestions(builder, reader);
         }
 
-        private <S> void suggestFields(SuggestionsVisitor visitor, CommandContext<S> context, StringReader reader) throws CommandSyntaxException {
-            int cursor = reader.getCursor();
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            FieldHolder field = (FieldHolder) findInner(reader);
+            reader.expect('=');
+            field.verifySuggestionsArePresent(commandContext, reader);
+        }
+
+        private <S> void suggestFields(SuggestionsVisitor visitor, CommandContext<S> context, StringReader reader, int cursor) throws CommandSyntaxException {
             String fieldName = ConfigHolderArgument.readHolderName(reader);
             if (retrieveInner(fieldName) == null) {
                 reader.setCursor(cursor);
@@ -818,8 +829,8 @@ public abstract class AtlasConfig {
                 config.saveConfig();
                 commandSourceStack.getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
                 commandSourceStack.sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
-                if (restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart.no_value", Component.translatable(getTranslationKey()))), true);
-                else commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.update_holder.no_value", Component.translatable(getTranslationKey()))), true);
+                if (restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart.no_value", "The value for %s has been saved successfully, however changes will not take effect without a restart.", Component.translatable(getTranslationKey()))), true);
+                else commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.update_holder.no_value", "The value for config holder %s was changed successfully.", Component.translatable(getTranslationKey()))), true);
                 commandSourceStack.sendSuccess(() -> separatorLine(null), true);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -871,6 +882,17 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            String name = reader.readString();
+            for (E entry : heldValue.possibleValues) {
+                if (entry.name().toLowerCase().equals(name.toLowerCase())) {
+                    return;
+                }
+            }
+            throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerExpectedSymbol().create("a valid enum input");
+        }
+
+        @Override
         public <S> E parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             String name = stringReader.readString();
             for (E e : heldValue.possibleValues) {
@@ -905,8 +927,16 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            String read = reader.readString();
+            if (heldValue.possibleValues != null && Arrays.stream(heldValue.possibleValues).noneMatch(read::equals)) throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
+        }
+
+        @Override
         public <S> String parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
-            parsedValue = stringReader.readString();
+            String read = stringReader.readString();
+            if (heldValue.possibleValues != null && Arrays.stream(heldValue.possibleValues).noneMatch(read::equals)) throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
+            parsedValue = read;
             return parsedValue;
         }
     }
@@ -935,6 +965,11 @@ public abstract class AtlasConfig {
                 builder.suggest("false");
             }
             return builder.buildFuture();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            if (!(reader.getRemaining().equals("true") || reader.getRemaining().equals("false"))) throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerExpectedBool().create();
         }
 
         @Override
@@ -983,6 +1018,29 @@ public abstract class AtlasConfig {
                 return builder.buildFuture();
             }
             return Suggestions.empty();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            final int start = reader.getCursor();
+            final int result = reader.readInt();
+            if (heldValue.possibleValues != null) {
+                if (heldValue.isRange) {
+                    if (result < heldValue.possibleValues[0]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.integerTooLow().createWithContext(reader, result, heldValue.possibleValues[0]);
+                    }
+                    if (result > heldValue.possibleValues[1]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.integerTooHigh().createWithContext(reader, result, heldValue.possibleValues[1]);
+                    }
+                } else {
+                    if (Arrays.stream(heldValue.possibleValues).noneMatch(integer -> integer == result)) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
+                    }
+                }
+            }
         }
 
         @Override
@@ -1046,6 +1104,29 @@ public abstract class AtlasConfig {
                 return builder.buildFuture();
             }
             return Suggestions.empty();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            final int start = reader.getCursor();
+            final double result = reader.readDouble();
+            if (heldValue.possibleValues != null) {
+                if (heldValue.isRange) {
+                    if (result < heldValue.possibleValues[0]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.doubleTooLow().createWithContext(reader, result, heldValue.possibleValues[0]);
+                    }
+                    if (result > heldValue.possibleValues[1]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.doubleTooHigh().createWithContext(reader, result, heldValue.possibleValues[1]);
+                    }
+                } else {
+                    if (Arrays.stream(heldValue.possibleValues).noneMatch(integer -> integer == result)) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidDouble().createWithContext(reader, result);
+                    }
+                }
+            }
         }
 
         @Override
@@ -1120,6 +1201,17 @@ public abstract class AtlasConfig {
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
             return Suggestions.empty();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            final String hex = reader.readString();
+            stripHexStarter(hex);
+            int result = (int) Long.parseLong(hex, 16);
+            if (hex.length() > 8)
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
+            if (!hasAlpha && hex.length() > 6)
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
         }
 
         @Override

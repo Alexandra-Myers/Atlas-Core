@@ -1,7 +1,8 @@
 package net.atlas.atlascore.command.argument;
 
 import com.mojang.brigadier.context.CommandContext;
-import net.atlas.atlascore.extensions.CommandContextExtensions;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.atlas.atlascore.util.Codecs;
 
 import java.util.*;
 import java.util.function.Supplier;
@@ -11,17 +12,14 @@ public record Argument<T>(String name, T data, Class<T> clazz) {
      * Produces a set of {@link Arguments} from a {@link CommandContext} to make it possible to use the opts arguments as you need them.
      *
      * @param context The command context for this command.
-     * @param trueArguments The names representing the arguments as they are inside Brigadier. Example: {"argument", "argument2", etc.}
+     * @param argumentsName The name representing the arguments as they are inside Brigadier. Example: "argument"
      * @return A newly constructed instance of {@link Arguments} which can be used to get opts arguments for the command.
      * @param <S> The command source type for the {@link CommandContext}.
      */
-    public static <S> Arguments argumentMap(CommandContext<S> context, String[] trueArguments) {
+    public static <S> Arguments argumentMap(OptsArgument optsArgument, CommandContext<S> context, String argumentsName) throws CommandSyntaxException {
         List<Argument<?>> arguments = new ArrayList<>();
-        for (String argument : trueArguments) {
-            if (((CommandContextExtensions) context).hasArgument(argument)) {
-                Argument<?> arg = OptsArgument.getArgument(context, argument);
-                arguments.add(arg);
-            }
+        if (Codecs.hasArgument(context, argumentsName)) {
+            arguments.addAll(optsArgument.readArguments(context, argumentsName));
         }
         return new Arguments(arguments);
     }
@@ -39,8 +37,7 @@ public record Argument<T>(String name, T data, Class<T> clazz) {
     }
 
     public record Arguments(List<Argument<?>> arguments) {
-
-        private static final Map<Class<?>, Class<?>> PRIMITIVE_TO_WRAPPER = new HashMap<>();
+        public static final Map<Class<?>, Class<?>> PRIMITIVE_TO_WRAPPER = new HashMap<>();
 
         static {
             PRIMITIVE_TO_WRAPPER.put(boolean.class, Boolean.class);

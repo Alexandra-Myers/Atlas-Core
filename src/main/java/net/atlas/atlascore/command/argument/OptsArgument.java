@@ -1,8 +1,5 @@
 package net.atlas.atlascore.command.argument;
 
-import com.google.common.collect.Maps;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -10,30 +7,22 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.atlas.atlascore.extensions.CommandContextExtensions;
 import net.atlas.atlascore.util.MapUtils;
-import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.commands.synchronization.ArgumentTypeInfo;
-import net.minecraft.commands.synchronization.ArgumentTypeInfos;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 
-public record OptsArgument(Map<String, ArgumentType<?>> arguments) implements ExtendedArgumentType<Argument<?>> {
+public record OptsArgument(Map<String, ArgumentType<?>> arguments) {
     public static final DynamicCommandExceptionType ERROR_INVALID_ARGUMENT = new DynamicCommandExceptionType(
             (object) -> Component.translatableEscape("arguments.chosen.argument.invalid", object)
     );
-    
+
     public OptsArgument(String[] names, ArgumentType<?>[] types) {
         this(MapUtils.buildHashMapFromAlignedArrays(names, types));
     }
@@ -92,16 +81,36 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) implements Ex
     }
 
     /**
-     * Obtains an {@link Argument} from the {@link CommandContext}.
+     * Parses and obtains all {@link Argument}s from the {@link CommandContext}.
      *
      * @param context The context for the command, as provided by Brigadier.
-     * @param name The name for the Brigadier argument. This is separate to the resulting argument's name.
-     * @return The previously parsed {@link Argument} inside of the command context.
+     * @param name The name for the argument in Brigadier.
+     * @return Parsed {@link Argument}s from the {@link CommandContext}.
      */
-    public static Argument<?> getArgument(final CommandContext<?> context, String name) {
-        return context.getArgument(name, Argument.class);
+    public List<Argument<?>> readArguments(final CommandContext<?> context, String name) throws CommandSyntaxException {
+        return readArgumentsRaw(context, context.getArgument(name, String.class));
     }
-    
+    /**
+     * Parses and obtains all {@link Argument}s from the {@link CommandContext}.
+     *
+     * @param context The context for the command, as provided by Brigadier.
+     * @param input The input for the command.
+     * @return Parsed {@link Argument}s from the {@link CommandContext}.
+     */
+    public List<Argument<?>> readArgumentsRaw(final CommandContext<?> context, String input) throws CommandSyntaxException {
+        List<Argument<?>> args = new ArrayList<>();
+        for (String realArgument : input.split("\s")) {
+            StringReader stringReader = new StringReader(realArgument);
+            String argumentName = readArgumentName(stringReader);
+            if (!arguments.containsKey(argumentName)) continue; // Must not be an argument, then...
+            stringReader.expect('=');
+            ArgumentType<?> type = arguments.get(argumentName);
+            Argument<?> ret = buildArgument(stringReader, context, type, argumentName);
+            args.add(ret);
+        }
+        return args;
+    }
+
     private static String readArgumentName(StringReader stringReader) {
         int i = stringReader.getCursor();
 
@@ -112,48 +121,48 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) implements Ex
         return stringReader.getString().substring(i, stringReader.getCursor());
     }
 
-    @Override
-    public <S> Argument<?> parse(StringReader stringReader, CommandContext<S> commandContext) throws CommandSyntaxException {
-        int cursor = stringReader.getCursor();
-        String argumentName = readArgumentName(stringReader);
-        List<String> argumentNames = arguments.keySet().stream().filter(string -> {
-            AtomicBoolean ret = new AtomicBoolean(true);
-            ((CommandContextExtensions) commandContext).getArguments(Argument.class).forEach(arg -> ret.set(ret.get() & !arg.name().equals(string)));
-            return ret.get();
-        }).toList();
-        if (!argumentNames.contains(argumentName)) {
-            stringReader.setCursor(cursor);
-            throw ERROR_INVALID_ARGUMENT.createWithContext(stringReader, argumentName);
-        }
-        stringReader.expect('=');
-        ArgumentType<?> type = arguments.get(argumentName);
-        return buildArgument(stringReader, commandContext, type, argumentName);
-    }
-
     @SuppressWarnings("unchecked")
     private <S, T> Argument<T> buildArgument(StringReader stringReader, CommandContext<S> commandContext, ArgumentType<T> type, String argumentName) throws CommandSyntaxException {
-        T result = type instanceof ExtendedArgumentType<T> extendedArgumentType ? extendedArgumentType.parse(stringReader, commandContext.getSource(), commandContext) : type.parse(stringReader);
+        T result = type.parse(stringReader);
         return new Argument<>(argumentName, result, (Class<T>) result.getClass());
     }
 
-    @Override
-    public Argument<?> parse(StringReader reader) throws CommandSyntaxException {
-        // Literally nothing we can do to change this fate
-        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
+    /**
+     * Lists suggestions based on the {@link CommandContext}
+     *
+     * @param context The context for the command, as provided by Brigadier.
+     * @param builder The suggestions builder to be used for suggesting options.
+     * @return A {@link CompletableFuture} for the suggestions provided by the command.
+     */
+    public <S> CompletableFuture<Suggestions> suggestions(CommandContext<S> context, SuggestionsBuilder builder) throws CommandSyntaxException {
+        return suggestionsInternal(context, builder, builder.getStart());
     }
-
-    @Override
-    public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
+    private <S> CompletableFuture<Suggestions> suggestionsInternal(CommandContext<S> context, SuggestionsBuilder builder, int start) {
         StringReader reader = new StringReader(builder.getInput());
         reader.setCursor(builder.getStart());
+        int original = reader.getCursor();
+        while (reader.canRead() && !Character.isWhitespace(reader.peek())) reader.skip();
         SuggestionsVisitor visitor = new SuggestionsVisitor();
+        List<Argument<?>> args;
+        try {
+            args = readArgumentsRaw(context, reader.getString().substring(start, reader.getCursor()));
+        } catch (CommandSyntaxException ignored) {
+            args = Collections.emptyList();
+        }
+        List<Argument<?>> finalArgs = args;
         List<String> argumentNames = arguments.keySet().stream().filter(string -> {
             AtomicBoolean ret = new AtomicBoolean(true);
-            ((CommandContextExtensions) context).getArguments(Argument.class).forEach(arg -> ret.set(ret.get() & !arg.name().equals(string)));
+            finalArgs.forEach(arg -> ret.set(ret.get() & !arg.name().equals(string)));
             return ret.get();
         }).toList();
         visitor.visitSuggestions(suggestionsBuilder -> SharedSuggestionProvider.suggest(argumentNames, builder));
         try {
+            if (!argumentNames.isEmpty() && reader.canRead() && Character.isWhitespace(reader.peek())) {
+                CompletableFuture<Suggestions> tryInception = suggestionsInternal(context, builder.createOffset(reader.getCursor() + 1), start);
+                visitor.visitSuggestions(builder1 -> tryInception);
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
+            }
+            reader.setCursor(original);
             suggestArgument(visitor, context, reader, argumentNames);
         } catch (CommandSyntaxException ignored) {
 
@@ -171,6 +180,7 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) implements Ex
         visitor.visitSuggestions(this::suggestSetValue);
         reader.expect('=');
         visitor.visitSuggestions(builder -> arguments.get(argumentName).listSuggestions(context, builder));
+        reader.expect('\s');
     }
 
     private CompletableFuture<Suggestions> suggestSetValue(SuggestionsBuilder suggestionsBuilder) {
@@ -190,71 +200,6 @@ public record OptsArgument(Map<String, ArgumentType<?>> arguments) implements Ex
 
         public CompletableFuture<Suggestions> resolveSuggestions(SuggestionsBuilder suggestionsBuilder, StringReader stringReader) {
             return this.suggestions.apply(suggestionsBuilder.createOffset(stringReader.getCursor()));
-        }
-    }
-
-    public static class Info implements ArgumentTypeInfo<OptsArgument, Info.Template> {
-        @SuppressWarnings("unchecked")
-        public void serializeToNetwork(Info.Template template, FriendlyByteBuf friendlyByteBuf) {
-            friendlyByteBuf.writeMap(template.argumentInfos, FriendlyByteBuf::writeUtf, (byteBuf, argument) -> {
-                byteBuf.writeVarInt(BuiltInRegistries.COMMAND_ARGUMENT_TYPE.getId(argument.type()));
-                ((ArgumentTypeInfo<?, ArgumentTypeInfo.Template<?>>) argument.type()).serializeToNetwork(argument, byteBuf);
-            });
-        }
-
-        @SuppressWarnings("unchecked")
-        public void serializeToJson(Info.Template template, JsonObject jsonObject) {
-            JsonArray entries = new JsonArray();
-            template.argumentInfos.forEach((argument, argTemplate) -> {
-                if (argTemplate == null) return;
-                JsonObject entry = new JsonObject();
-                entry.addProperty("name", argument);
-                JsonObject jsonObject1 = new JsonObject();
-                jsonObject1.addProperty("parser", BuiltInRegistries.COMMAND_ARGUMENT_TYPE.getKey(argTemplate.type()).toString());
-                JsonObject jsonObject2 = new JsonObject();
-                ((ArgumentTypeInfo<?, ArgumentTypeInfo.Template<?>>) argTemplate.type()).serializeToJson(argTemplate, jsonObject2);
-                if (!jsonObject2.isEmpty()) jsonObject1.add("properties", jsonObject2);
-                entry.add("argument_template", jsonObject1);
-                entries.add(entry);
-            });
-            jsonObject.add("configArgument", entries);
-        }
-
-        public Info.Template deserializeFromNetwork(FriendlyByteBuf friendlyByteBuf) {
-            return new Info.Template(friendlyByteBuf);
-        }
-
-        public Info.Template unpack(OptsArgument argumentType) {
-            return new Info.Template(argumentType.arguments);
-        }
-
-        public final class Template implements ArgumentTypeInfo.Template<OptsArgument> {
-            private final Map<String, ArgumentTypeInfo.Template<?>> argumentInfos;
-
-            public Template(final Map<String, ArgumentType<?>> arguments) {
-                this.argumentInfos = Maps.transformValues(arguments, ArgumentTypeInfos::unpack);
-            }
-
-            public Template(FriendlyByteBuf friendlyByteBuf) {
-                this.argumentInfos = friendlyByteBuf.readMap(FriendlyByteBuf::readUtf, byteBuf -> {
-                    ArgumentTypeInfo<?, ?> argumentTypeInfo = BuiltInRegistries.COMMAND_ARGUMENT_TYPE.byId(byteBuf.readVarInt());
-
-                    if (argumentTypeInfo != null) {
-                        return argumentTypeInfo.deserializeFromNetwork(byteBuf);
-                    } else return null;
-                });
-            }
-
-            public OptsArgument instantiate(CommandBuildContext commandBuildContext) {
-                return fromMap(Maps.transformValues(argumentInfos, info -> {
-                    if (info == null) return null;
-                    return info.instantiate(commandBuildContext);
-                }));
-            }
-
-            public ArgumentTypeInfo<OptsArgument, ?> type() {
-                return Info.this;
-            }
         }
     }
 }

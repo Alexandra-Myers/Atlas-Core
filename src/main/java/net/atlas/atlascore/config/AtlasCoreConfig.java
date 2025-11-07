@@ -241,7 +241,7 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     public Component getFormattedName() {
-        return Component.translatable("text.config." + name.getPath() + ".title").withStyle(Style.EMPTY.withColor(configNameDisplayColour.get()));
+        return Component.translatableWithFallback("text.config." + name.getPath() + ".title", "Atlas Core").withStyle(Style.EMPTY.withColor(configNameDisplayColour.get()));
     }
 
     @Override
