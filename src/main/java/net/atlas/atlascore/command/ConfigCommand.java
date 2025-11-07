@@ -1,6 +1,7 @@
 package net.atlas.atlascore.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.command.argument.AtlasConfigArgument;
@@ -27,15 +28,23 @@ public class ConfigCommand {
                 .then(Commands.literal("reload").executes(ConfigCommand::reloadAll))
                 .then(Commands.literal("read").executes(ConfigCommand::readAll))
                 .then(Commands.literal("reset").executes(ConfigCommand::resetAll))
-                .then(Commands.argument("config", AtlasConfigArgument.context(false))
-                        .then(Commands.literal("reload").executes(context -> reload(context, AtlasConfigArgument.getConfig(context, "config"))))
-                        .then(Commands.literal("read").executes(context -> readConfig(context, AtlasConfigArgument.getConfig(context, "config"))))
-                        .then(Commands.literal("reset").executes(context -> resetConfig(context, AtlasConfigArgument.getConfig(context, "config"))))
-                        .then(Commands.argument("holder", ConfigHolderArgument.configHolderArgument("config"))
-                                .then(Commands.literal("retrieve").executes(context -> readConfigHolder(context, AtlasConfigArgument.getConfig(context, "config"), ConfigHolderArgument.getConfigHolder(context, "holder"))))
+                .then(Commands.argument("config", AtlasConfigArgument.context())
+                        .suggests((commandContext, suggestionsBuilder) -> AtlasConfigArgument.suggestions(commandContext, suggestionsBuilder, false))
+                        .then(Commands.literal("reload").executes(context -> reload(context, AtlasConfigArgument.getConfig(context, "config", false))))
+                        .then(Commands.literal("read").executes(context -> readConfig(context, AtlasConfigArgument.getConfig(context, "config", false))))
+                        .then(Commands.literal("reset").executes(context -> resetConfig(context, AtlasConfigArgument.getConfig(context, "config", false))))
+                        .then(Commands.argument("holder", ConfigHolderArgument.configHolderArgument())
+                                .suggests((commandContext, suggestionsBuilder) -> ConfigHolderArgument.suggestions(commandContext, suggestionsBuilder, "config"))
+                                .then(Commands.literal("retrieve").executes(context -> readConfigHolder(context, AtlasConfigArgument.getConfig(context, "config", false), ConfigHolderArgument.getConfigHolder(context, "holder", "config"))))
                                 .then(Commands.literal("edit")
-                                        .then(Commands.argument("value", ConfigHolderArgument.ConfigValueArgument.configValueArgument("holder")).executes(context -> updateConfigValue(context, AtlasConfigArgument.getConfig(context, "config"), ConfigHolderArgument.getConfigHolder(context, "holder")))))
-                                .then(Commands.literal("reset").executes(context -> resetConfigValue(context, AtlasConfigArgument.getConfig(context, "config"), ConfigHolderArgument.getConfigHolder(context, "holder")))))));
+                                        .then(Commands.argument("value", StringArgumentType.greedyString())
+                                                .suggests((commandContext, suggestionsBuilder) -> ConfigHolderArgument.ConfigValueArgument.suggestions(commandContext, suggestionsBuilder, "holder", "config"))
+                                                .executes(context -> {
+                                                    ConfigHolderLike<?> configHolder = ConfigHolderArgument.getConfigHolder(context, "holder", "config");
+                                                    ConfigHolderArgument.ConfigValueArgument.readArgument(context, "value", configHolder);
+                                                    return updateConfigValue(context, AtlasConfigArgument.getConfig(context, "config", false), configHolder);
+                                                })))
+                                .then(Commands.literal("reset").executes(context -> resetConfigValue(context, AtlasConfigArgument.getConfig(context, "config", false), ConfigHolderArgument.getConfigHolder(context, "holder", "config")))))));
     }
 
     private static int readAll(CommandContext<CommandSourceStack> context) {
@@ -77,11 +86,10 @@ public class ConfigCommand {
                 player.connection.send(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
-        context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.reset_config", config.getFormattedName())), true);
+        context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.reset_config", "The values for config %s were reset successfully, please note some changes may still not take effect without a restart.", config.getFormattedName())), true);
         context.getSource().sendSuccess(() -> separatorLine(null), true);
         return 1;
     }
-
     private static <T> int resetConfigValue(CommandContext<CommandSourceStack> context, AtlasConfig config, ConfigHolderLike<T> configHolder) {
         configHolder.resetValue();
         try {
@@ -95,16 +103,15 @@ public class ConfigCommand {
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T>)) {
-            if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
-            else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.reset_holder", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()))), true);
+            if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
+            else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.reset_holder", "The value for config holder %s was reset successfully.", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()))), true);
             context.getSource().sendSuccess(() -> separatorLine(null), true);
             return 1;
-        } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
-        else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.reset_holder", Component.translatable(configHolder.getAsHolder().getTranslationKey()))), true);
+        } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
+        else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.reset_holder", "The value for config holder %s was reset successfully.", Component.translatable(configHolder.getAsHolder().getTranslationKey()))), true);
         context.getSource().sendSuccess(() -> separatorLine(null), true);
         return 1;
     }
-
     private static <T> int updateConfigValue(CommandContext<CommandSourceStack> context, AtlasConfig config, ConfigHolderLike<T> configHolder) {
         if (configHolder instanceof ExtendedHolder extendedHolder) {
             if (extendedHolder.getUnsetInners().isEmpty()) {
@@ -128,14 +135,13 @@ public class ConfigCommand {
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T>)) {
-            if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
-            else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.update_holder", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
-        } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
-        else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.update_holder", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
+            if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
+            else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.update_holder", "The value for config holder %s was set to %s successfully.", ((ExtendedHolder)configHolder.getAsHolder()).getInnerTranslation(configHolder.getName()), ((ExtendedHolder)configHolder.getAsHolder()).getInnerValue(configHolder.getName()))), true);
+        } else if (configHolder.getAsHolder().restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart", "The value for %s has been saved as %s successfully, however changes will not take effect without a restart.", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
+        else context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.update_holder", "The value for config holder %s was set to %s successfully.", Component.translatable(configHolder.getAsHolder().getTranslationKey()), configHolder.getAsHolder().getValueAsComponent())), true);
         context.getSource().sendSuccess(() -> separatorLine(null), true);
         return 1;
     }
-
     private static void createConfigInformation(AtlasConfig config, Consumer<Component> sender) {
         sender.accept(separatorLine(config.getFormattedName().copy(), true));
         if (!config.categories.isEmpty()) {

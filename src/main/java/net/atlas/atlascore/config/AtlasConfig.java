@@ -33,11 +33,9 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ExtraCodecs;
@@ -104,7 +102,7 @@ public abstract class AtlasConfig {
     }
 
     public Component getFormattedName() {
-        return Component.translatable("text.config." + name.getPath() + ".title");
+        return Component.translatableWithFallback("text.config." + name.getPath() + ".title", "Atlas Config");
     }
 
     /**
@@ -200,24 +198,24 @@ public abstract class AtlasConfig {
     protected InputStream getDefaultedConfig() {
         return null;
     }
-    public AtlasConfig loadFromNetwork(RegistryFriendlyByteBuf buf) {
+    public AtlasConfig loadFromNetwork(FriendlyByteBuf buf) {
         configHolders.forEach(configHolder -> configHolder.readFromBuf(buf));
         return this;
     }
-    public static AtlasConfig staticLoadFromNetwork(RegistryFriendlyByteBuf buf) {
+    public static AtlasConfig staticLoadFromNetwork(FriendlyByteBuf buf) {
         return configs.get(buf.readResourceLocation()).loadFromNetwork(buf);
     }
 
-    public static AtlasConfig staticReadClientConfigInformation(RegistryFriendlyByteBuf buf) {
+    public static AtlasConfig staticReadClientConfigInformation(FriendlyByteBuf buf) {
         return configs.get(buf.readResourceLocation()).readClientConfigInformation(buf);
     }
 
-    public AtlasConfig readClientConfigInformation(RegistryFriendlyByteBuf buf) {
+    public AtlasConfig readClientConfigInformation(FriendlyByteBuf buf) {
         configHolders.forEach(configHolder -> configHolder.broadcastClientValueRecieved(buf));
         return this;
     }
 
-    public void saveToNetwork(RegistryFriendlyByteBuf buf) {
+    public void saveToNetwork(FriendlyByteBuf buf) {
         configHolders.forEach(configHolder -> configHolder.writeToBuf(buf));
     }
 
@@ -238,16 +236,16 @@ public abstract class AtlasConfig {
         return tagHolder;
     }
 
-    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec) {
+    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<FriendlyByteBuf, T> streamCodec) {
         return createObject(name, defaultInstance, clazz, streamCodec, true, defaultSyncMode);
     }
-    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, boolean expandByDefault) {
+    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<FriendlyByteBuf, T> streamCodec, boolean expandByDefault) {
         return createObject(name, defaultInstance, clazz, streamCodec, expandByDefault, defaultSyncMode);
     }
-    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, SyncMode syncMode) {
+    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<FriendlyByteBuf, T> streamCodec, SyncMode syncMode) {
         return createObject(name, defaultInstance, clazz, streamCodec, true, syncMode);
     }
-    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec, boolean expandByDefault, SyncMode syncMode) {
+    public <T extends ConfigRepresentable> ObjectHolder<T> createObject(String name, T defaultInstance, Class<T> clazz, StreamCodec<FriendlyByteBuf, T> streamCodec, boolean expandByDefault, SyncMode syncMode) {
         ObjectHolder<T> objectHolder = new ObjectHolder<>(new ConfigValue<>(defaultInstance, null, false, name, this, syncMode), clazz, streamCodec, expandByDefault);
         configHolders.add(objectHolder);
         return objectHolder;
@@ -442,13 +440,13 @@ public abstract class AtlasConfig {
         protected T synchedValue = null;
         protected T parsedValue = null;
         public final ConfigValue<T> heldValue;
-        public final StreamCodec<RegistryFriendlyByteBuf, T> streamCodec;
+        public final StreamCodec<FriendlyByteBuf, T> streamCodec;
         public final Codec<T> codec;
         public RestartRequiredMode restartRequired = RestartRequiredMode.NO_RESTART;
         public boolean serverManaged = false;
         public Supplier<Optional<Component[]>> tooltip = Optional::empty;
 
-        public ConfigHolder(ConfigValue<T> value, Codec<T> codec, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec) {
+        public ConfigHolder(ConfigValue<T> value, Codec<T> codec, StreamCodec<FriendlyByteBuf, T> streamCodec) {
             this.value = value.defaultValue;
             heldValue = value;
             if (streamCodec != null) this.streamCodec = streamCodec;
@@ -458,7 +456,7 @@ public abstract class AtlasConfig {
             value.addAssociation(this);
         }
 
-        protected StreamCodec<RegistryFriendlyByteBuf, T> formAlternateStreamCodec() {
+        protected StreamCodec<FriendlyByteBuf, T> formAlternateStreamCodec() {
             return null;
         }
 
@@ -477,11 +475,11 @@ public abstract class AtlasConfig {
         public DataResult<JsonElement> encodeAsJSON(JsonObject root) {
             return codec.encode(value, JsonOps.INSTANCE, root);
         }
-        public void writeToBuf(RegistryFriendlyByteBuf buf) {
+        public void writeToBuf(FriendlyByteBuf buf) {
             if (heldValue.syncMode() != SyncMode.NONE)
                 streamCodec.encode(buf, value);
         }
-        public void readFromBuf(RegistryFriendlyByteBuf buf) {
+        public void readFromBuf(FriendlyByteBuf buf) {
             if (heldValue.syncMode() != SyncMode.NONE) {
                 T newValue = streamCodec.decode(buf);
                 if (isNotValid(newValue) || heldValue.syncMode == SyncMode.INFORM_SERVER)
@@ -494,7 +492,7 @@ public abstract class AtlasConfig {
                 setSynchedValue(newValue);
             }
         }
-        public void broadcastClientValueRecieved(RegistryFriendlyByteBuf buf) {
+        public void broadcastClientValueRecieved(FriendlyByteBuf buf) {
             if (heldValue.syncMode() != SyncMode.NONE) {
                 T clientValue = streamCodec.decode(buf);
                 heldValue.emitClientValueRecieved(value, clientValue);
@@ -607,7 +605,7 @@ public abstract class AtlasConfig {
     public static class TagHolder<T> extends ConfigHolder<T> {
         private final Codec<T> rawCodec;
         private TagHolder(ConfigValue<T> value, Codec<T> codec) {
-            super(value, codec, ByteBufCodecs.fromCodecTrusted(codec).mapStream(buf -> (RegistryFriendlyByteBuf) buf));
+            super(value, codec, ByteBufCodecs.fromCodecTrusted(codec).mapStream(buf -> (FriendlyByteBuf) buf));
             rawCodec = codec;
         }
 
@@ -642,6 +640,11 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            loadFromSNBT(reader);
+        }
+
+        @Override
         public <S> T parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
             parsedValue = loadFromSNBT(stringReader);
             return parsedValue;
@@ -652,7 +655,7 @@ public abstract class AtlasConfig {
         public final Class<T> clazz;
         public final boolean expandByDefault;
 
-        private ObjectHolder(ConfigValue<T> value, Class<T> clazz, StreamCodec<RegistryFriendlyByteBuf, T> sync, boolean expandByDefault) {
+        private ObjectHolder(ConfigValue<T> value, Class<T> clazz, StreamCodec<FriendlyByteBuf, T> sync, boolean expandByDefault) {
             super(value, null, sync);
             this.value.setOwnerHolder(this);
             this.clazz = clazz;
@@ -682,15 +685,21 @@ public abstract class AtlasConfig {
             SuggestionsVisitor visitor = new SuggestionsVisitor();
             visitor.visitSuggestions(suggestionsBuilder -> SharedSuggestionProvider.suggest(heldValue.defaultValue.fields(), builder));
             try {
-                suggestFields(visitor, commandContext, reader);
+                suggestFields(visitor, commandContext, reader, builder.getStart());
             } catch (CommandSyntaxException ignored) {
 
             }
             return visitor.resolveSuggestions(builder, reader);
         }
 
-        private <S> void suggestFields(SuggestionsVisitor visitor, CommandContext<S> context, StringReader reader) throws CommandSyntaxException {
-            int cursor = reader.getCursor();
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            FieldHolder field = (FieldHolder) findInner(reader);
+            reader.expect('=');
+            field.verifySuggestionsArePresent(commandContext, reader);
+        }
+
+        private <S> void suggestFields(SuggestionsVisitor visitor, CommandContext<S> context, StringReader reader, int cursor) throws CommandSyntaxException {
             String fieldName = ConfigHolderArgument.readHolderName(reader);
             if (retrieveInner(fieldName) == null) {
                 reader.setCursor(cursor);
@@ -818,8 +827,8 @@ public abstract class AtlasConfig {
                 config.saveConfig();
                 commandSourceStack.getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
                 commandSourceStack.sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
-                if (restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.holder_requires_restart.no_value", Component.translatable(getTranslationKey()))), true);
-                else commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatable("text.config.update_holder.no_value", Component.translatable(getTranslationKey()))), true);
+                if (restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart.no_value", "The value for %s has been saved successfully, however changes will not take effect without a restart.", Component.translatable(getTranslationKey()))), true);
+                else commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.update_holder.no_value", "The value for config holder %s was changed successfully.", Component.translatable(getTranslationKey()))), true);
                 commandSourceStack.sendSuccess(() -> separatorLine(null), true);
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -844,7 +853,7 @@ public abstract class AtlasConfig {
         public final Function<Enum, Component> names;
         private EnumHolder(ConfigValue<E> value, Class<E> clazz, Function<Enum, Component> names) {
             super(value, Codec.STRING.validate(string -> Arrays.stream(value.possibleValues).noneMatch(e -> e.name().equalsIgnoreCase(string)) ? DataResult.error(() -> "Invalid enum constant for type " + clazz.getSimpleName() + ": " + string) : DataResult.success(string)).xmap(s -> Enum.valueOf(clazz, s.toUpperCase()), e -> e.name().toLowerCase()),
-                    StreamCodec.of(RegistryFriendlyByteBuf::writeEnum, buf -> buf.readEnum(clazz)));
+                    StreamCodec.of(FriendlyByteBuf::writeEnum, buf -> buf.readEnum(clazz)));
             this.clazz = clazz;
             this.names = names;
         }
@@ -868,6 +877,17 @@ public abstract class AtlasConfig {
                 }
             }
             return builder.buildFuture();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            String name = reader.readString();
+            for (E entry : heldValue.possibleValues) {
+                if (entry.name().toLowerCase().equals(name.toLowerCase())) {
+                    return;
+                }
+            }
+            throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerExpectedSymbol().create("a valid enum input");
         }
 
         @Override
@@ -905,8 +925,16 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            String read = reader.readString();
+            if (heldValue.possibleValues != null && Arrays.stream(heldValue.possibleValues).noneMatch(read::equals)) throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
+        }
+
+        @Override
         public <S> String parse(StringReader stringReader, S source, CommandContext<S> commandContext) throws CommandSyntaxException {
-            parsedValue = stringReader.readString();
+            String read = stringReader.readString();
+            if (heldValue.possibleValues != null && Arrays.stream(heldValue.possibleValues).noneMatch(read::equals)) throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().create();
+            parsedValue = read;
             return parsedValue;
         }
     }
@@ -935,6 +963,11 @@ public abstract class AtlasConfig {
                 builder.suggest("false");
             }
             return builder.buildFuture();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            if (!(reader.getRemaining().equals("true") || reader.getRemaining().equals("false"))) throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerExpectedBool().create();
         }
 
         @Override
@@ -983,6 +1016,29 @@ public abstract class AtlasConfig {
                 return builder.buildFuture();
             }
             return Suggestions.empty();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            final int start = reader.getCursor();
+            final int result = reader.readInt();
+            if (heldValue.possibleValues != null) {
+                if (heldValue.isRange) {
+                    if (result < heldValue.possibleValues[0]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.integerTooLow().createWithContext(reader, result, heldValue.possibleValues[0]);
+                    }
+                    if (result > heldValue.possibleValues[1]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.integerTooHigh().createWithContext(reader, result, heldValue.possibleValues[1]);
+                    }
+                } else {
+                    if (Arrays.stream(heldValue.possibleValues).noneMatch(integer -> integer == result)) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
+                    }
+                }
+            }
         }
 
         @Override
@@ -1046,6 +1102,29 @@ public abstract class AtlasConfig {
                 return builder.buildFuture();
             }
             return Suggestions.empty();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            final int start = reader.getCursor();
+            final double result = reader.readDouble();
+            if (heldValue.possibleValues != null) {
+                if (heldValue.isRange) {
+                    if (result < heldValue.possibleValues[0]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.doubleTooLow().createWithContext(reader, result, heldValue.possibleValues[0]);
+                    }
+                    if (result > heldValue.possibleValues[1]) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.doubleTooHigh().createWithContext(reader, result, heldValue.possibleValues[1]);
+                    }
+                } else {
+                    if (Arrays.stream(heldValue.possibleValues).noneMatch(integer -> integer == result)) {
+                        reader.setCursor(start);
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidDouble().createWithContext(reader, result);
+                    }
+                }
+            }
         }
 
         @Override
@@ -1120,6 +1199,17 @@ public abstract class AtlasConfig {
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
             return Suggestions.empty();
+        }
+
+        @Override
+        public <S> void verifySuggestionsArePresent(CommandContext<S> commandContext, StringReader reader) throws CommandSyntaxException {
+            final String hex = reader.readString();
+            stripHexStarter(hex);
+            int result = (int) Long.parseLong(hex, 16);
+            if (hex.length() > 8)
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
+            if (!hasAlpha && hex.length() > 6)
+                throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidInt().createWithContext(reader, result);
         }
 
         @Override

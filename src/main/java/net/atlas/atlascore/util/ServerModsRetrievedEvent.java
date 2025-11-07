@@ -3,7 +3,7 @@ package net.atlas.atlascore.util;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
-import net.minecraft.network.protocol.game.ServerPacketListener;
+import net.minecraft.server.network.ServerConfigurationPacketListenerImpl;
 
 import java.util.Collection;
 
@@ -14,14 +14,14 @@ public class ServerModsRetrievedEvent {
      *
      * <p> Packets sent during this phase should be registered during the configuration phase.
      */
-    public static final Event<ServerModsRetrievedEvent.RetrieveMods> RETRIEVAL = EventFactory.createArrayBacked(ServerModsRetrievedEvent.RetrieveMods.class, callbacks -> (handler, sender, mods) -> {
-        for (ServerModsRetrievedEvent.RetrieveMods callback : callbacks) {
+    public static final Event<RetrieveMods> RETRIEVAL = EventFactory.createArrayBacked(RetrieveMods.class, callbacks -> (handler, sender, mods) -> {
+        for (RetrieveMods callback : callbacks) {
             callback.onModsReceived(handler, sender, mods);
         }
     });
 
     @FunctionalInterface
     public interface RetrieveMods {
-        void onModsReceived(ServerPacketListener handler, PacketSender sender, Collection<ModRepresentation> mods);
+        void onModsReceived(ServerConfigurationPacketListenerImpl handler, PacketSender sender, Collection<ModRepresentation> mods);
     }
 }

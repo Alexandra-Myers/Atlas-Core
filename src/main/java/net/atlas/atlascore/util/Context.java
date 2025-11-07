@@ -35,7 +35,7 @@ public record Context(ResourceKey<Level> dimension, Boolean onDedicatedServer) {
         }
         public ContextBuilder applyInformationFromLevel(Level level) {
             withDimension(level.dimension());
-            if (!level.isClientSide)
+            if (!level.isClientSide())
                 putOnDedicated(level.getServer().isDedicatedServer());
             return this;
         }

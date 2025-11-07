@@ -6,19 +6,14 @@ import net.atlas.atlascore.command.ConfigCommand;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.AtlasCoreConfig;
 import net.atlas.atlascore.config.ContextBasedConfig;
-import net.atlas.atlascore.init.ArgumentInit;
 import net.atlas.atlascore.util.*;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.networking.v1.*;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.network.ConfigurationTask;
 import org.apache.logging.log4j.LogManager;
 import org.jetbrains.annotations.NotNull;
 
@@ -43,14 +38,14 @@ public class AtlasCore implements ModInitializer {
         PayloadTypeRegistry.configurationC2S().register(ServerboundClientModPacket.TYPE, ServerboundClientModPacket.CODEC);
         PayloadTypeRegistry.configurationS2C().register(ClientboundModListRetrievalPacket.TYPE, ClientboundModListRetrievalPacket.CODEC);
         ServerPlayConnectionEvents.JOIN.register(modDetectionNetworkChannel,(handler, sender, server) -> {
-            for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isCommon()).toList()) {
+            for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> atlasConfig.configSide.isCommon()).toList()) {
                 if (atlasConfig instanceof ContextBasedConfig contextBasedConfig) atlasConfig = contextBasedConfig.getConfig(Context.builder().applyInformationFromEntity(handler.player).build());
                 ServerPlayNetworking.send(handler.player, new AtlasConfigPacket(false, atlasConfig));
             }
             AtlasCore.LOGGER.info("Config packets sent to client.");
         });
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(modDetectionNetworkChannel, (player, origin, destination) -> {
-            for (ContextBasedConfig contextBasedConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> !atlasConfig.configSide.isCommon() && atlasConfig instanceof ContextBasedConfig).map(config -> ((ContextBasedConfig) config).getConfig(Context.builder().applyInformationFromLevel(destination).build())).toList()) {
+            for (ContextBasedConfig contextBasedConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> atlasConfig.configSide.isCommon() && atlasConfig instanceof ContextBasedConfig).map(config -> ((ContextBasedConfig) config).getConfig(Context.builder().applyInformationFromLevel(destination).build())).toList()) {
                 ServerPlayNetworking.send(player, new AtlasConfigPacket(false, contextBasedConfig));
             }
         });
@@ -62,8 +57,7 @@ public class AtlasCore implements ModInitializer {
             ServerModsRetrievedEvent.RETRIEVAL.invoker().onModsReceived(context.networkHandler(), context.responseSender(), payload.modRepresentations());
             context.networkHandler().completeTask(ClientModRetrievalTask.TYPE);
         });
-        ServerPlayNetworking.registerGlobalReceiver(AtlasCore.ClientInformPacket.TYPE, (packet, context) -> packet.config().handleConfigInformation(packet, context.player(), context.responseSender()));
-        ArgumentInit.registerArguments();
+        ServerPlayNetworking.registerGlobalReceiver(ClientInformPacket.TYPE, (packet, context) -> packet.config().handleConfigInformation(packet, context.player(), context.responseSender()));
         ServerModsRetrievedEvent.RETRIEVAL.register((handler, sender, mods) -> {
             if (CONFIG.listClientModsOnJoin.get()) {
                 final String[] list = {"Client mods: \n"};
@@ -77,34 +71,34 @@ public class AtlasCore implements ModInitializer {
         return new ResourceLocation(MOD_ID, path);
     }
 
-    public record AtlasConfigPacket(boolean forCommand, AtlasConfig config) implements CustomPacketPayload {
-        public static final Type<AtlasConfigPacket> TYPE = new Type<>(id("atlas_config"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, AtlasConfigPacket> CODEC = CustomPacketPayload.codec(AtlasConfigPacket::write, AtlasConfigPacket::new);
-
-        public AtlasConfigPacket(RegistryFriendlyByteBuf buf) {
+    public record AtlasConfigPacket(boolean forCommand, AtlasConfig config) implements FabricPacket {
+        public static final PacketType<AtlasConfigPacket> TYPE = PacketType.create(id("atlas_config"), AtlasConfigPacket::new);
+        
+        public AtlasConfigPacket(FriendlyByteBuf buf) {
             this(buf.readBoolean(), AtlasConfig.staticLoadFromNetwork(buf));
         }
 
-        public void write(RegistryFriendlyByteBuf buf) {
+        @Override
+        public void write(FriendlyByteBuf buf) {
             buf.writeBoolean(forCommand);
             buf.writeResourceLocation(config.name);
             config.saveToNetwork(buf);
         }
 
         @Override
-        public @NotNull Type<? extends CustomPacketPayload> type() {
+        public @NotNull PacketType<? extends FabricPacket> getType() {
             return TYPE;
         }
     }
     public record ClientInformPacket(AtlasConfig config) implements CustomPacketPayload {
         public static final Type<ClientInformPacket> TYPE = new Type<>(id("c2s_inform_config"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, ClientInformPacket> CODEC = CustomPacketPayload.codec(ClientInformPacket::write, ClientInformPacket::new);
+        public static final StreamCodec<FriendlyByteBuf, ClientInformPacket> CODEC = CustomPacketPayload.codec(ClientInformPacket::write, ClientInformPacket::new);
 
-        public ClientInformPacket(RegistryFriendlyByteBuf buf) {
+        public ClientInformPacket(FriendlyByteBuf buf) {
             this(AtlasConfig.staticReadClientConfigInformation(buf));
         }
 
-        public void write(RegistryFriendlyByteBuf buf) {
+        public void write(FriendlyByteBuf buf) {
             buf.writeResourceLocation(config.name);
             config.saveToNetwork(buf);
         }
@@ -116,7 +110,7 @@ public class AtlasCore implements ModInitializer {
     }
 
     public record ClientModRetrievalTask() implements ConfigurationTask {
-        public static final ConfigurationTask.Type TYPE = new ConfigurationTask.Type(id("client_mods_retrieval").toString());
+        public static final Type TYPE = new Type(id("client_mods_retrieval").toString());
 
         @Override
         public void start(Consumer<Packet<?>> sender) {

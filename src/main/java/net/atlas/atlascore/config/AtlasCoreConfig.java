@@ -17,7 +17,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.Util;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.codec.StreamCodec;
@@ -35,22 +35,22 @@ import java.util.function.Supplier;
 
 public class AtlasCoreConfig extends AtlasConfig {
     public static class TestClass implements ConfigRepresentable<TestClass> {
-        public static final StreamCodec<RegistryFriendlyByteBuf, TestClass> STREAM_CODEC = new StreamCodec<>() {
+        public static final StreamCodec<FriendlyByteBuf, TestClass> STREAM_CODEC = new StreamCodec<>() {
             @Override
-            public void encode(RegistryFriendlyByteBuf registryFriendlyByteBuf, TestClass testClass) {
-                registryFriendlyByteBuf.writeResourceLocation(testClass.owner.heldValue.owner().name);
-                registryFriendlyByteBuf.writeUtf(testClass.owner.heldValue.name());
-                registryFriendlyByteBuf.writeUtf(testClass.innerString);
-                registryFriendlyByteBuf.writeBoolean(testClass.innerBool);
-                registryFriendlyByteBuf.writeVarInt(testClass.innerInt);
-                registryFriendlyByteBuf.writeDouble(testClass.innerDouble);
+            public void encode(FriendlyByteBuf FriendlyByteBuf, TestClass testClass) {
+                FriendlyByteBuf.writeResourceLocation(testClass.owner.heldValue.owner().name);
+                FriendlyByteBuf.writeUtf(testClass.owner.heldValue.name());
+                FriendlyByteBuf.writeUtf(testClass.innerString);
+                FriendlyByteBuf.writeBoolean(testClass.innerBool);
+                FriendlyByteBuf.writeVarInt(testClass.innerInt);
+                FriendlyByteBuf.writeDouble(testClass.innerDouble);
             }
 
             @Override
             @SuppressWarnings("unchecked")
-            public @NotNull TestClass decode(RegistryFriendlyByteBuf registryFriendlyByteBuf) {
-                AtlasConfig config = AtlasConfig.configs.get(registryFriendlyByteBuf.readResourceLocation());
-                return new TestClass((ConfigHolder<TestClass>) config.valueNameToConfigHolderMap.get(registryFriendlyByteBuf.readUtf()), registryFriendlyByteBuf.readUtf(), registryFriendlyByteBuf.readBoolean(), registryFriendlyByteBuf.readVarInt(), registryFriendlyByteBuf.readDouble());
+            public @NotNull TestClass decode(FriendlyByteBuf FriendlyByteBuf) {
+                AtlasConfig config = AtlasConfig.configs.get(FriendlyByteBuf.readResourceLocation());
+                return new TestClass((ConfigHolder<TestClass>) config.valueNameToConfigHolderMap.get(FriendlyByteBuf.readUtf()), FriendlyByteBuf.readUtf(), FriendlyByteBuf.readBoolean(), FriendlyByteBuf.readVarInt(), FriendlyByteBuf.readDouble());
             }
         };
         public ConfigHolder<TestClass> owner;
@@ -241,7 +241,7 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     public Component getFormattedName() {
-        return Component.translatable("text.config." + name.getPath() + ".title").withStyle(Style.EMPTY.withColor(configNameDisplayColour.get()));
+        return Component.translatableWithFallback("text.config." + name.getPath() + ".title", "Atlas Core").withStyle(Style.EMPTY.withColor(configNameDisplayColour.get()));
     }
 
     @Override
