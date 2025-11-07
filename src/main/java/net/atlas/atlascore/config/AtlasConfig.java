@@ -14,6 +14,7 @@ import com.mojang.serialization.JsonOps;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.gui.entries.*;
 import net.atlas.atlascore.AtlasCore;
+import net.atlas.atlascore.backport.StreamCodec;
 import net.atlas.atlascore.client.gui.CodecBackedListEntry;
 import net.atlas.atlascore.command.argument.ConfigHolderArgument;
 import net.atlas.atlascore.util.Codecs;
@@ -353,12 +354,12 @@ public abstract class AtlasConfig {
             for (Category category : categories) {
                 JsonObject categoryRoot = new JsonObject();
                 for (ConfigHolder<?> holder : category.members) {
-                    categoryRoot = holder.encodeAsJSON(categoryRoot).getOrThrow().getAsJsonObject();
+                    categoryRoot = holder.encodeAsJSON(categoryRoot).getOrThrow(true, str -> {}).getAsJsonObject();
                 }
                 root.add(category.name, categoryRoot);
             }
         }
-        for (ConfigHolder<?> holder : getUncategorisedHolders()) root = holder.encodeAsJSON(root).getOrThrow().getAsJsonObject();
+        for (ConfigHolder<?> holder : getUncategorisedHolders()) root = holder.encodeAsJSON(root).getOrThrow(true, str -> {}).getAsJsonObject();
         AtlasCore.GSON.toJson(root, printWriter);
         printWriter.close();
     }
@@ -502,7 +503,7 @@ public abstract class AtlasConfig {
             return !heldValue.isValid(newValue);
         }
         public void loadFromJSONAndResetManaged(JsonObject jsonObject) {
-            setValueAndResetManaged(codec.parse(JsonOps.INSTANCE, jsonObject).getOrThrow());
+            setValueAndResetManaged(codec.parse(JsonOps.INSTANCE, jsonObject).getOrThrow(true, str -> {}));
         }
         public void setValueAndResetManaged(T newValue) {
             setValue(newValue);
