@@ -1,10 +1,10 @@
 package net.atlas.atlascore.mixin;
 
+import com.llamalad7.mixinextras.sugar.Local;
 import net.atlas.atlascore.config.AtlasConfigScreen;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.layouts.GridLayout;
-import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.screens.OptionsScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -14,7 +14,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.function.Supplier;
 
@@ -34,9 +33,8 @@ public abstract class OptionsScreenMixin extends Screen {
     @Inject(method = "init",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/layouts/GridLayout$RowHelper;addChild(Lnet/minecraft/client/gui/layouts/LayoutElement;)Lnet/minecraft/client/gui/layouts/LayoutElement;",
-                    shift = At.Shift.AFTER, ordinal = 9),
-            locals = LocalCapture.CAPTURE_FAILSOFT)
-    public void injectAtlasConfigButton(CallbackInfo ci, LinearLayout linearLayout, LinearLayout linearLayout2, GridLayout gridLayout, GridLayout.RowHelper rowHelper) {
+                    shift = At.Shift.AFTER, ordinal = 9))
+    public void injectAtlasConfigButton(CallbackInfo ci, @Local(ordinal = 0) GridLayout.RowHelper rowHelper) {
 		rowHelper.addChild(this.openScreenButton(Component.translatable("options.atlas_config.button"), () -> {
 			assert this.minecraft != null;
 			return new AtlasConfigScreen(this.minecraft.screen, options, Component.translatable("title.atlas_config.name"));

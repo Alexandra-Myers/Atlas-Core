@@ -73,7 +73,10 @@ public class CodecBackedListEntry<T> extends TextFieldListEntry<Tag> {
         try {
             Tag tag = new TagParser(reader).readValue();
             DataResult<T> dataResult = codec.parse(NbtOps.INSTANCE, tag);
-            dataResult.ifError(error -> optional.set(Optional.of(Component.literal(error.toString()))));
+            dataResult.mapError(error -> {
+                optional.set(Optional.of(Component.literal(error)));
+                return error;
+            });
         } catch (CommandSyntaxException e) {
             return Optional.of(Component.literal(e.toString()));
         }

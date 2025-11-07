@@ -1,37 +1,50 @@
 package net.atlas.atlascore.config;
 
 import net.atlas.atlascore.client.ScreenBuilder;
-import net.minecraft.client.OptionInstance;
+import net.atlas.atlascore.client.gui.ConfigList;
 import net.minecraft.client.Options;
-import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.OptionsSubScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.SimpleOptionsSubScreen;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class AtlasConfigScreen extends SimpleOptionsSubScreen {
+public class AtlasConfigScreen extends OptionsSubScreen {
+    public ConfigList configs;
 	public AtlasConfigScreen(Screen screen, Options options, Component component) {
-		super(screen, options, component, new OptionInstance[0]);
+		super(screen, options, component);
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		List<AbstractWidget> configButtons = new ArrayList<>();
+        this.configs = new ConfigList(this.minecraft, this.width, this.height, 32, this.height - 32, 25);
+		List<Button.Builder> configButtons = new ArrayList<>();
 		AtlasConfig.configs.forEach((resourceLocation, config) -> {
-			if (config.hasScreen()) configButtons.add(Button.builder(Component.translatable("text.config." + config.name.getPath() + ".title"), button -> this.minecraft.setScreen(ScreenBuilder.buildAtlasConfig(this, config))).build());
+			if (config.hasScreen()) configButtons.add(Button.builder(Component.translatable("text.config." + config.name.getPath() + ".title"), button -> this.minecraft.setScreen(ScreenBuilder.buildAtlasConfig(this, config))));
 		});
-        //noinspection DataFlowIssue
-        list.addSmall(configButtons);
+        this.configs.add(configButtons.toArray(Button.Builder[]::new));
+        this.addWidget(configs);
+        this.createFooter();
 	}
 
-	protected void repositionElements() {
-		super.repositionElements();
-		if (this.list != null) {
-			this.list.updateSize(this.width, this.layout);
-		}
-	}
+    protected void createFooter() {
+        this.addRenderableWidget(
+                Button.builder(CommonComponents.GUI_DONE, button -> this.minecraft.setScreen(this.lastScreen))
+                        .bounds(this.width / 2 - 100, this.height - 27, 200, 20)
+                        .build()
+        );
+    }
+
+    @Override
+    public void render(GuiGraphics guiGraphics, int i, int j, float f) {
+        this.renderBackground(guiGraphics);
+        this.configs.render(guiGraphics, i, j, f);
+        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 20, 16777215);
+        super.render(guiGraphics, i, j, f);
+    }
 }

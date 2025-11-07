@@ -69,7 +69,7 @@ public interface StreamCodec<B, V> extends StreamDecoder<B, V>, StreamEncoder<B,
     }
 
     default <O extends ByteBuf> StreamCodec<O, V> mapStream(final Function<O, ? extends B> function) {
-        return new StreamCodec<O, V>() {
+        return new StreamCodec<>() {
             public V decode(O byteBuf) {
                 B object = function.apply(byteBuf);
                 return StreamCodec.this.decode(object);
@@ -100,7 +100,7 @@ public interface StreamCodec<B, V> extends StreamDecoder<B, V>, StreamEncoder<B,
     }
 
     static <B, C, T1> StreamCodec<B, C> composite(final StreamCodec<? super B, T1> streamCodec, final Function<C, T1> function, final Function<T1, C> function2) {
-        return new StreamCodec<B, C>() {
+        return new StreamCodec<>() {
             public C decode(B object) {
                 T1 object2 = streamCodec.decode(object);
                 return function2.apply(object2);
@@ -128,7 +128,7 @@ public interface StreamCodec<B, V> extends StreamDecoder<B, V>, StreamEncoder<B,
     }
 
     static <B, C, T1, T2, T3> StreamCodec<B, C> composite(final StreamCodec<? super B, T1> streamCodec, final Function<C, T1> function, final StreamCodec<? super B, T2> streamCodec2, final Function<C, T2> function2, final StreamCodec<? super B, T3> streamCodec3, final Function<C, T3> function3, final Function3<T1, T2, T3, C> function32) {
-        return new StreamCodec<B, C>() {
+        return new StreamCodec<>() {
             public C decode(B object) {
                 T1 object2 = streamCodec.decode(object);
                 T2 object3 = streamCodec2.decode(object);
@@ -145,7 +145,7 @@ public interface StreamCodec<B, V> extends StreamDecoder<B, V>, StreamEncoder<B,
     }
 
     static <B, C, T1, T2, T3, T4> StreamCodec<B, C> composite(final StreamCodec<? super B, T1> streamCodec, final Function<C, T1> function, final StreamCodec<? super B, T2> streamCodec2, final Function<C, T2> function2, final StreamCodec<? super B, T3> streamCodec3, final Function<C, T3> function3, final StreamCodec<? super B, T4> streamCodec4, final Function<C, T4> function4, final Function4<T1, T2, T3, T4, C> function42) {
-        return new StreamCodec<B, C>() {
+        return new StreamCodec<>() {
             public C decode(B object) {
                 T1 object2 = streamCodec.decode(object);
                 T2 object3 = streamCodec2.decode(object);
@@ -164,7 +164,7 @@ public interface StreamCodec<B, V> extends StreamDecoder<B, V>, StreamEncoder<B,
     }
 
     static <B, C, T1, T2, T3, T4, T5> StreamCodec<B, C> composite(final StreamCodec<? super B, T1> streamCodec, final Function<C, T1> function, final StreamCodec<? super B, T2> streamCodec2, final Function<C, T2> function2, final StreamCodec<? super B, T3> streamCodec3, final Function<C, T3> function3, final StreamCodec<? super B, T4> streamCodec4, final Function<C, T4> function4, final StreamCodec<? super B, T5> streamCodec5, final Function<C, T5> function5, final Function5<T1, T2, T3, T4, T5, C> function52) {
-        return new StreamCodec<B, C>() {
+        return new StreamCodec<>() {
             public C decode(B object) {
                 T1 object2 = streamCodec.decode(object);
                 T2 object3 = streamCodec2.decode(object);
@@ -185,7 +185,7 @@ public interface StreamCodec<B, V> extends StreamDecoder<B, V>, StreamEncoder<B,
     }
 
     static <B, C, T1, T2, T3, T4, T5, T6> StreamCodec<B, C> composite(final StreamCodec<? super B, T1> streamCodec, final Function<C, T1> function, final StreamCodec<? super B, T2> streamCodec2, final Function<C, T2> function2, final StreamCodec<? super B, T3> streamCodec3, final Function<C, T3> function3, final StreamCodec<? super B, T4> streamCodec4, final Function<C, T4> function4, final StreamCodec<? super B, T5> streamCodec5, final Function<C, T5> function5, final StreamCodec<? super B, T6> streamCodec6, final Function<C, T6> function6, final Function6<T1, T2, T3, T4, T5, T6, C> function62) {
-        return new StreamCodec<B, C>() {
+        return new StreamCodec<>() {
             public C decode(B object) {
                 T1 object2 = streamCodec.decode(object);
                 T2 object3 = streamCodec2.decode(object);
@@ -208,7 +208,7 @@ public interface StreamCodec<B, V> extends StreamDecoder<B, V>, StreamEncoder<B,
     }
 
     static <B, T> StreamCodec<B, T> recursive(final UnaryOperator<StreamCodec<B, T>> unaryOperator) {
-        return new StreamCodec<B, T>() {
+        return new StreamCodec<>() {
             private final Supplier<StreamCodec<B, T>> inner = Suppliers.memoize(() -> unaryOperator.apply(this));
 
             public T decode(B object) {

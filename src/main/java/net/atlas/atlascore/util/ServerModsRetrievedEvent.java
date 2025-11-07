@@ -3,7 +3,7 @@ package net.atlas.atlascore.util;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
-import net.minecraft.server.network.ServerConfigurationPacketListenerImpl;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
 
 import java.util.Collection;
 
@@ -22,6 +22,6 @@ public class ServerModsRetrievedEvent {
 
     @FunctionalInterface
     public interface RetrieveMods {
-        void onModsReceived(ServerConfigurationPacketListenerImpl handler, PacketSender sender, Collection<ModRepresentation> mods);
+        void onModsReceived(ServerGamePacketListenerImpl handler, PacketSender sender, Collection<ModRepresentation> mods);
     }
 }

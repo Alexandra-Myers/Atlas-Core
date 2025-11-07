@@ -20,7 +20,7 @@ import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 
 public record OptsArgument(Map<String, ArgumentType<?>> arguments) {
     public static final DynamicCommandExceptionType ERROR_INVALID_ARGUMENT = new DynamicCommandExceptionType(
-            (object) -> Component.translatableEscape("arguments.chosen.argument.invalid", object)
+            (object) -> Component.translatable("arguments.chosen.argument.invalid", object)
     );
 
     public OptsArgument(String[] names, ArgumentType<?>[] types) {

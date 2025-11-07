@@ -21,10 +21,10 @@ import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 
 public record ConfigHolderArgument(String configArgument) {
     public static final DynamicCommandExceptionType ERROR_MALFORMED_HOLDER = new DynamicCommandExceptionType(
-            (object) -> Component.translatableEscape("arguments.config.holder.malformed", object)
+            (object) -> Component.translatable("arguments.config.holder.malformed", object)
     );
     public static final DynamicCommandExceptionType ERROR_UNKNOWN_HOLDER = new DynamicCommandExceptionType(
-            (object) -> Component.translatableEscape("arguments.config.holder.unknown", object)
+            (object) -> Component.translatable("arguments.config.holder.unknown", object)
     );
 
     public static StringArgumentType configHolderArgument() {
@@ -101,19 +101,15 @@ public record ConfigHolderArgument(String configArgument) {
                 cursor = reader.getCursor();
                 currentHolderName = readHolderName(reader);
                 ConfigHolderLike<?> temp = extendedHolder.retrieveInner(currentHolderName);
-                switch (temp) {
-                    case ExtendedHolder ignored -> {
-                        configHolderLike = temp;
-                        visitor.visitSuggestions(ConfigHolderArgument::suggestStartInner);
-                    }
-                    case null -> {
-                        reader.setCursor(cursor);
-                        throw ERROR_UNKNOWN_HOLDER.createWithContext(reader, currentHolderName);
-                    }
-                    default -> {
-                        visitor.visitSuggestions(SUGGEST_NOTHING);
-                        isExtended = false;
-                    }
+                if (temp instanceof ExtendedHolder) {
+                    configHolderLike = temp;
+                    visitor.visitSuggestions(ConfigHolderArgument::suggestStartInner);
+                } else if (temp == null) {
+                    reader.setCursor(cursor);
+                    throw ERROR_UNKNOWN_HOLDER.createWithContext(reader, currentHolderName);
+                } else {
+                    visitor.visitSuggestions(SUGGEST_NOTHING);
+                    isExtended = false;
                 }
             }
         }

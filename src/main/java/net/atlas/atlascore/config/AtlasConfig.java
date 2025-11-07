@@ -14,6 +14,7 @@ import com.mojang.serialization.JsonOps;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.gui.entries.*;
 import net.atlas.atlascore.AtlasCore;
+import net.atlas.atlascore.backport.ByteBufCodecs;
 import net.atlas.atlascore.backport.StreamCodec;
 import net.atlas.atlascore.client.gui.CodecBackedListEntry;
 import net.atlas.atlascore.command.argument.ConfigHolderArgument;
@@ -22,13 +23,16 @@ import net.atlas.atlascore.util.ConfigRepresentable;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.CrashReport;
 import net.minecraft.ReportedException;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.nbt.NbtOps;
@@ -58,6 +62,7 @@ import java.util.function.Supplier;
 
 import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
+import static net.minecraft.util.ExtraCodecs.validate;
 
 @SuppressWarnings("unused")
 public abstract class AtlasConfig {
@@ -606,7 +611,7 @@ public abstract class AtlasConfig {
     public static class TagHolder<T> extends ConfigHolder<T> {
         private final Codec<T> rawCodec;
         private TagHolder(ConfigValue<T> value, Codec<T> codec) {
-            super(value, codec, ByteBufCodecs.fromCodecTrusted(codec).mapStream(buf -> (FriendlyByteBuf) buf));
+            super(value, codec, ByteBufCodecs.fromCodec(codec));
             rawCodec = codec;
         }
 
@@ -616,8 +621,7 @@ public abstract class AtlasConfig {
         }
 
         public Tag asNBT(T val) {
-            Tag tag = rawCodec.encodeStart(NbtOps.INSTANCE, val).getOrThrow();
-            return tag;
+            return rawCodec.encodeStart(NbtOps.INSTANCE, val).getOrThrow(true, s -> {});
         }
 
         public String asSNBT(T val) {
@@ -626,13 +630,13 @@ public abstract class AtlasConfig {
 
         public T loadFromSNBT(StringReader reader) throws CommandSyntaxException {
             Tag tag = new TagParser(reader).readValue();
-            return rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow(s -> CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException().createWithContext(reader, s));
+            return rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow(true, s -> CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException().createWithContext(reader, s));
         }
 
         @Override
         @Environment(EnvType.CLIENT)
         public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            return new CodecBackedListEntry<>(Component.translatable(getTranslationKey()), rawCodec, asNBT(get()), Component.translatable(getTranslationResetKey()), () -> asNBT(heldValue.defaultValue), tag -> setValue(rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow()), tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+            return new CodecBackedListEntry<>(Component.translatable(getTranslationKey()), rawCodec, asNBT(get()), Component.translatable(getTranslationResetKey()), () -> asNBT(heldValue.defaultValue), tag -> setValue(rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow(true, s -> {})), tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
         }
 
         @Override
@@ -826,7 +830,9 @@ public abstract class AtlasConfig {
             try {
                 AtlasConfig config = this.heldValue.owner;
                 config.saveConfig();
-                commandSourceStack.getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
+                FriendlyByteBuf buf = PacketByteBufs.create();
+                new AtlasCore.AtlasConfigPacket(true, config).write(buf);
+                commandSourceStack.getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(AtlasCore.AtlasConfigPacket.TYPE.getId(), buf));
                 commandSourceStack.sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
                 if (restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart.no_value", "The value for %s has been saved successfully, however changes will not take effect without a restart.", Component.translatable(getTranslationKey()))), true);
                 else commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.update_holder.no_value", "The value for config holder %s was changed successfully.", Component.translatable(getTranslationKey()))), true);
@@ -853,7 +859,7 @@ public abstract class AtlasConfig {
         public final Class<E> clazz;
         public final Function<Enum, Component> names;
         private EnumHolder(ConfigValue<E> value, Class<E> clazz, Function<Enum, Component> names) {
-            super(value, Codec.STRING.validate(string -> Arrays.stream(value.possibleValues).noneMatch(e -> e.name().equalsIgnoreCase(string)) ? DataResult.error(() -> "Invalid enum constant for type " + clazz.getSimpleName() + ": " + string) : DataResult.success(string)).xmap(s -> Enum.valueOf(clazz, s.toUpperCase()), e -> e.name().toLowerCase()),
+            super(value, validate(Codec.STRING, string -> Arrays.stream(value.possibleValues).noneMatch(e -> e.name().equalsIgnoreCase(string)) ? DataResult.error(() -> "Invalid enum constant for type " + clazz.getSimpleName() + ": " + string) : DataResult.success(string)).xmap(s -> Enum.valueOf(clazz, s.toUpperCase()), e -> e.name().toLowerCase()),
                     StreamCodec.of(FriendlyByteBuf::writeEnum, buf -> buf.readEnum(clazz)));
             this.clazz = clazz;
             this.names = names;
@@ -905,7 +911,7 @@ public abstract class AtlasConfig {
     }
     public static class StringHolder extends ConfigHolder<String> {
         private StringHolder(ConfigValue<String> value) {
-            super(value, Codec.STRING.validate(s -> value.possibleValues == null || Arrays.asList(value.possibleValues).contains(s) ? DataResult.success(s) : DataResult.error(() -> "Expected a string matching one of the following: " + Arrays.toString(value.possibleValues) + "\nFound: " + s)), ByteBufCodecs.STRING_UTF8.mapStream(buf -> buf));
+            super(value, validate(Codec.STRING, s -> value.possibleValues == null || Arrays.asList(value.possibleValues).contains(s) ? DataResult.success(s) : DataResult.error(() -> "Expected a string matching one of the following: " + Arrays.toString(value.possibleValues) + "\nFound: " + s)), ByteBufCodecs.STRING_UTF8.mapStream(buf -> buf));
         }
 
         @Override
@@ -981,7 +987,7 @@ public abstract class AtlasConfig {
         public final boolean isSlider;
         private IntegerHolder(ConfigValue<Integer> value, boolean isSlider) {
             super(value, value.possibleValues == null ? Codec.INT : value.isRange ? ExtraCodecs.intRange(value.possibleValues[0], value.possibleValues[1]) :
-                    Codec.INT.validate(integer -> Arrays.asList(value.possibleValues).contains(integer) ? DataResult.success(integer) : DataResult.error(() -> "Expected an integer within the following: " + Arrays.toString(value.possibleValues) + "\nFound: " + integer)), ByteBufCodecs.VAR_INT.mapStream(buf -> buf));
+                    validate(Codec.INT, integer -> Arrays.asList(value.possibleValues).contains(integer) ? DataResult.success(integer) : DataResult.error(() -> "Expected an integer within the following: " + Arrays.toString(value.possibleValues) + "\nFound: " + integer)), ByteBufCodecs.VAR_INT.mapStream(buf -> buf));
             this.isSlider = isSlider;
         }
 
@@ -1070,7 +1076,7 @@ public abstract class AtlasConfig {
     public static class DoubleHolder extends ConfigHolder<Double> {
         private DoubleHolder(ConfigValue<Double> value) {
             super(value, value.possibleValues == null ? Codec.DOUBLE : value.isRange ? Codecs.doubleRange(value.possibleValues[0], value.possibleValues[1]) :
-                    Codec.DOUBLE.validate(d -> Arrays.asList(value.possibleValues).contains(d) ? DataResult.success(d) : DataResult.error(() -> "Expected an double within the following: " + Arrays.toString(value.possibleValues) + "\nFound: " + d)), ByteBufCodecs.DOUBLE.mapStream(buf -> buf));
+                    validate(Codec.DOUBLE, d -> Arrays.asList(value.possibleValues).contains(d) ? DataResult.success(d) : DataResult.error(() -> "Expected an double within the following: " + Arrays.toString(value.possibleValues) + "\nFound: " + d)), ByteBufCodecs.DOUBLE.mapStream(buf -> buf));
         }
 
         @Override
@@ -1157,7 +1163,7 @@ public abstract class AtlasConfig {
         private boolean hasAlpha;
 
         private ColorHolder(ConfigValue<Integer> value, boolean alpha) {
-            super(value, Codec.STRING.validate(s -> stripHexStarter(s).length() > (alpha ? 8 : 6) ? DataResult.error(() -> "Input too long to be a valid color hex: " + s) : DataResult.success(s))
+            super(value, validate(Codec.STRING, s -> stripHexStarter(s).length() > (alpha ? 8 : 6) ? DataResult.error(() -> "Input too long to be a valid color hex: " + s) : DataResult.success(s))
                     .xmap(s -> getColor(s, null, alpha), integer -> '#' + toColorHex(alpha, integer)), ByteBufCodecs.VAR_INT.mapStream(buf -> buf));
             hasAlpha = alpha;
         }
@@ -1246,7 +1252,7 @@ public abstract class AtlasConfig {
     }
 
     @Environment(EnvType.CLIENT)
-    public static void handleExtraSyncStatic(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context) {
+    public static void handleExtraSyncStatic(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender responseSender) {
         AtlasConfig config = packet.config();
         if (!packet.forCommand()) {
             MutableComponent disconnectReason = Component.translatable("text.config.mismatch");
@@ -1292,7 +1298,7 @@ public abstract class AtlasConfig {
                 appenderWithLineBreak.accept(separatorLine(null));
             }
             if (isMismatched.get()) {
-                context.responseSender().disconnect(disconnectReason);
+                player.connection.getConnection().disconnect(disconnectReason);
                 return;
             }
         } else {
@@ -1315,13 +1321,13 @@ public abstract class AtlasConfig {
                 config.valueNameToConfigHolderMap.values().forEach(ConfigHolder::setToPreviousValue);
             }
             if (isMismatched.get()) {
-                context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch"), false);
+                Minecraft.getInstance().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch"), false);
             }
         }
-        packet.config().handleExtraSync(packet, context);
+        packet.config().handleExtraSync(packet, player, responseSender);
     }
     @Environment(EnvType.CLIENT)
-    public abstract void handleExtraSync(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context);
+    public abstract void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender responseSender);
     public abstract void handleConfigInformation(AtlasCore.ClientInformPacket packet, ServerPlayer player, PacketSender sender);
     @Environment(EnvType.CLIENT)
     public abstract Screen createScreen(Screen prevScreen);

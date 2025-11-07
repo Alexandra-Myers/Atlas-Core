@@ -10,20 +10,18 @@ import me.shedaniel.clothconfig2.gui.entries.DoubleListEntry;
 import me.shedaniel.clothconfig2.gui.entries.IntegerListEntry;
 import me.shedaniel.clothconfig2.gui.entries.StringListEntry;
 import net.atlas.atlascore.AtlasCore;
+import net.atlas.atlascore.backport.StreamCodec;
 import net.atlas.atlascore.util.ConfigRepresentable;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.Util;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -154,13 +152,12 @@ public class AtlasCoreConfig extends AtlasConfig {
         @Override
         public ArgumentType<?> argumentTypeRepresentingHolder(String name) {
             try {
-                return switch (fields.get(name).get(this)) {
-                    case String ignored -> StringArgumentType.greedyString();
-                    case Boolean ignored -> BoolArgumentType.bool();
-                    case Integer ignored -> IntegerArgumentType.integer();
-                    case Double ignored -> DoubleArgumentType.doubleArg();
-                    case null, default -> null;
-                };
+                Object object = fields.get(name).get(this);
+                if (object instanceof String) return StringArgumentType.greedyString();
+                if (object instanceof Boolean) return BoolArgumentType.bool();
+                if (object instanceof Integer) return IntegerArgumentType.integer();
+                if (object instanceof Double) return DoubleArgumentType.doubleArg();
+                return null;
             } catch (IllegalAccessException ignored) {
             }
             return null;
@@ -183,7 +180,6 @@ public class AtlasCoreConfig extends AtlasConfig {
         FOO,
         BAR
     }
-    public TagHolder<ItemStack> testItem;
     public ObjectHolder<TestClass> testObject;
     public EnumHolder<TestEnum> testEnum;
     public StringHolder testString;
@@ -203,8 +199,6 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     public void defineConfigHolders() {
-        testItem = createCodecBacked("testItem", new ItemStack(Items.APPLE, 18), ItemStack.STRICT_CODEC);
-        testItem.tieToCategory(test);
         testObject = createObject("testObject", new TestClass(testObject, "bar", true, 3, 7.0), TestClass.class, TestClass.STREAM_CODEC);
         testObject.tieToCategory(test);
         testEnum = createEnum("testEnum", TestEnum.FOO, TestEnum.class, TestEnum.values(), e -> Component.translatable("text.config.atlas-core-config.option.testEnum." + e.name().toLowerCase(Locale.ROOT)));
@@ -266,7 +260,7 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     @Environment(EnvType.CLIENT)
-    public void handleExtraSync(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context) {
+    public void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender responseSender) {
 
     }
 

@@ -9,10 +9,12 @@ import net.atlas.atlascore.command.argument.ConfigHolderArgument;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.ConfigHolderLike;
 import net.atlas.atlascore.config.ExtendedHolder;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -82,8 +84,11 @@ public class ConfigCommand {
     private static int resetConfig(CommandContext<CommandSourceStack> context, AtlasConfig config) {
         config.reset();
         for (ServerPlayer player : context.getSource().getServer().getPlayerList().getPlayers()) {
-            if (ServerPlayNetworking.canSend(player, AtlasCore.AtlasConfigPacket.TYPE))
-                player.connection.send(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
+            if (ServerPlayNetworking.canSend(player, AtlasCore.AtlasConfigPacket.TYPE)) {
+                FriendlyByteBuf buf = PacketByteBufs.create();
+                new AtlasCore.AtlasConfigPacket(true, config).write(buf);
+                player.connection.send(ServerPlayNetworking.createS2CPacket(AtlasCore.AtlasConfigPacket.TYPE.getId(), buf));
+            }
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.reset_config", "The values for config %s were reset successfully, please note some changes may still not take effect without a restart.", config.getFormattedName())), true);
@@ -98,8 +103,11 @@ public class ConfigCommand {
             return 0;
         }
         for (ServerPlayer player : context.getSource().getServer().getPlayerList().getPlayers()) {
-            if (ServerPlayNetworking.canSend(player, AtlasCore.AtlasConfigPacket.TYPE))
-                player.connection.send(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
+            if (ServerPlayNetworking.canSend(player, AtlasCore.AtlasConfigPacket.TYPE)) {
+                FriendlyByteBuf buf = PacketByteBufs.create();
+                new AtlasCore.AtlasConfigPacket(true, config).write(buf);
+                player.connection.send(ServerPlayNetworking.createS2CPacket(AtlasCore.AtlasConfigPacket.TYPE.getId(), buf));
+            }
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T>)) {
@@ -131,7 +139,11 @@ public class ConfigCommand {
             return 0;
         }
         for (ServerPlayer player : context.getSource().getServer().getPlayerList().getPlayers()) {
-            if (ServerPlayNetworking.canSend(player, AtlasCore.AtlasConfigPacket.TYPE)) player.connection.send(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
+            if (ServerPlayNetworking.canSend(player, AtlasCore.AtlasConfigPacket.TYPE)) {
+                FriendlyByteBuf buf = PacketByteBufs.create();
+                new AtlasCore.AtlasConfigPacket(true, config).write(buf);
+                player.connection.send(ServerPlayNetworking.createS2CPacket(AtlasCore.AtlasConfigPacket.TYPE.getId(), buf));
+            }
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T>)) {
