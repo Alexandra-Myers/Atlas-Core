@@ -3,8 +3,7 @@ package net.atlas.atlascore.client.gui;
 import com.google.common.collect.ImmutableList;
 
 import java.util.List;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -12,9 +11,11 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.Nullable;
 
-@Environment(EnvType.CLIENT)
+@OnlyIn(Dist.CLIENT)
 public class ConfigList extends ContainerObjectSelectionList<ConfigList.Entry> {
     public ConfigList(Minecraft minecraft, int i, int j, int k, int l, int m) {
         super(minecraft, i, j, k, l, m);
@@ -40,7 +41,7 @@ public class ConfigList extends ContainerObjectSelectionList<ConfigList.Entry> {
         return super.getScrollbarPosition() + 32;
     }
 
-    @Environment(EnvType.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     protected static class Entry extends ContainerObjectSelectionList.Entry<Entry> {
         final List<AbstractWidget> children;
 

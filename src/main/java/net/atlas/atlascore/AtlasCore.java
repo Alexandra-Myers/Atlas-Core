@@ -2,34 +2,36 @@ package net.atlas.atlascore;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import net.atlas.atlascore.client.AtlasCoreClient;
 import net.atlas.atlascore.command.ConfigCommand;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.config.AtlasCoreConfig;
 import net.atlas.atlascore.config.ContextBasedConfig;
 import net.atlas.atlascore.util.*;
-import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.networking.v1.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.apache.logging.log4j.LogManager;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.Comparator;
 
-public class AtlasCore implements ModInitializer {
-    public static final String MOD_ID = "atlas-core";
+@Mod(value = AtlasCore.MOD_ID)
+@Mod.EventBusSubscriber(modid = AtlasCore.MOD_ID)
+public class AtlasCore {
+    public static final String MOD_ID = "atlas_core";
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final PrefixLogger LOGGER = new PrefixLogger(LogManager.getLogger("Atlas Core"));
     public static AtlasCoreConfig CONFIG;
     public static ResourceLocation modDetectionNetworkChannel = id("networking");
-    /**
-     * Runs the mod initializer.
-     */
-    @Override
-    public void onInitialize() {
+    public AtlasCore(FMLJavaModLoadingContext context) {
         CONFIG = new AtlasCoreConfig();
         ServerPlayConnectionEvents.JOIN.register(modDetectionNetworkChannel,(handler, sender, server) -> {
             for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> atlasConfig.configSide.isCommon()).toList()) {
@@ -46,7 +48,7 @@ public class AtlasCore implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(ServerboundClientModPacket.TYPE, (payload, player, responseSender) -> {
             ServerModsRetrievedEvent.RETRIEVAL.invoker().onModsReceived(player.connection, responseSender, ((ServerboundClientModPacket)payload).modRepresentations());
         });
-        ServerPlayNetworking.registerGlobalReceiver(ClientInformPacket.TYPE, (packet, player, responseSender) -> ((ClientInformPacket)packet).config().handleConfigInformation((ClientInformPacket) packet, player, responseSender));
+        ServerPlayNetworking.registerGlobalReceiver(ClientInformPacket.TYPE, (packet, player, responseSender) -> packet.config().handleConfigInformation(packet, player, responseSender));
         ServerModsRetrievedEvent.RETRIEVAL.register((handler, sender, mods) -> {
             if (CONFIG.listClientModsOnJoin.get()) {
                 final String[] list = {"Client mods: \n"};
@@ -55,8 +57,10 @@ public class AtlasCore implements ModInitializer {
             }
         });
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ConfigCommand.register(dispatcher));
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> AtlasCoreClient.load(context));
     }
     public static ResourceLocation id(String path) {
+        //noinspection removal
         return new ResourceLocation(MOD_ID, path);
     }
 

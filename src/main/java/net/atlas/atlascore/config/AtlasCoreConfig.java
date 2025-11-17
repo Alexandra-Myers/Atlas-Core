@@ -12,8 +12,6 @@ import me.shedaniel.clothconfig2.gui.entries.StringListEntry;
 import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.backport.StreamCodec;
 import net.atlas.atlascore.util.ConfigRepresentable;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.Util;
 import net.minecraft.client.gui.screens.Screen;
@@ -23,6 +21,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.server.level.ServerPlayer;
 
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
@@ -164,7 +164,7 @@ public class AtlasCoreConfig extends AtlasConfig {
         }
 
         @Override
-        @Environment(EnvType.CLIENT)
+        @OnlyIn(Dist.CLIENT)
         public List<AbstractConfigListEntry<?>> transformIntoConfigEntries() {
             if (resetTranslation == null)
                 resetTranslation = () -> Component.translatable(owner.getTranslationResetKey());
@@ -194,7 +194,6 @@ public class AtlasCoreConfig extends AtlasConfig {
     private Category debug;
     public AtlasCoreConfig() {
         super(AtlasCore.id("atlas-core-config"));
-        declareDefaultForMod(AtlasCore.MOD_ID);
     }
 
     @Override
@@ -259,7 +258,7 @@ public class AtlasCoreConfig extends AtlasConfig {
     }
 
     @Override
-    @Environment(EnvType.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     public void handleExtraSync(AtlasCore.AtlasConfigPacket packet, LocalPlayer player, PacketSender responseSender) {
 
     }
@@ -270,7 +269,7 @@ public class AtlasCoreConfig extends AtlasConfig {
     }
 
     @Override
-    @Environment(EnvType.CLIENT)
+    @OnlyIn(Dist.CLIENT)
     public Screen createScreen(Screen prevScreen) {
         return null;
     }
