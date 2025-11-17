@@ -62,11 +62,11 @@ dependencies {
 }
 
 processResources {
-    inputs.property "version", project.mod_version
+    inputs.property "mod_version", project.mod_version
     filteringCharset "UTF-8"
 
     filesMatching("mods.toml") {
-        expand "version": project.mod_version
+        expand "mod_version": project.mod_version
     }
 }
 
