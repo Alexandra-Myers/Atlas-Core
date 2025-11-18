@@ -1,5 +1,6 @@
 package net.atlas.atlascore.config;
 
+import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.client.ScreenBuilder;
 import net.atlas.atlascore.client.gui.ConfigList;
 import net.minecraft.client.Options;
@@ -9,9 +10,6 @@ import net.minecraft.client.gui.screens.OptionsSubScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class AtlasConfigScreen extends OptionsSubScreen {
     public ConfigList configs;
@@ -23,11 +21,10 @@ public class AtlasConfigScreen extends OptionsSubScreen {
 	protected void init() {
 		super.init();
         this.configs = new ConfigList(this.minecraft, this.width, this.height, 32, this.height - 32, 25);
-		List<Button.Builder> configButtons = new ArrayList<>();
-		AtlasConfig.configs.forEach((resourceLocation, config) -> {
-			if (config.hasScreen()) configButtons.add(Button.builder(Component.translatable("text.config." + config.name.getPath() + ".title"), button -> this.minecraft.setScreen(ScreenBuilder.buildAtlasConfig(this, config))));
-		});
-        this.configs.add(configButtons.toArray(Button.Builder[]::new));
+        this.configs.add(AtlasConfig.configs.values().stream()
+                .filter(AtlasConfig::hasScreen)
+                .map(config -> Button.builder(config.getFormattedName(), button -> this.minecraft.setScreen(ScreenBuilder.buildAtlasConfig(this, config))))
+                .toArray(Button.Builder[]::new));
         this.addWidget(configs);
         this.createFooter();
 	}

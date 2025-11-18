@@ -51,7 +51,7 @@ public class ConfigList extends ContainerObjectSelectionList<ConfigList.Entry> {
 
         public static Entry buttons(int width, Button.Builder builder, @Nullable Button.Builder builder2) {
             AbstractWidget abstractWidget = builder.pos(width / 2 - 155, 0).size(150, 20).build();
-            return builder2 == null ? new Entry(List.of(abstractWidget)) : new Entry(List.of(abstractWidget, builder.pos(width / 2 + 5, 0).size(150, 20).build()));
+            return builder2 == null ? new Entry(List.of(abstractWidget)) : new Entry(List.of(abstractWidget, builder2.pos(width / 2 + 5, 0).size(150, 20).build()));
         }
 
         public void render(GuiGraphics guiGraphics, int i, int j, int k, int l, int m, int n, int o, boolean bl, float f) {
