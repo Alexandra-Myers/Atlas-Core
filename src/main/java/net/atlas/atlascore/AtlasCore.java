@@ -44,7 +44,7 @@ public class AtlasCore implements ModInitializer {
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(ServerboundClientModPacket.TYPE, (payload, player, responseSender) -> {
-            ServerModsRetrievedEvent.RETRIEVAL.invoker().onModsReceived(player.connection, responseSender, ((ServerboundClientModPacket)payload).modRepresentations());
+            ServerModsRetrievedEvent.RETRIEVAL.invoker().onModsReceived(player.connection, responseSender, payload.modRepresentations());
         });
         ServerPlayNetworking.registerGlobalReceiver(ClientInformPacket.TYPE, (packet, player, responseSender) -> ((ClientInformPacket)packet).config().handleConfigInformation((ClientInformPacket) packet, player, responseSender));
         ServerModsRetrievedEvent.RETRIEVAL.register((handler, sender, mods) -> {
