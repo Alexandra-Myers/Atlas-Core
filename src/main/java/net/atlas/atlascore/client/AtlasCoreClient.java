@@ -29,7 +29,7 @@ public class AtlasCoreClient {
         // The config screen is accessed by going to the Mods screen > clicking on your mod > clicking on config.
         // Do not forget to add translations for your config options to the en_us.json file.
         ClientPlayNetworking.registerGlobalReceiver(AtlasCore.AtlasConfigPacket.TYPE, AtlasConfig::handleExtraSyncStatic);
-        ClientConfigurationNetworking.registerGlobalReceiver(AtlasCore.ClientboundModListRetrievalPacket.TYPE, (packet, sender) -> sender.responseSender().sendPacket(ClientPlayNetworking.createC2SPacket(new AtlasCore.ServerboundClientModPacket(ModRepresentation.mapFromModContainers(FabricLoader.getInstance().getAllMods())))));
+        ClientConfigurationNetworking.registerGlobalReceiver(AtlasCore.ClientboundModListRetrievalPacket.TYPE, (packet, sender) -> sender.responseSender().sendPacket(ClientPlayNetworking.createC2SPacket(new AtlasCore.ServerboundClientModPacket(ModRepresentation.mapFromModContainers(ModList.get().getMods(), new String[0])))));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> AtlasConfig.configs.forEach((resourceLocation, atlasConfig) -> atlasConfig.reload()));
         container.registerExtensionPoint(IConfigScreenFactory.class, (modContainer, screen) -> new AtlasConfigScreen(screen, Minecraft.getInstance().options, Component.translatable("title.atlas_config.name")));
     }

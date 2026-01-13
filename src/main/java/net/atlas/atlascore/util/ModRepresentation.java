@@ -1,14 +1,16 @@
 package net.atlas.atlascore.util;
 
-import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.VersionParsingException;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
+import net.neoforged.neoforgespi.language.IModInfo;
 
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
+import static cpw.mods.modlauncher.api.LambdaExceptionUtils.uncheck;
 
 public record ModRepresentation(String name, String modID, Collection<ModRepresentation> provided, Version version) {
     public static final Version UNKNOWN;
@@ -50,11 +52,14 @@ public record ModRepresentation(String name, String modID, Collection<ModReprese
         buf.writeUtf(modRepresentation.version().getFriendlyString());
     }
 
-    public static Collection<ModRepresentation> mapFromModContainers(Collection<ModContainer> mods) {
+    public static Collection<ModRepresentation> mapFromModContainers(Collection<IModInfo> mods, String[] ownerIds) {
         return mods.stream().map(modContainer -> {
-            if (modContainer.getContainedMods().isEmpty()) {
-                return new ModRepresentation(modContainer.getMetadata().getName(), modContainer.getMetadata().getId(), Collections.emptyList(), modContainer.getMetadata().getVersion());
-            } else return new ModRepresentation(modContainer.getMetadata().getName(), modContainer.getMetadata().getId(), mapFromModContainers(modContainer.getContainedMods()), modContainer.getMetadata().getVersion());
+            String[] concat = Arrays.copyOf(ownerIds, ownerIds.length + 1);
+            concat[concat.length - 1] = modContainer.getModId();
+            Collection<IModInfo> includedMods = modContainer.getOwningFile().getMods().stream().filter(extras -> Arrays.stream(concat).noneMatch(s -> s.equals(extras.getModId()))).toList();
+            if (includedMods.isEmpty()) {
+                return new ModRepresentation(modContainer.getDisplayName(), modContainer.getModId(), Collections.emptyList(), uncheck(() -> Version.parse(modContainer.getVersion().toString())));
+            } else return new ModRepresentation(modContainer.getDisplayName(), modContainer.getModId(), mapFromModContainers(includedMods, concat), uncheck(() -> Version.parse(modContainer.getVersion().toString())));
         }).toList();
     }
 
