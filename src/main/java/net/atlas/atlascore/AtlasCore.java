@@ -16,7 +16,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.network.ConfigurationTask;
 import org.apache.logging.log4j.LogManager;
 import org.jetbrains.annotations.NotNull;
@@ -30,7 +30,7 @@ public class AtlasCore implements ModInitializer {
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final PrefixLogger LOGGER = new PrefixLogger(LogManager.getLogger("Atlas Core"));
     public static AtlasCoreConfig CONFIG;
-    public static ResourceLocation modDetectionNetworkChannel = id("networking");
+    public static Identifier modDetectionNetworkChannel = id("networking");
     /**
      * Runs the mod initializer.
      */
@@ -71,8 +71,8 @@ public class AtlasCore implements ModInitializer {
         });
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ConfigCommand.register(dispatcher));
     }
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     public record AtlasConfigPacket(boolean forCommand, AtlasConfig config) implements CustomPacketPayload {
@@ -85,7 +85,7 @@ public class AtlasCore implements ModInitializer {
 
         public void write(RegistryFriendlyByteBuf buf) {
             buf.writeBoolean(forCommand);
-            buf.writeResourceLocation(config.name);
+            buf.writeIdentifier(config.name);
             config.saveToNetwork(buf);
         }
 
@@ -103,7 +103,7 @@ public class AtlasCore implements ModInitializer {
         }
 
         public void write(RegistryFriendlyByteBuf buf) {
-            buf.writeResourceLocation(config.name);
+            buf.writeIdentifier(config.name);
             config.saveToNetwork(buf);
         }
 

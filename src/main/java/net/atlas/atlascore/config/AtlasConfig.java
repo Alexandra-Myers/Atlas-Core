@@ -40,7 +40,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ExtraCodecs;
 import org.jetbrains.annotations.ApiStatus;
@@ -63,19 +63,19 @@ import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
 
 public abstract class AtlasConfig {
-    public final ResourceLocation name;
+    public final Identifier name;
     public final SyncMode defaultSyncMode;
     public final ConfigSide configSide;
     public boolean isDefault;
     public final Map<String, ConfigHolder<?>> valueNameToConfigHolderMap = Maps.newHashMap();
 	public final List<Category> categories;
-    public static final Map<ResourceLocation, AtlasConfig> configs = Maps.newHashMap();
+    public static final Map<Identifier, AtlasConfig> configs = Maps.newHashMap();
 	public static final Map<String, AtlasConfig> menus = Maps.newHashMap();
     File configFile;
     JsonObject configJsonObject;
     List<ConfigHolder<?>> configHolders;
 
-    public AtlasConfig(ResourceLocation name, SyncMode defaultSyncMode, ConfigSide configSide) {
+    public AtlasConfig(Identifier name, SyncMode defaultSyncMode, ConfigSide configSide) {
         this.configSide = configSide;
         this.defaultSyncMode = defaultSyncMode;
         this.name = name;
@@ -94,13 +94,13 @@ public abstract class AtlasConfig {
         load();
         if (!configs.containsKey(name)) configs.put(name, this);
     }
-    public AtlasConfig(ResourceLocation name, SyncMode defaultSyncMode) {
+    public AtlasConfig(Identifier name, SyncMode defaultSyncMode) {
         this(name, defaultSyncMode, ConfigSide.COMMON);
     }
-    public AtlasConfig(ResourceLocation name, ConfigSide configSide) {
+    public AtlasConfig(Identifier name, ConfigSide configSide) {
         this(name, SyncMode.OVERRIDE_CLIENT, configSide);
     }
-    public AtlasConfig(ResourceLocation name) {
+    public AtlasConfig(Identifier name) {
         this(name, SyncMode.OVERRIDE_CLIENT, ConfigSide.COMMON);
     }
 
@@ -206,11 +206,11 @@ public abstract class AtlasConfig {
         return this;
     }
     public static AtlasConfig staticLoadFromNetwork(RegistryFriendlyByteBuf buf) {
-        return configs.get(buf.readResourceLocation()).loadFromNetwork(buf);
+        return configs.get(buf.readIdentifier()).loadFromNetwork(buf);
     }
 
     public static AtlasConfig staticReadClientConfigInformation(RegistryFriendlyByteBuf buf) {
-        return configs.get(buf.readResourceLocation()).readClientConfigInformation(buf);
+        return configs.get(buf.readIdentifier()).readClientConfigInformation(buf);
     }
 
     public AtlasConfig readClientConfigInformation(RegistryFriendlyByteBuf buf) {

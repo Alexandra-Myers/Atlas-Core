@@ -19,7 +19,7 @@ public class AtlasConfigScreen extends OptionsSubScreen {
 	@Override
 	protected void addOptions() {
 		List<AbstractWidget> configButtons = new ArrayList<>();
-		AtlasConfig.configs.forEach((resourceLocation, config) -> {
+		AtlasConfig.configs.forEach((identifier, config) -> {
 			if (config.hasScreen()) configButtons.add(Button.builder(Component.translatable("text.config." + config.name.getPath() + ".title"), button -> this.minecraft.setScreen(ScreenBuilder.buildAtlasConfig(this, config))).build());
 		});
         //noinspection DataFlowIssue

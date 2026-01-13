@@ -15,7 +15,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -38,7 +38,7 @@ public class AtlasCoreConfig extends AtlasConfig {
         public static final StreamCodec<RegistryFriendlyByteBuf, TestClass> STREAM_CODEC = new StreamCodec<>() {
             @Override
             public void encode(RegistryFriendlyByteBuf registryFriendlyByteBuf, TestClass testClass) {
-                registryFriendlyByteBuf.writeResourceLocation(testClass.owner.heldValue.owner().name);
+                registryFriendlyByteBuf.writeIdentifier(testClass.owner.heldValue.owner().name);
                 registryFriendlyByteBuf.writeUtf(testClass.owner.heldValue.name());
                 registryFriendlyByteBuf.writeUtf(testClass.innerString);
                 registryFriendlyByteBuf.writeBoolean(testClass.innerBool);
@@ -49,7 +49,7 @@ public class AtlasCoreConfig extends AtlasConfig {
             @Override
             @SuppressWarnings("unchecked")
             public @NotNull TestClass decode(RegistryFriendlyByteBuf registryFriendlyByteBuf) {
-                AtlasConfig config = AtlasConfig.configs.get(registryFriendlyByteBuf.readResourceLocation());
+                AtlasConfig config = AtlasConfig.configs.get(registryFriendlyByteBuf.readIdentifier());
                 return new TestClass((ConfigHolder<TestClass>) config.valueNameToConfigHolderMap.get(registryFriendlyByteBuf.readUtf()), registryFriendlyByteBuf.readUtf(), registryFriendlyByteBuf.readBoolean(), registryFriendlyByteBuf.readVarInt(), registryFriendlyByteBuf.readDouble());
             }
         };

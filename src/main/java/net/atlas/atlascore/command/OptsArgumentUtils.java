@@ -11,7 +11,7 @@ import net.atlas.atlascore.command.argument.OptsArgument;
 import net.atlas.atlascore.util.MapUtils;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.commands.arguments.IdentifierArgument;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -35,7 +35,7 @@ public class OptsArgumentUtils {
         ArgumentBuilder<CommandSourceStack, ?> base = openingArg;
         OptsArgument optsArgument = OptsArgument.fromMap(possibleArguments);
         for (String arg : trueArguments) {
-            ArgumentBuilder<CommandSourceStack, ?> next = Commands.argument(arg, ResourceLocationArgument.id())
+            ArgumentBuilder<CommandSourceStack, ?> next = Commands.argument(arg, IdentifierArgument.id())
                     .suggests(optsArgument::suggestions).executes(command.apply(optsArgument));
             base.then(next);
             base = next;

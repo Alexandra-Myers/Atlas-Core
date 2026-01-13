@@ -8,23 +8,23 @@ import net.atlas.atlascore.config.ContextBasedConfig;
 import net.atlas.atlascore.util.Context;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.commands.arguments.IdentifierArgument;
+import net.minecraft.resources.Identifier;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 public record AtlasConfigArgument() {
-    public static ResourceLocationArgument context() {
-        return ResourceLocationArgument.id();
+    public static IdentifierArgument context() {
+        return IdentifierArgument.id();
     }
 
     public static AtlasConfig getConfig(final CommandContext<?> context, String name, boolean requiresContext) {
-        ResourceLocation resourcelocation = context.getArgument(name, ResourceLocation.class);
-        AtlasConfig ret = AtlasConfig.configs.get(resourcelocation);
+        Identifier identifier = context.getArgument(name, Identifier.class);
+        AtlasConfig ret = AtlasConfig.configs.get(identifier);
         if (requiresContext)
-            ret = AtlasConfig.configs.values().stream().filter(config -> config instanceof ContextBasedConfig && Objects.equals(config.name, resourcelocation)).findFirst().orElse(null);
+            ret = AtlasConfig.configs.values().stream().filter(config -> config instanceof ContextBasedConfig && Objects.equals(config.name, identifier)).findFirst().orElse(null);
         if (ret instanceof ContextBasedConfig contextBasedConfig) {
             if (context.getSource() instanceof CommandSourceStack sourceStack && sourceStack.getEntity() != null) ret = contextBasedConfig.getConfig(Context.builder().applyInformationFromCommandSourceStack(sourceStack).build());
             else if (context.getSource() instanceof CommandSourceStack sourceStack) ret = contextBasedConfig.getConfig(Context.builder().putOnDedicated(sourceStack.getServer().isDedicatedServer()).build());

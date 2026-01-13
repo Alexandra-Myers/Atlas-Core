@@ -27,11 +27,11 @@ Starting off, you want to create a class that extends `AtlasConfig`, like so:
 package com.example.examplemod.config;
 
 import net.atlas.atlascore.config.AtlasConfig;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public class ExampleConfig extends AtlasConfig {
 	public ExampleConfig() {
-		super(ResourceLocation.fromNamespaceAndPath("examplemod", "examplemod-config"));
+		super(Identifier.fromNamespaceAndPath("examplemod", "examplemod-config"));
 		declareDefaultForMod("examplemod");
 	}
 }
@@ -47,14 +47,14 @@ import net.atlas.atlascore.config.AtlasConfig;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.io.InputStream;
 import java.io.PrintWriter;
 
 public class ExampleConfig extends AtlasConfig {
 	public ExampleConfig() {
-		super(ResourceLocation.fromNamespaceAndPath("examplemod", "examplemod-config"));
+		super(Identifier.fromNamespaceAndPath("examplemod", "examplemod-config"));
 		declareDefaultForMod("examplemod");
 	}
 
@@ -163,7 +163,7 @@ import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.InputStream;
@@ -185,7 +185,7 @@ public class ExampleConfig extends AtlasConfig {
 	public ColorHolder exampleColour;
 	private Category example;
 	public ExampleConfig() {
-		super(ResourceLocation.fromNamespaceAndPath("examplemod", "examplemod-config"));
+		super(Identifier.fromNamespaceAndPath("examplemod", "examplemod-config"));
 		declareDefaultForMod("examplemod");
 	}
 

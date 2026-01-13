@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.11-SNAPSHOT'
+    id 'fabric-loom' version '1.14-SNAPSHOT'
     id 'maven-publish'
 }
 
@@ -29,8 +29,8 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modCompileOnly "com.terraformersmc:modmenu:15.0.0"
-    modApi "me.shedaniel.cloth:cloth-config-fabric:20.0.148"
+    modImplementation "com.terraformersmc:modmenu:17.0.0-beta.2"
+    modApi "me.shedaniel.cloth:cloth-config-fabric:21.11.153"
 
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
@@ -74,7 +74,7 @@ java {
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}"}
+        rename { "${it}_${base.archivesName}"}
     }
 }
 

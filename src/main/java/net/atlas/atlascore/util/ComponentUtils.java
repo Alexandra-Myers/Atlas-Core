@@ -5,12 +5,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public class ComponentUtils {
-    public static String toSimpleLocation(ResourceLocation resourceLocation) {
-        if (resourceLocation.getNamespace().equals("minecraft")) return resourceLocation.getPath();
-        return resourceLocation.toString();
+    public static String toSimpleLocation(Identifier identifier) {
+        if (identifier.getNamespace().equals("minecraft")) return identifier.getPath();
+        return identifier.toString();
     }
     public static MutableComponent separatorLine(MutableComponent title) {
         return separatorLine(title, false);
