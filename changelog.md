@@ -1,7 +1,7 @@
 ### Changes:
 ***
-- Removed premade default config
+- Read data is no longer ignored on the receiving end if the sender chose to send it
 ***
 ### Atlas Config Changes:
 ***
-- Default configs no longer need to exist within the resources of the mod JAR, now are generated on the fly
+- Fixed desyncs made when configs are updated, now identifies the set holders.

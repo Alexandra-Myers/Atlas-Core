@@ -202,7 +202,12 @@ public abstract class AtlasConfig {
         return null;
     }
     public AtlasConfig loadFromNetwork(RegistryFriendlyByteBuf buf) {
-        configHolders.forEach(configHolder -> configHolder.readFromBuf(buf));
+        int cnt = buf.readVarInt();
+        for (int holder = 0; holder < cnt; holder++) {
+            ConfigHolder<?> configHolder = valueNameToConfigHolderMap.get(buf.readUtf());
+            if (configHolder == null) continue;
+            configHolder.readFromBuf(buf);
+        }
         return this;
     }
     public static AtlasConfig staticLoadFromNetwork(RegistryFriendlyByteBuf buf) {
@@ -214,12 +219,19 @@ public abstract class AtlasConfig {
     }
 
     public AtlasConfig readClientConfigInformation(RegistryFriendlyByteBuf buf) {
-        configHolders.forEach(configHolder -> configHolder.broadcastClientValueRecieved(buf));
+        int cnt = buf.readVarInt();
+        for (int holder = 0; holder < cnt; holder++) {
+            ConfigHolder<?> configHolder = valueNameToConfigHolderMap.get(buf.readUtf());
+            if (configHolder == null) continue;
+            configHolder.broadcastClientValueRecieved(buf);
+        }
         return this;
     }
 
     public void saveToNetwork(RegistryFriendlyByteBuf buf) {
-        configHolders.forEach(configHolder -> configHolder.writeToBuf(buf));
+        List<ConfigHolder<?>> syncedHolders = configHolders.stream().filter(configHolder -> configHolder.heldValue.syncMode != SyncMode.NONE).toList();
+        buf.writeVarInt(syncedHolders.size());
+        syncedHolders.forEach(configHolder -> configHolder.writeToBuf(buf));
     }
 
     @Override
@@ -479,27 +491,25 @@ public abstract class AtlasConfig {
 			return codec.encode(value, JsonOps.INSTANCE, root);
 		}
         public void writeToBuf(RegistryFriendlyByteBuf buf) {
-            if (heldValue.syncMode() != SyncMode.NONE)
+            if (heldValue.syncMode() != SyncMode.NONE) {
+                buf.writeUtf(heldValue.name);
                 streamCodec.encode(buf, value);
+            }
         }
         public void readFromBuf(RegistryFriendlyByteBuf buf) {
-            if (heldValue.syncMode() != SyncMode.NONE) {
-                T newValue = streamCodec.decode(buf);
-                if (isNotValid(newValue) || heldValue.syncMode == SyncMode.INFORM_SERVER)
-                    return;
-                if (Objects.equals(newValue, value)) {
-                    synchedValue = null;
-                    serverManaged = heldValue.owner.configSide.isCommon();
-                    return;
-                }
-                setSynchedValue(newValue);
+            T newValue = streamCodec.decode(buf);
+            if (isNotValid(newValue) || heldValue.syncMode == SyncMode.INFORM_SERVER)
+                return;
+            if (Objects.equals(newValue, value)) {
+                synchedValue = null;
+                serverManaged = heldValue.owner.configSide.isCommon();
+                return;
             }
+            setSynchedValue(newValue);
         }
         public void broadcastClientValueRecieved(RegistryFriendlyByteBuf buf) {
-            if (heldValue.syncMode() != SyncMode.NONE) {
-                T clientValue = streamCodec.decode(buf);
-                heldValue.emitClientValueRecieved(value, clientValue);
-            }
+            T clientValue = streamCodec.decode(buf);
+            heldValue.emitClientValueRecieved(value, clientValue);
         }
         public boolean isNotValid(T newValue) {
             return !heldValue.isValid(newValue);
