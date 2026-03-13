@@ -60,7 +60,7 @@ public class ConfigHolderFixer<T> {
         this.pastCategories.add(categoryName);
     }
 
-    private boolean mustFix(@Nullable JsonElement value) {
+    protected boolean mustFix(@Nullable JsonElement value) {
         return value == null;
     }
 }
