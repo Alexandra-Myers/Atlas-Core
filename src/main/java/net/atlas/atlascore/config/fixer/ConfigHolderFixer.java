@@ -50,7 +50,7 @@ public class ConfigHolderFixer<T> {
                 if (categoryRoot.isEmpty()) configRootObject.remove(oldCategory);
             }
             if (value == null) { // Either no older categories, or simply not present in them
-                Objects.requireNonNullElse(holderRootObject, configRootObject).add(this.owner.getName(), this.owner.encodeAsJSON().getOrThrow());
+                value = this.owner.encodeAsJSON().getOrThrow();
             }
         }
         return value;
