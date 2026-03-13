@@ -18,6 +18,8 @@ import me.shedaniel.clothconfig2.gui.entries.*;
 import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.client.gui.CodecBackedListEntry;
 import net.atlas.atlascore.command.argument.ConfigHolderArgument;
+import net.atlas.atlascore.config.fixer.ConfigFixer;
+import net.atlas.atlascore.config.fixer.ConfigHolderFixer;
 import net.atlas.atlascore.util.Codecs;
 import net.atlas.atlascore.util.ConfigRepresentable;
 import net.fabricmc.api.EnvType;
@@ -66,6 +68,7 @@ public abstract class AtlasConfig {
     public final ResourceLocation name;
     public final SyncMode defaultSyncMode;
     public final ConfigSide configSide;
+    public final ConfigFixer configFixer;
     public boolean isDefault;
     public final Map<String, ConfigHolder<?>> valueNameToConfigHolderMap = Maps.newHashMap();
 	public final List<Category> categories;
@@ -79,6 +82,7 @@ public abstract class AtlasConfig {
         this.configSide = configSide;
         this.defaultSyncMode = defaultSyncMode;
         this.name = name;
+        this.configFixer = createFixer();
         configHolders = new ArrayList<>();
         categories = createCategories();
         configFile = null;
@@ -102,6 +106,10 @@ public abstract class AtlasConfig {
     }
     public AtlasConfig(ResourceLocation name) {
         this(name, SyncMode.OVERRIDE_CLIENT, ConfigSide.COMMON);
+    }
+
+    public ConfigFixer createFixer() {
+        return new ConfigFixer(this);
     }
 
     public Component getFormattedName() {
@@ -178,6 +186,7 @@ public abstract class AtlasConfig {
 
         try {
             if (configJsonObject == null) configJsonObject = JsonParser.parseReader(new JsonReader(new FileReader(configFile))).getAsJsonObject();
+            configFixer.fix(configJsonObject);
             for (Category category : categories) {
                 JsonObject categoryRoot = new JsonObject();
                 if (configJsonObject.has(category.name))
@@ -187,7 +196,7 @@ public abstract class AtlasConfig {
                         holder.loadFromJSONAndResetManaged(categoryRoot);
                 }
             }
-            for (ConfigHolder<?> configHolder : valueNameToConfigHolderMap.values())
+            for (ConfigHolder<?> configHolder : getUncategorisedHolders())
                 if (configJsonObject.has(configHolder.heldValue.name))
                     configHolder.loadFromJSONAndResetManaged(configJsonObject);
             loadExtra(configJsonObject);
@@ -202,7 +211,12 @@ public abstract class AtlasConfig {
         return null;
     }
     public AtlasConfig loadFromNetwork(RegistryFriendlyByteBuf buf) {
-        configHolders.forEach(configHolder -> configHolder.readFromBuf(buf));
+        int cnt = buf.readVarInt();
+        for (int holder = 0; holder < cnt; holder++) {
+            ConfigHolder<?> configHolder = valueNameToConfigHolderMap.get(buf.readUtf());
+            if (configHolder == null) continue;
+            configHolder.readFromBuf(buf);
+        }
         return this;
     }
     public static AtlasConfig staticLoadFromNetwork(RegistryFriendlyByteBuf buf) {
@@ -214,12 +228,19 @@ public abstract class AtlasConfig {
     }
 
     public AtlasConfig readClientConfigInformation(RegistryFriendlyByteBuf buf) {
-        configHolders.forEach(configHolder -> configHolder.broadcastClientValueRecieved(buf));
+        int cnt = buf.readVarInt();
+        for (int holder = 0; holder < cnt; holder++) {
+            ConfigHolder<?> configHolder = valueNameToConfigHolderMap.get(buf.readUtf());
+            if (configHolder == null) continue;
+            configHolder.broadcastClientValueRecieved(buf);
+        }
         return this;
     }
 
     public void saveToNetwork(RegistryFriendlyByteBuf buf) {
-        configHolders.forEach(configHolder -> configHolder.writeToBuf(buf));
+        List<ConfigHolder<?>> syncedHolders = configHolders.stream().filter(configHolder -> configHolder.heldValue.syncMode != SyncMode.NONE).toList();
+        buf.writeVarInt(syncedHolders.size());
+        syncedHolders.forEach(configHolder -> configHolder.writeToBuf(buf));
     }
 
     @Override
@@ -366,7 +387,13 @@ public abstract class AtlasConfig {
         printWriter.close();
 	}
 
-	public JsonElement saveExtra(JsonElement root) {
+    public final void saveFixedConfig(JsonObject root) throws IOException {
+        PrintWriter printWriter = new PrintWriter(configFile);
+        AtlasCore.GSON.toJson(root, printWriter);
+        printWriter.close();
+    }
+
+    public JsonElement saveExtra(JsonElement root) {
         return root;
     }
 
@@ -445,6 +472,8 @@ public abstract class AtlasConfig {
         public final ConfigValue<T> heldValue;
         public final StreamCodec<RegistryFriendlyByteBuf, T> streamCodec;
         public final Codec<T> codec;
+        public final Codec<T> rawCodec;
+        protected Supplier<ConfigHolderFixer<T>> fixer = Suppliers.memoize(() -> new ConfigHolderFixer<>(this));
 		public RestartRequiredMode restartRequired = RestartRequiredMode.NO_RESTART;
 		public boolean serverManaged = false;
 		public Supplier<Optional<Component[]>> tooltip = Optional::empty;
@@ -454,9 +483,18 @@ public abstract class AtlasConfig {
             heldValue = value;
             if (streamCodec != null) this.streamCodec = streamCodec;
             else this.streamCodec = formAlternateStreamCodec();
-            if (codec != null) this.codec = codec.fieldOf(value.name).codec();
-            else this.codec = formAlternateCodec();
+            if (codec != null) this.rawCodec = codec;
+            else this.rawCodec = formAlternateCodec();
+            this.codec = this.rawCodec.fieldOf(value.name).codec();
             value.addAssociation(this);
+        }
+
+        public ConfigHolderFixer<T> getFixer() {
+            return this.fixer.get();
+        }
+
+        public void setFixer(ConfigHolderFixer<T> fixer) {
+            this.fixer = () -> fixer;
         }
 
         protected StreamCodec<RegistryFriendlyByteBuf, T> formAlternateStreamCodec() {
@@ -475,31 +513,32 @@ public abstract class AtlasConfig {
         public boolean wasUpdated() {
             return synchedValue != null;
         }
+        public DataResult<JsonElement> encodeAsJSON() {
+            return rawCodec.encodeStart(JsonOps.INSTANCE, value);
+        }
 		public DataResult<JsonElement> encodeAsJSON(JsonObject root) {
 			return codec.encode(value, JsonOps.INSTANCE, root);
 		}
         public void writeToBuf(RegistryFriendlyByteBuf buf) {
-            if (heldValue.syncMode() != SyncMode.NONE)
+            if (heldValue.syncMode() != SyncMode.NONE) {
+                buf.writeUtf(heldValue.name);
                 streamCodec.encode(buf, value);
+            }
         }
         public void readFromBuf(RegistryFriendlyByteBuf buf) {
-            if (heldValue.syncMode() != SyncMode.NONE) {
-                T newValue = streamCodec.decode(buf);
-                if (isNotValid(newValue) || heldValue.syncMode == SyncMode.INFORM_SERVER)
-                    return;
-                if (Objects.equals(newValue, value)) {
-                    synchedValue = null;
-                    serverManaged = heldValue.owner.configSide.isCommon();
-                    return;
-                }
-                setSynchedValue(newValue);
+            T newValue = streamCodec.decode(buf);
+            if (isNotValid(newValue) || heldValue.syncMode == SyncMode.INFORM_SERVER)
+                return;
+            if (Objects.equals(newValue, value)) {
+                synchedValue = null;
+                serverManaged = heldValue.owner.configSide.isCommon();
+                return;
             }
+            setSynchedValue(newValue);
         }
         public void broadcastClientValueRecieved(RegistryFriendlyByteBuf buf) {
-            if (heldValue.syncMode() != SyncMode.NONE) {
-                T clientValue = streamCodec.decode(buf);
-                heldValue.emitClientValueRecieved(value, clientValue);
-            }
+            T clientValue = streamCodec.decode(buf);
+            heldValue.emitClientValueRecieved(value, clientValue);
         }
         public boolean isNotValid(T newValue) {
             return !heldValue.isValid(newValue);
@@ -606,10 +645,8 @@ public abstract class AtlasConfig {
         }
     }
     public static class TagHolder<T> extends ConfigHolder<T> {
-        private final Codec<T> rawCodec;
         private TagHolder(ConfigValue<T> value, Codec<T> codec) {
-            super(value, codec, ByteBufCodecs.fromCodecTrusted(codec).mapStream(buf -> (RegistryFriendlyByteBuf) buf));
-            rawCodec = codec;
+            super(value, codec, ByteBufCodecs.fromCodecTrusted(codec).mapStream(buf -> buf));
         }
 
         @Override
@@ -666,7 +703,7 @@ public abstract class AtlasConfig {
 
         @Override
         protected Codec<T> formAlternateCodec() {
-            return heldValue.defaultValue().getCodec(this).fieldOf(heldValue.name).codec();
+            return heldValue.defaultValue().getCodec(this);
         }
 
         @Override
