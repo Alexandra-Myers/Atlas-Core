@@ -186,7 +186,7 @@ public abstract class AtlasConfig {
         }
 
         try {
-            if (configJsonObject == null) configJsonObject = JsonParser.parseReader(new JsonReader(new FileReader(configFile))).getAsJsonObject();
+            configJsonObject = JsonParser.parseReader(new JsonReader(new FileReader(configFile))).getAsJsonObject();
             configFixer.fix(configJsonObject);
             for (Category category : categories) {
                 JsonObject categoryRoot = new JsonObject();
