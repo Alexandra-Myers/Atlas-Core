@@ -1,5 +1,6 @@
 package net.atlas.atlascore.config;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Maps;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
