@@ -25,6 +25,11 @@ public class ConfigFixer {
         }
         for (AtlasConfig.ConfigHolder<?> configHolder : this.owner.getUncategorisedHolders())
             configHolder.getFixer().fix(null, configJsonObject, dirty);
+        fixExtra(configJsonObject, dirty);
         if (dirty.booleanValue()) this.owner.saveFixedConfig(configJsonObject);
+    }
+
+    public void fixExtra(JsonObject configJsonObject, MutableBoolean dirty) {
+
     }
 }
