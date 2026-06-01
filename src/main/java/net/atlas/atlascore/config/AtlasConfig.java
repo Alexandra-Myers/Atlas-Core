@@ -865,7 +865,7 @@ public abstract class AtlasConfig {
             try {
                 AtlasConfig config = this.heldValue.owner;
                 config.saveConfig();
-                commandSourceStack.getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
+                commandSourceStack.getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createClientboundPacket(new AtlasCore.AtlasConfigPacket(true, config)));
                 commandSourceStack.sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
                 if (restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart.no_value", "The value for %s has been saved successfully, however changes will not take effect without a restart.", Component.translatable(getTranslationKey()))), true);
                 else commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.update_holder.no_value", "The value for config holder %s was changed successfully.", Component.translatable(getTranslationKey()))), true);

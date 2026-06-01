@@ -9,7 +9,7 @@ import net.atlas.atlascore.config.ContextBasedConfig;
 import net.atlas.atlascore.util.*;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
 import net.fabricmc.fabric.api.networking.v1.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -37,10 +37,10 @@ public class AtlasCore implements ModInitializer {
     @Override
     public void onInitialize() {
         CONFIG = new AtlasCoreConfig();
-        PayloadTypeRegistry.playS2C().register(AtlasConfigPacket.TYPE, AtlasConfigPacket.CODEC);
-        PayloadTypeRegistry.playC2S().register(ClientInformPacket.TYPE, ClientInformPacket.CODEC);
-        PayloadTypeRegistry.configurationC2S().register(ServerboundClientModPacket.TYPE, ServerboundClientModPacket.CODEC);
-        PayloadTypeRegistry.configurationS2C().register(ClientboundModListRetrievalPacket.TYPE, ClientboundModListRetrievalPacket.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(AtlasConfigPacket.TYPE, AtlasConfigPacket.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(ClientInformPacket.TYPE, ClientInformPacket.CODEC);
+        PayloadTypeRegistry.serverboundConfiguration().register(ServerboundClientModPacket.TYPE, ServerboundClientModPacket.CODEC);
+        PayloadTypeRegistry.clientboundConfiguration().register(ClientboundModListRetrievalPacket.TYPE, ClientboundModListRetrievalPacket.CODEC);
         ServerPlayConnectionEvents.JOIN.register(modDetectionNetworkChannel,(handler, sender, server) -> {
             for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> atlasConfig.configSide.isCommon()).toList()) {
                 if (atlasConfig instanceof ContextBasedConfig contextBasedConfig) atlasConfig = contextBasedConfig.getConfig(Context.builder().applyInformationFromEntity(handler.player).build());
@@ -48,7 +48,7 @@ public class AtlasCore implements ModInitializer {
             }
             AtlasCore.LOGGER.info("Config packets sent to client.");
         });
-        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(modDetectionNetworkChannel, (player, origin, destination) -> {
+        ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register(modDetectionNetworkChannel, (player, origin, destination) -> {
             for (ContextBasedConfig contextBasedConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> atlasConfig.configSide.isCommon() && atlasConfig instanceof ContextBasedConfig).map(config -> ((ContextBasedConfig) config).getConfig(Context.builder().applyInformationFromLevel(destination).build())).toList()) {
                 ServerPlayNetworking.send(player, new AtlasConfigPacket(false, contextBasedConfig));
             }
@@ -58,8 +58,8 @@ public class AtlasCore implements ModInitializer {
                 handler.addTask(new ClientModRetrievalTask());
         });
         ServerConfigurationNetworking.registerGlobalReceiver(ServerboundClientModPacket.TYPE, (payload, context) -> {
-            ServerModsRetrievedEvent.RETRIEVAL.invoker().onModsReceived(context.networkHandler(), context.responseSender(), payload.modRepresentations());
-            context.networkHandler().completeTask(ClientModRetrievalTask.TYPE);
+            ServerModsRetrievedEvent.RETRIEVAL.invoker().onModsReceived(context.packetListener(), context.responseSender(), payload.modRepresentations());
+            context.packetListener().completeTask(ClientModRetrievalTask.TYPE);
         });
         ServerPlayNetworking.registerGlobalReceiver(AtlasCore.ClientInformPacket.TYPE, (packet, context) -> packet.config().handleConfigInformation(packet, context.player(), context.responseSender()));
         ServerModsRetrievedEvent.RETRIEVAL.register((handler, sender, mods) -> {
@@ -118,7 +118,7 @@ public class AtlasCore implements ModInitializer {
 
         @Override
         public void start(Consumer<Packet<?>> sender) {
-            sender.accept(ServerConfigurationNetworking.createS2CPacket(new ClientboundModListRetrievalPacket()));
+            sender.accept(ServerConfigurationNetworking.createClientboundPacket(new ClientboundModListRetrievalPacket()));
         }
 
         @Override

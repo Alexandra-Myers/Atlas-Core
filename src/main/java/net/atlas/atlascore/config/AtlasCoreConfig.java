@@ -22,7 +22,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 
 import org.jetbrains.annotations.NotNull;
@@ -183,7 +183,7 @@ public class AtlasCoreConfig extends AtlasConfig {
         FOO,
         BAR
     }
-    public TagHolder<ItemStack> testItem;
+    public TagHolder<ItemStackTemplate> testItem;
     public ObjectHolder<TestClass> testObject;
     public EnumHolder<TestEnum> testEnum;
     public StringHolder testString;
@@ -203,7 +203,7 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     public void defineConfigHolders() {
-        testItem = createCodecBacked("testItem", new ItemStack(Items.APPLE, 18), ItemStack.STRICT_CODEC);
+        testItem = createCodecBacked("testItem", new ItemStackTemplate(Items.APPLE, 18), ItemStackTemplate.CODEC);
         testItem.tieToCategory(test);
         testObject = createObject("testObject", new TestClass(testObject, "bar", true, 3, 7.0), TestClass.class, TestClass.STREAM_CODEC);
         testObject.tieToCategory(test);

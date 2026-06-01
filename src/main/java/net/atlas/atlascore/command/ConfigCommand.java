@@ -84,7 +84,7 @@ public class ConfigCommand {
         config.reset();
         for (ServerPlayer player : context.getSource().getServer().getPlayerList().getPlayers()) {
             if (ServerPlayNetworking.canSend(player, AtlasCore.AtlasConfigPacket.TYPE))
-                player.connection.send(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
+                player.connection.send(ServerPlayNetworking.createClientboundPacket(new AtlasCore.AtlasConfigPacket(true, config)));
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         context.getSource().sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.reset_config", "The values for config %s were reset successfully, please note some changes may still not take effect without a restart.", config.getFormattedName())), true);
@@ -101,7 +101,7 @@ public class ConfigCommand {
         }
         for (ServerPlayer player : context.getSource().getServer().getPlayerList().getPlayers()) {
             if (ServerPlayNetworking.canSend(player, AtlasCore.AtlasConfigPacket.TYPE))
-                player.connection.send(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
+                player.connection.send(ServerPlayNetworking.createClientboundPacket(new AtlasCore.AtlasConfigPacket(true, config)));
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T>)) {
@@ -134,7 +134,7 @@ public class ConfigCommand {
             return 0;
         }
         for (ServerPlayer player : context.getSource().getServer().getPlayerList().getPlayers()) {
-            if (ServerPlayNetworking.canSend(player, AtlasCore.AtlasConfigPacket.TYPE)) player.connection.send(ServerPlayNetworking.createS2CPacket(new AtlasCore.AtlasConfigPacket(true, config)));
+            if (ServerPlayNetworking.canSend(player, AtlasCore.AtlasConfigPacket.TYPE)) player.connection.send(ServerPlayNetworking.createClientboundPacket(new AtlasCore.AtlasConfigPacket(true, config)));
         }
         context.getSource().sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
         if (!(configHolder instanceof AtlasConfig.ConfigHolder<T>)) {
