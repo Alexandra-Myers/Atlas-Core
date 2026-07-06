@@ -8,7 +8,7 @@ tasks.named<ProcessResources>("processResources") {
     fun prop(name: String) = project.property(name) as String
 
     val props = HashMap<String, String>().apply {
-        this["version"] = prop("mod.version") + "+" + prop("deps.minecraft")
+        this["version"] = prop("mod.version") + "-" + prop("deps.minecraft")
         this["minecraft"] = prop("mod.mc_dep_forgelike")
         this["neoforge_version"] = prop("deps.neoforge")
         this["fabric_api_version"] = prop("deps.forgified-fabric-api")
