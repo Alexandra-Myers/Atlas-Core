@@ -1,6 +1,5 @@
 package net.atlas.atlascore.util;
 
-import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.VersionParsingException;
 import net.minecraft.network.FriendlyByteBuf;
@@ -48,17 +47,6 @@ public record ModRepresentation(String name, String modID, Collection<ModReprese
             writeToBuf(buf, str);
         }
         buf.writeUtf(modRepresentation.version().getFriendlyString());
-    }
-
-    public static Collection<ModRepresentation> mapFromModContainers(Collection<ModContainer> mods, String[] ownerIds) {
-        return mods.stream().map(modContainer -> {
-            String[] concat = Arrays.copyOf(ownerIds, ownerIds.length + 1);
-            concat[concat.length - 1] = modContainer.getMetadata().getId();
-            Collection<ModContainer> includedMods = modContainer.getContainedMods().stream().filter(extras -> Arrays.stream(concat).noneMatch(s -> s.equals(extras.getMetadata().getId()))).toList();
-            if (includedMods.isEmpty()) {
-                return new ModRepresentation(modContainer.getMetadata().getName(), modContainer.getMetadata().getId(), Collections.emptyList(), modContainer.getMetadata().getVersion());
-            } else return new ModRepresentation(modContainer.getMetadata().getName(), modContainer.getMetadata().getId(), mapFromModContainers(includedMods, concat), modContainer.getMetadata().getVersion());
-        }).toList();
     }
 
     public void list(Consumer<String> stringConsumer, Function<ModRepresentation, String> name, String prefix) {

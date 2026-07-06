@@ -4,8 +4,10 @@ import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.serialization.Codec;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import net.atlas.atlascore.config.AtlasConfig;
+//? fabric {
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+//?}
 import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;
@@ -25,6 +27,8 @@ public interface ConfigRepresentable<T> {
     void listFields(Consumer<Component> input);
     Field fieldRepresentingHolder(String name);
     ArgumentType<?> argumentTypeRepresentingHolder(String name);
+    //? fabric {
     @Environment(EnvType.CLIENT)
+    //?}
     List<AbstractConfigListEntry<?>> transformIntoConfigEntries();
 }

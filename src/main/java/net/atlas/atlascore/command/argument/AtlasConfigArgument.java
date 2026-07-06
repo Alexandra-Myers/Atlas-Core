@@ -8,23 +8,45 @@ import net.atlas.atlascore.config.ContextBasedConfig;
 import net.atlas.atlascore.util.Context;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
+//? >=1.21.11 {
 import net.minecraft.commands.arguments.IdentifierArgument;
+ //?}
+//? <1.21.11 {
+/*import net.minecraft.commands.arguments.ResourceLocationArgument;
+*///?}
+//? >=1.21.11 {
 import net.minecraft.resources.Identifier;
+//?}
+//? <1.21.11 {
+/*import net.minecraft.resources.ResourceLocation;
+*///?}
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 public record AtlasConfigArgument() {
+    //? >=1.21.11 {
     public static IdentifierArgument context() {
         return IdentifierArgument.id();
     }
+    //?}
+    //? <1.21.11 {
+    /*public static ResourceLocationArgument context() {
+        return ResourceLocationArgument.id();
+    }
+    *///?}
 
     public static AtlasConfig getConfig(final CommandContext<?> context, String name, boolean requiresContext) {
-        Identifier identifier = context.getArgument(name, Identifier.class);
-        AtlasConfig ret = AtlasConfig.configs.get(identifier);
+        //? >=1.21.11 {
+        Identifier id = context.getArgument(name, Identifier.class);
+        //?}
+        //? <1.21.11 {
+        /*ResourceLocation id = context.getArgument(name, ResourceLocation.class);
+        *///?}
+        AtlasConfig ret = AtlasConfig.configs.get(id);
         if (requiresContext)
-            ret = AtlasConfig.configs.values().stream().filter(config -> config instanceof ContextBasedConfig && Objects.equals(config.name, identifier)).findFirst().orElse(null);
+            ret = AtlasConfig.configs.values().stream().filter(config -> config instanceof ContextBasedConfig && Objects.equals(config.name, id)).findFirst().orElse(null);
         if (ret instanceof ContextBasedConfig contextBasedConfig) {
             if (context.getSource() instanceof CommandSourceStack sourceStack && sourceStack.getEntity() != null) ret = contextBasedConfig.getConfig(Context.builder().applyInformationFromCommandSourceStack(sourceStack).build());
             else if (context.getSource() instanceof CommandSourceStack sourceStack) ret = contextBasedConfig.getConfig(Context.builder().putOnDedicated(sourceStack.getServer().isDedicatedServer()).build());

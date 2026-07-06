@@ -1,6 +1,7 @@
 package net.atlas.atlascore.mixin;
 
 import net.atlas.atlascore.config.AtlasConfigScreen;
+import net.atlas.atlascore.util.ClientUtils;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.layouts.GridLayout;
@@ -37,9 +38,7 @@ public abstract class OptionsScreenMixin extends Screen {
                     shift = At.Shift.AFTER, ordinal = 9),
             locals = LocalCapture.CAPTURE_FAILSOFT)
     public void injectAtlasConfigButton(CallbackInfo ci, LinearLayout linearLayout, LinearLayout linearLayout2, GridLayout gridLayout, GridLayout.RowHelper rowHelper) {
-		rowHelper.addChild(this.openScreenButton(Component.translatable("options.atlas_config.button"), () -> {
-			assert this.minecraft != null;
-			return new AtlasConfigScreen(this.minecraft.screen, options, Component.translatable("title.atlas_config.name"));
-		}));
+		rowHelper.addChild(this.openScreenButton(Component.translatable("options.atlas_config.button"), () ->
+				new AtlasConfigScreen(ClientUtils.getScreen(this.minecraft), options, Component.translatable("title.atlas_config.name"))));
     }
 }

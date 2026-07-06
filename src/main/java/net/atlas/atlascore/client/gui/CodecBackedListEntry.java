@@ -10,16 +10,20 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import me.shedaniel.clothconfig2.gui.entries.TextFieldListEntry;
+import net.atlas.atlascore.util.CommonUtils;
+//? fabric {
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+//?}
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.ApiStatus.Internal;
 
+//? fabric {
 @Environment(EnvType.CLIENT)
+//?}
 public class CodecBackedListEntry<T> extends TextFieldListEntry<Tag> {
     private final Codec<T> codec;
     /** @deprecated */
@@ -55,7 +59,7 @@ public class CodecBackedListEntry<T> extends TextFieldListEntry<Tag> {
     public Tag getValue() {
         StringReader reader = new StringReader(this.textFieldWidget.getValue());
         try {
-            return TagParser.create(NbtOps.INSTANCE).parseAsArgument(reader);
+            return CommonUtils.read(reader);
         } catch (CommandSyntaxException e) {
             return new CompoundTag();
         }
@@ -66,7 +70,7 @@ public class CodecBackedListEntry<T> extends TextFieldListEntry<Tag> {
         StringReader reader = new StringReader(this.textFieldWidget.getValue());
         AtomicReference<Optional<Component>> optional = new AtomicReference<>(Optional.empty());
         try {
-            Tag tag = TagParser.create(NbtOps.INSTANCE).parseAsArgument(reader);
+            Tag tag = CommonUtils.read(reader);
             DataResult<T> dataResult = codec.parse(NbtOps.INSTANCE, tag);
             dataResult.ifError(error -> optional.set(Optional.of(Component.literal(error.toString()))));
         } catch (CommandSyntaxException e) {

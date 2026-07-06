@@ -1,6 +1,7 @@
 package net.atlas.atlascore.config;
 
 import net.atlas.atlascore.client.ScreenBuilder;
+import net.atlas.atlascore.util.ClientUtils;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -19,8 +20,9 @@ public class AtlasConfigScreen extends OptionsSubScreen {
 	@Override
 	protected void addOptions() {
 		List<AbstractWidget> configButtons = new ArrayList<>();
-		AtlasConfig.configs.forEach((identifier, config) -> {
-			if (config.hasScreen()) configButtons.add(Button.builder(Component.translatable("text.config." + config.name.getPath() + ".title"), button -> this.minecraft.setScreen(ScreenBuilder.buildAtlasConfig(this, config))).build());
+		AtlasConfig.configs.forEach((id, config) -> {
+			if (config.hasScreen()) configButtons.add(Button.builder(Component.translatable("text.config." + config.name.getPath() + ".title"),
+					button -> ClientUtils.setScreen(this.minecraft, ScreenBuilder.buildAtlasConfig(this, config))).build());
 		});
         //noinspection DataFlowIssue
         list.addSmall(configButtons);

@@ -17,18 +17,23 @@ import com.mojang.serialization.JsonOps;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.gui.entries.*;
 import net.atlas.atlascore.AtlasCore;
+import net.atlas.atlascore.AtlasCorePlatform;
 import net.atlas.atlascore.client.gui.CodecBackedListEntry;
 import net.atlas.atlascore.command.argument.ConfigHolderArgument;
 import net.atlas.atlascore.config.fixer.ConfigFixer;
 import net.atlas.atlascore.config.fixer.ConfigHolderFixer;
 import net.atlas.atlascore.util.Codecs;
+import net.atlas.atlascore.util.CommonUtils;
 import net.atlas.atlascore.util.ConfigRepresentable;
+//? fabric {
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+//?}
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+//? fabric {
 import net.fabricmc.loader.api.FabricLoader;
+//?}
 import net.minecraft.ChatFormatting;
 import net.minecraft.CrashReport;
 import net.minecraft.ReportedException;
@@ -37,15 +42,23 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.TagParser;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+//? >=1.21.11 {
 import net.minecraft.resources.Identifier;
+//?}
+//? <1.21.11 {
+/*import net.minecraft.resources.ResourceLocation;
+*///?}
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ExtraCodecs;
+//? neoforge {
+/*import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
+*///?}
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
@@ -66,20 +79,38 @@ import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
 
 public abstract class AtlasConfig {
+    //? >=1.21.11 {
     public final Identifier name;
+    //?}
+    //? <1.21.11 {
+    /*public final ResourceLocation name;
+    *///?}
     public final SyncMode defaultSyncMode;
     public final ConfigSide configSide;
     public final ConfigFixer configFixer;
     public boolean isDefault;
     public final Map<String, ConfigHolder<?>> valueNameToConfigHolderMap = Maps.newHashMap();
 	public final List<Category> categories;
-    public static final Map<Identifier, AtlasConfig> configs = Maps.newHashMap();
+    //? >=1.21.11 {
+    public static final Map<Identifier, AtlasConfig> configs =
+    //?}
+    //? <1.21.11 {
+    /*public static final Map<ResourceLocation, AtlasConfig> configs =
+    *///?}
+            Maps.newHashMap();
 	public static final Map<String, AtlasConfig> menus = Maps.newHashMap();
     File configFile;
     JsonObject configJsonObject;
     List<ConfigHolder<?>> configHolders;
 
-    public AtlasConfig(Identifier name, SyncMode defaultSyncMode, ConfigSide configSide) {
+    //? >=1.21.11 {
+    public AtlasConfig(Identifier name,
+    //?}
+    //? <1.21.11 {
+    /*public AtlasConfig(ResourceLocation name,
+    *///?}
+                       SyncMode defaultSyncMode,
+                       ConfigSide configSide) {
         this.configSide = configSide;
         this.defaultSyncMode = defaultSyncMode;
         this.name = name;
@@ -99,13 +130,30 @@ public abstract class AtlasConfig {
         load();
         if (!configs.containsKey(name)) configs.put(name, this);
     }
-    public AtlasConfig(Identifier name, SyncMode defaultSyncMode) {
+    //? >=1.21.11 {
+    public AtlasConfig(Identifier name,
+    //?}
+    //? <1.21.11 {
+    /*public AtlasConfig(ResourceLocation name,
+                       *///?}
+                       SyncMode defaultSyncMode) {
         this(name, defaultSyncMode, ConfigSide.COMMON);
     }
-    public AtlasConfig(Identifier name, ConfigSide configSide) {
+    //? >=1.21.11 {
+    public AtlasConfig(Identifier name,
+    //?}
+    //? <1.21.11 {
+    /*public AtlasConfig(ResourceLocation name,
+                       *///?}
+                       ConfigSide configSide) {
         this(name, SyncMode.OVERRIDE_CLIENT, configSide);
     }
+    //? >=1.21.11 {
     public AtlasConfig(Identifier name) {
+    //?}
+    //? <1.21.11 {
+    /*public AtlasConfig(ResourceLocation name) {
+    *///?}
         this(name, SyncMode.OVERRIDE_CLIENT, ConfigSide.COMMON);
     }
 
@@ -166,7 +214,7 @@ public abstract class AtlasConfig {
     }
     @ApiStatus.Internal
     protected Path getConfigFolderPath() {
-        return Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + name.getNamespace() + configSide.getAsDir());
+        return Path.of(AtlasCorePlatform.INSTANCE.getConfigDir().getFileName().getFileName() + "/" + name.getNamespace() + configSide.getAsDir());
     }
 	public void reload() {
         resetExtraHolders();
@@ -221,11 +269,11 @@ public abstract class AtlasConfig {
         return this;
     }
     public static AtlasConfig staticLoadFromNetwork(RegistryFriendlyByteBuf buf) {
-        return configs.get(buf.readIdentifier()).loadFromNetwork(buf);
+        return configs.get(CommonUtils.readId(buf)).loadFromNetwork(buf);
     }
 
     public static AtlasConfig staticReadClientConfigInformation(RegistryFriendlyByteBuf buf) {
-        return configs.get(buf.readIdentifier()).readClientConfigInformation(buf);
+        return configs.get(CommonUtils.readId(buf)).readClientConfigInformation(buf);
     }
 
     public AtlasConfig readClientConfigInformation(RegistryFriendlyByteBuf buf) {
@@ -419,6 +467,7 @@ public abstract class AtlasConfig {
         OVERRIDE_CLIENT
     }
 
+    //? fabric {
     public enum RestartRequiredMode {
         NO_RESTART(env -> false),
         RESTART_CLIENT(env -> env == EnvType.CLIENT),
@@ -432,7 +481,45 @@ public abstract class AtlasConfig {
         public boolean restartRequiredOn(EnvType envType) {
             return forEnvironment.test(envType);
         }
+
+        public boolean restartRequiredOnCurrentSide() {
+            return forEnvironment.test(FabricLoader.getInstance().getEnvironmentType());
+        }
+
+        public boolean restartRequiredOnClient() {
+            return forEnvironment.test(EnvType.CLIENT);
+        }
     }
+    //?}
+    //? neoforge {
+    /*public enum RestartRequiredMode {
+        NO_RESTART(dist -> false),
+        RESTART_CLIENT(dist -> dist == Dist.CLIENT),
+        RESTART_BOTH(dist -> true);
+        public final Predicate<Dist> forDist;
+
+        RestartRequiredMode(Predicate<Dist> predicate) {
+            forDist = predicate;
+        }
+
+        public boolean restartRequiredOn(Dist dist) {
+            return forDist.test(dist);
+        }
+
+        public boolean restartRequiredOnCurrentSide() {
+            //? >=26.1 {
+            return forDist.test(FMLEnvironment.getDist());
+            //?}
+            //? <26.1 {
+            /^return forDist.test(FMLEnvironment.dist);
+            ^///?}
+        }
+
+        public boolean restartRequiredOnClient() {
+            return forDist.test(Dist.CLIENT);
+        }
+    }
+    *///?}
 	public record ConfigValue<T>(T defaultValue, T[] possibleValues, boolean isRange, String name, AtlasConfig owner, SyncMode syncMode) {
         public void emitChanged(T newValue) {
             owner.alertChange(this, newValue);
@@ -606,7 +693,9 @@ public abstract class AtlasConfig {
 
         public abstract Component getValueAsComponent();
 
+        //? fabric {
         @Environment(EnvType.CLIENT)
+        //?}
 		public abstract AbstractConfigListEntry<?> transformIntoConfigEntry();
 
         @Override
@@ -664,14 +753,16 @@ public abstract class AtlasConfig {
         }
 
         public T loadFromSNBT(StringReader reader) throws CommandSyntaxException {
-            Tag tag = TagParser.create(NbtOps.INSTANCE).parseAsArgument(reader);
+            Tag tag = CommonUtils.read(reader);
             return rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow(s -> CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException().createWithContext(reader, s));
         }
 
         @Override
+        //? fabric {
         @Environment(EnvType.CLIENT)
+        //?}
         public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            return new CodecBackedListEntry<>(Component.translatable(getTranslationKey()), rawCodec, asNBT(get()), Component.translatable(getTranslationResetKey()), () -> asNBT(heldValue.defaultValue), tag -> setValue(rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow()), tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+            return new CodecBackedListEntry<>(Component.translatable(getTranslationKey()), rawCodec, asNBT(get()), Component.translatable(getTranslationResetKey()), () -> asNBT(heldValue.defaultValue), tag -> setValue(rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow()), tooltip, restartRequired.restartRequiredOnClient());
         }
 
         @Override
@@ -713,7 +804,9 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        //? fabric {
         @Environment(EnvType.CLIENT)
+        //?}
         public AbstractConfigListEntry<?> transformIntoConfigEntry() {
             return new MultiElementListEntry<>(Component.translatable(getTranslationKey()), get(), get().transformIntoConfigEntries(), expandByDefault);
         }
@@ -865,9 +958,9 @@ public abstract class AtlasConfig {
             try {
                 AtlasConfig config = this.heldValue.owner;
                 config.saveConfig();
-                commandSourceStack.getServer().getPlayerList().broadcastAll(ServerPlayNetworking.createClientboundPacket(new AtlasCore.AtlasConfigPacket(true, config)));
+                commandSourceStack.getServer().getPlayerList().broadcastAll(CommonUtils.createClientboundPlayPacket(new AtlasCore.AtlasConfigPacket(true, config)));
                 commandSourceStack.sendSuccess(() -> separatorLine(config.getFormattedName().copy(), true), true);
-                if (restartRequired.restartRequiredOn(FabricLoader.getInstance().getEnvironmentType())) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart.no_value", "The value for %s has been saved successfully, however changes will not take effect without a restart.", Component.translatable(getTranslationKey()))), true);
+                if (restartRequired.restartRequiredOnCurrentSide()) commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.holder_requires_restart.no_value", "The value for %s has been saved successfully, however changes will not take effect without a restart.", Component.translatable(getTranslationKey()))), true);
                 else commandSourceStack.sendSuccess(() -> Component.literal("  » ").append(Component.translatableWithFallback("text.config.update_holder.no_value", "The value for config holder %s was changed successfully.", Component.translatable(getTranslationKey()))), true);
                 commandSourceStack.sendSuccess(() -> separatorLine(null), true);
             } catch (IOException e) {
@@ -904,9 +997,11 @@ public abstract class AtlasConfig {
         }
 
         @Override
-		@Environment(EnvType.CLIENT)
+		//? fabric {
+        @Environment(EnvType.CLIENT)
+        //?}
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new EnumListEntry<>(Component.translatable(getTranslationKey()), clazz, get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, names, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+			return new EnumListEntry<>(Component.translatable(getTranslationKey()), clazz, get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, names, tooltip, restartRequired.restartRequiredOnClient());
 		}
 
         @Override
@@ -953,9 +1048,11 @@ public abstract class AtlasConfig {
         }
 
         @Override
-		@Environment(EnvType.CLIENT)
+		//? fabric {
+        @Environment(EnvType.CLIENT)
+        //?}
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new StringListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+			return new StringListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
 		}
 
         @Override
@@ -989,9 +1086,11 @@ public abstract class AtlasConfig {
         }
 
         @Override
-		@Environment(EnvType.CLIENT)
+		//? fabric {
+        @Environment(EnvType.CLIENT)
+        //?}
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new BooleanListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+			return new BooleanListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
 		}
 
         @Override
@@ -1038,11 +1137,13 @@ public abstract class AtlasConfig {
         }
 
         @Override
-		@Environment(EnvType.CLIENT)
+		//? fabric {
+        @Environment(EnvType.CLIENT)
+        //?}
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
 			if (!heldValue.isRange || !isSlider)
-				return new IntegerListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
-			return new IntegerSliderEntry(Component.translatable(getTranslationKey()), heldValue.possibleValues[0], heldValue.possibleValues[1], get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+				return new IntegerListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
+			return new IntegerSliderEntry(Component.translatable(getTranslationKey()), heldValue.possibleValues[0], heldValue.possibleValues[1], get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
 		}
 
         @Override
@@ -1126,9 +1227,11 @@ public abstract class AtlasConfig {
         }
 
         @Override
-		@Environment(EnvType.CLIENT)
+		//? fabric {
+        @Environment(EnvType.CLIENT)
+        //?}
 		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new DoubleListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+			return new DoubleListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
 		}
 
         @Override
@@ -1228,9 +1331,11 @@ public abstract class AtlasConfig {
         }
 
         @Override
+        //? fabric {
         @Environment(EnvType.CLIENT)
+        //?}
         public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            ColorEntry entry = new ColorEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOn(EnvType.CLIENT));
+            ColorEntry entry = new ColorEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
             if (hasAlpha) entry.withAlpha();
             else entry.withoutAlpha();
             return entry;
@@ -1284,7 +1389,9 @@ public abstract class AtlasConfig {
         valueNameToConfigHolderMap.values().forEach(ConfigHolder::resetToDefaultAndSetSynchedValue);
 	}
 
+    //? fabric {
     @Environment(EnvType.CLIENT)
+    //?}
 	public static void handleExtraSyncStatic(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context) {
         AtlasConfig config = packet.config();
         if (!packet.forCommand()) {
@@ -1293,7 +1400,7 @@ public abstract class AtlasConfig {
             ClientPlayNetworking.send(new AtlasCore.ClientInformPacket(config));
             List<ConfigHolder<?>> restartRequiredHolders = new ArrayList<>();
             config.valueNameToConfigHolderMap.values().forEach(configHolder -> {
-                if (configHolder.restartRequired.restartRequiredOn(EnvType.CLIENT) && configHolder.wasUpdated())
+                if (configHolder.restartRequired.restartRequiredOnClient() && configHolder.wasUpdated())
                     restartRequiredHolders.add(configHolder);
             });
             if (!restartRequiredHolders.isEmpty()) {
@@ -1339,7 +1446,7 @@ public abstract class AtlasConfig {
             ClientPlayNetworking.send(new AtlasCore.ClientInformPacket(config));
             List<ConfigHolder<?>> restartRequiredHolders = new ArrayList<>();
             config.valueNameToConfigHolderMap.values().forEach(configHolder -> {
-                if (configHolder.restartRequired.restartRequiredOn(EnvType.CLIENT) && configHolder.wasUpdated())
+                if (configHolder.restartRequired.restartRequiredOnClient() && configHolder.wasUpdated())
                     restartRequiredHolders.add(configHolder);
             });
             if (!restartRequiredHolders.isEmpty()) {
@@ -1354,17 +1461,28 @@ public abstract class AtlasConfig {
                 config.valueNameToConfigHolderMap.values().forEach(ConfigHolder::setToPreviousValue);
             }
             if (isMismatched.get()) {
-                context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch"), false);
+                //? >=26.2 {
+                context.client().showDebugChat(Component.translatable("text.config.command.mismatch"));
+                //?}
+                //? <26.2 {
+                /*context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch"), false);
+                *///?}
             }
         }
         packet.config().handleExtraSync(packet, context);
     }
+    //? fabric {
     @Environment(EnvType.CLIENT)
+    //?}
     public abstract void handleExtraSync(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context);
     public abstract void handleConfigInformation(AtlasCore.ClientInformPacket packet, ServerPlayer player, PacketSender sender);
-	@Environment(EnvType.CLIENT)
+	//? fabric {
+    @Environment(EnvType.CLIENT)
+    //?}
 	public abstract Screen createScreen(Screen prevScreen);
-	@Environment(EnvType.CLIENT)
+	//? fabric {
+    @Environment(EnvType.CLIENT)
+    //?}
 	public boolean hasScreen() {
 		return true;
 	}
@@ -1377,7 +1495,9 @@ public abstract class AtlasConfig {
 			members.add(member);
 		}
 
-		@Environment(EnvType.CLIENT)
+		//? fabric {
+        @Environment(EnvType.CLIENT)
+        //?}
 		public List<AbstractConfigListEntry<?>> membersAsCloth() {
 			List<AbstractConfigListEntry<?>> transformed = new ArrayList<>();
 			members.forEach(configHolder -> {

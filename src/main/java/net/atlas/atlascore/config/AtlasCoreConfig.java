@@ -10,19 +10,32 @@ import me.shedaniel.clothconfig2.gui.entries.DoubleListEntry;
 import me.shedaniel.clothconfig2.gui.entries.IntegerListEntry;
 import me.shedaniel.clothconfig2.gui.entries.StringListEntry;
 import net.atlas.atlascore.AtlasCore;
+import net.atlas.atlascore.util.CommonUtils;
 import net.atlas.atlascore.util.ConfigRepresentable;
+//? fabric {
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+//?}
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
+//? >=1.21.11 {
 import net.minecraft.util.Util;
+//?}
+//? <1.21.11 {
+/*import net.minecraft.Util;
+*///?}
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerPlayer;
+//? >=26.1 {
 import net.minecraft.world.item.ItemStackTemplate;
+//?}
+//? <26.1 {
+/*import net.minecraft.world.item.ItemStack;
+*///?}
 import net.minecraft.world.item.Items;
 
 import org.jetbrains.annotations.NotNull;
@@ -38,7 +51,7 @@ public class AtlasCoreConfig extends AtlasConfig {
         public static final StreamCodec<RegistryFriendlyByteBuf, TestClass> STREAM_CODEC = new StreamCodec<>() {
             @Override
             public void encode(RegistryFriendlyByteBuf registryFriendlyByteBuf, TestClass testClass) {
-                registryFriendlyByteBuf.writeIdentifier(testClass.owner.heldValue.owner().name);
+                CommonUtils.writeId(registryFriendlyByteBuf, testClass.owner.heldValue.owner().name);
                 registryFriendlyByteBuf.writeUtf(testClass.owner.heldValue.name());
                 registryFriendlyByteBuf.writeUtf(testClass.innerString);
                 registryFriendlyByteBuf.writeBoolean(testClass.innerBool);
@@ -49,7 +62,7 @@ public class AtlasCoreConfig extends AtlasConfig {
             @Override
             @SuppressWarnings("unchecked")
             public @NotNull TestClass decode(RegistryFriendlyByteBuf registryFriendlyByteBuf) {
-                AtlasConfig config = AtlasConfig.configs.get(registryFriendlyByteBuf.readIdentifier());
+                AtlasConfig config = AtlasConfig.configs.get(CommonUtils.readId(registryFriendlyByteBuf));
                 return new TestClass((ConfigHolder<TestClass>) config.valueNameToConfigHolderMap.get(registryFriendlyByteBuf.readUtf()), registryFriendlyByteBuf.readUtf(), registryFriendlyByteBuf.readBoolean(), registryFriendlyByteBuf.readVarInt(), registryFriendlyByteBuf.readDouble());
             }
         };
@@ -167,7 +180,9 @@ public class AtlasCoreConfig extends AtlasConfig {
         }
 
         @Override
+        //? fabric {
         @Environment(EnvType.CLIENT)
+        //?}
         public List<AbstractConfigListEntry<?>> transformIntoConfigEntries() {
             if (resetTranslation == null)
                 resetTranslation = () -> Component.translatable(owner.getTranslationResetKey());
@@ -183,7 +198,12 @@ public class AtlasCoreConfig extends AtlasConfig {
         FOO,
         BAR
     }
+    //? >=26.1 {
     public TagHolder<ItemStackTemplate> testItem;
+    //?}
+    //? <26.1 {
+    /*public TagHolder<ItemStack> testItem;
+    *///?}
     public ObjectHolder<TestClass> testObject;
     public EnumHolder<TestEnum> testEnum;
     public StringHolder testString;
@@ -203,7 +223,12 @@ public class AtlasCoreConfig extends AtlasConfig {
 
     @Override
     public void defineConfigHolders() {
+        //? >=26.1 {
         testItem = createCodecBacked("testItem", new ItemStackTemplate(Items.APPLE, 18), ItemStackTemplate.CODEC);
+        //?}
+        //? <26.1 {
+        /*testItem = createCodecBacked("testItem", new ItemStack(Items.APPLE, 18), ItemStack.STRICT_CODEC);
+        *///?}
         testItem.tieToCategory(test);
         testObject = createObject("testObject", new TestClass(testObject, "bar", true, 3, 7.0), TestClass.class, TestClass.STREAM_CODEC);
         testObject.tieToCategory(test);
@@ -265,7 +290,9 @@ public class AtlasCoreConfig extends AtlasConfig {
     }
 
     @Override
+    //? fabric {
     @Environment(EnvType.CLIENT)
+    //?}
     public void handleExtraSync(AtlasCore.AtlasConfigPacket packet, ClientPlayNetworking.Context context) {
 
     }
@@ -276,7 +303,9 @@ public class AtlasCoreConfig extends AtlasConfig {
     }
 
     @Override
+    //? fabric {
     @Environment(EnvType.CLIENT)
+    //?}
     public Screen createScreen(Screen prevScreen) {
         return null;
     }

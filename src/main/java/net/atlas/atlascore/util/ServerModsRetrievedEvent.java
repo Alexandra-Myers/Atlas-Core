@@ -14,8 +14,8 @@ public class ServerModsRetrievedEvent {
      *
      * <p> Packets sent during this phase should be registered during the configuration phase.
      */
-    public static final Event<ServerModsRetrievedEvent.RetrieveMods> RETRIEVAL = EventFactory.createArrayBacked(ServerModsRetrievedEvent.RetrieveMods.class, callbacks -> (handler, sender, mods) -> {
-        for (ServerModsRetrievedEvent.RetrieveMods callback : callbacks) {
+    public static final Event<RetrieveMods> RETRIEVAL = EventFactory.createArrayBacked(RetrieveMods.class, callbacks -> (handler, sender, mods) -> {
+        for (RetrieveMods callback : callbacks) {
             callback.onModsReceived(handler, sender, mods);
         }
     });
