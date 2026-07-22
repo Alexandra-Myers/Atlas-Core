@@ -1,8 +1,6 @@
-@file:Suppress("UnstableApiUsage")
-
 plugins {
-    id("dev.kikugie.loom-back-compat")
-    id("dev.kikugie.postprocess.jsonlang")
+    id("net.minecraftforge.gradle")
+    id ("dev.kikugie.postprocess.jsonlang")
     id("me.modmuss50.mod-publish-plugin")
 }
 
@@ -11,16 +9,15 @@ tasks.named<ProcessResources>("processResources") {
 
     val props = HashMap<String, String>().apply {
         this["version"] = prop("mod.version") + "-" + prop("deps.minecraft")
-        this["minecraft"] = prop("mod.mc_dep_fabric")
-        this["fabric_api_version"] = prop("deps.fabric-api")
-        this["fabric_version"] = prop("deps.fabric-loader")
-        this["java"] = prop("deps.java")
+        this["minecraft"] = prop("mod.mc_dep_forgelike")
+        this["forge_version"] = prop("deps.forge")
+        this["fabric_api_version"] = prop("deps.forgified-fabric-api")
         this["mod_name"] = prop("mod.name")
         this["mod_description"] = prop("mod.description")
         this["mod_license"] = prop("mod.license")
     }
 
-    filesMatching(listOf("fabric.mod.json", "META-INF/neoforge.mods.toml")) {
+    filesMatching(listOf("fabric.mod.json", "META-INF/neoforge.mods.toml", "META-INF/mods.toml")) {
         expand(props)
     }
 
@@ -33,12 +30,8 @@ tasks.named<ProcessResources>("processResources") {
     }
 }
 
-version = "${property("mod.version")}.${property("mod.sub_version")}-${property("deps.minecraft")}-fabric"
+version = "${property("mod.version")}.${property("mod.sub_version")}-${property("deps.minecraft")}-forge"
 base.archivesName = property("mod.archives_base") as String
-
-loom {
-    accessWidenerPath = project.file("src/main/resources/${property("mod.id")}.classtweaker")
-}
 
 jsonlang {
     languageDirectories = listOf("assets/${property("mod.id")}/lang")
@@ -46,6 +39,10 @@ jsonlang {
 }
 
 repositories {
+    maven {
+        name = "Sinytra"
+        url = uri("https://maven.su5ed.dev/releases")
+    }
     maven {
         name = "shedaniel (Cloth Config)"
         url = uri("https://maven.shedaniel.me/")
@@ -121,17 +118,10 @@ repositories {
         }
     }
     maven {
-        name = "Architectury"
-        url = uri("https://maven.architectury.dev/")
+        name = "Kotlin For Forge"
+        url = uri("https://thedarkcolour.github.io/KotlinForForge/")
         content {
-            includeGroup("dev.architectury")
-        }
-    }
-    maven {
-        name = "Jitpack"
-        url = uri("https://jitpack.io")
-        content {
-            includeGroup("com.github.Chocohead")
+            includeGroupAndSubgroups("thedarkcolour")
         }
     }
     exclusiveContent {
@@ -146,47 +136,58 @@ repositories {
         }
     }
     mavenCentral()
+}
 
+minecraft {
+    version = property("deps.forge") as String
+
+    if (hasProperty("deps.parchment")) {
+        mappings("parchment", property("deps.parchment") as String)
+    } else if (stonecutter.eval(stonecutter.current.version, "<26")) {
+        mappings("official", property("deps.minecraft") as String)
+    }
+
+    runs {
+        configureEach {
+            workingDir = file("run/")
+
+//            systemProperty 'eventbus.api.strictRuntimeChecks', 'true'
+//            systemProperty 'forge.enabledGameTestNamespaces', 'atlas_core'
+        }
+
+        register("client")
+        register("server")
+    }
+    sourceSets["main"].resources.srcDir("src/main/generated")
 }
 
 dependencies {
-    minecraft("com.mojang:minecraft:${property("deps.minecraft")}")
-    loomx.applyMojangMappings()
-    modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric-loader")}")
-    modImplementation("net.fabricmc.fabric-api:fabric-api:${property("deps.fabric-api")}")
-    modImplementation("com.terraformersmc:modmenu:${property("deps.modmenu")}")
-    modApi("me.shedaniel.cloth:cloth-config-fabric:${property("deps.cloth-config")}")
-
-}
-
-
-configurations.all {
-    resolutionStrategy {
-        force("net.fabricmc:fabric-loader:${property("deps.fabric-loader")}")
-        force("net.fabricmc:fabric-api:${property("deps.fabric-api")}")
+    minecraft.dependency("net.minecraftforge:forge:${property("deps.minecraft")}-${property("deps.forge")}")
+    implementation("net.minecraftforge:forge:${property("deps.minecraft")}-${property("deps.forge")}")
+    annotationProcessor("net.minecraftforge:eventbus-validator:7.0.1")
+    if (hasProperty("deps.mixinextras")) {
+        compileOnly("io.github.llamalad7:mixinextras-common:${property("deps.mixinextras")}")
+        annotationProcessor("io.github.llamalad7:mixinextras-common:${property("deps.mixinextras")}")
+        jarJar("io.github.llamalad7:mixinextras-forge:${property("deps.mixinextras")}")
+        implementation("io.github.llamalad7:mixinextras-forge:${property("deps.mixinextras")}")
     }
+    implementation("org.sinytra.forgified-fabric-api:forgified-fabric-api:${property("deps.forgified-fabric-api")}")
+    api("me.shedaniel.cloth:cloth-config-forge:${property("deps.cloth-config")}")
 }
 
-
-fabricApi {
-    configureDataGeneration() {
-        outputDirectory = file("$rootDir/src/main/generated")
-        client = true
-    }
-}
-
-tasks.named("processResources") {
-    dependsOn(":${stonecutter.current.project}:stonecutterGenerate")
-}
 
 tasks {
     processResources {
-        exclude("**/neoforge.mods.toml", "**/mods.toml")
+        exclude("**/fabric.mod.json", "**/*.classtweaker", "**/neoforge.mods.toml")
+    }
+
+    named("createMinecraftArtifacts") {
+        dependsOn("stonecutterGenerate")
     }
 
     register<Copy>("buildAndCollect") {
         group = "build"
-        from(loomx.modJar.map { it.archiveFile })
+        from(jar.map { it.archiveFile })
         into(rootProject.layout.buildDirectory.file("libs/${project.property("mod.version")}"))
         dependsOn("build")
     }
@@ -213,21 +214,20 @@ val additionalVersions: List<String> = additionalVersionsStr
     ?: emptyList()
 
 publishMods {
-    file = loomx.modJar.map { it.archiveFile.get() }
-    additionalFiles.from(loomx.modSourcesJar.map { it.archiveFile.get() })
+    file = tasks.jar.map { it.archiveFile.get() }
+    additionalFiles.from(tasks.named<org.gradle.jvm.tasks.Jar>("sourcesJar").map { it.archiveFile.get() })
 
-    type = STABLE
-    displayName = "${property("mod.name")} ${property("mod.version")} for ${stonecutter.current.version} Fabric"
-    version = "${property("mod.version")}+${property("deps.minecraft")}-fabric"
+    type = BETA
+    displayName = "${property("mod.name")} ${property("mod.version")} for ${stonecutter.current.version} Forge"
+    version = "${property("mod.version")}+${property("deps.minecraft")}-forge"
     changelog = provider { rootProject.file("CHANGELOG-LATEST.md").readText() }
-    modLoaders.add("fabric")
+    modLoaders.add("neoforge")
 
     modrinth {
         projectId = property("publish.modrinth") as String
         accessToken = env.MODRINTH_API_KEY.orNull()
         minecraftVersions.add(property("deps.minecraft") as String)
         minecraftVersions.addAll(additionalVersions)
-        requires("fabric-api")
         optional("mcqoy")
     }
 
@@ -236,6 +236,5 @@ publishMods {
         accessToken = env.CURSEFORGE_API_KEY.orNull()
         minecraftVersions.add(property("deps.minecraft") as String)
         minecraftVersions.addAll(additionalVersions)
-        requires("fabric-api")
     }
 }

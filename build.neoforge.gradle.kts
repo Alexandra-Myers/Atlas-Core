@@ -20,6 +20,14 @@ tasks.named<ProcessResources>("processResources") {
     filesMatching(listOf("fabric.mod.json", "META-INF/neoforge.mods.toml", "META-INF/mods.toml")) {
         expand(props)
     }
+
+    val mixin = HashMap<String, String>().apply {
+        this["java"] = "JAVA_${prop("deps.java")}"
+    }
+
+    filesMatching(listOf("atlas-core.mixins.json")) {
+        expand(mixin)
+    }
 }
 
 version = "${property("mod.version")}.${property("mod.sub_version")}-${property("deps.minecraft")}-neoforge"
@@ -191,7 +199,7 @@ java {
     withSourcesJar()
     val javaCompat = if (stonecutter.eval(stonecutter.current.version, ">=26")) {
         JavaVersion.VERSION_25
-    } else if (stonecutter.eval(stonecutter.current.version, ">=1.21")) {
+    } else if (stonecutter.eval(stonecutter.current.version, ">=1.20.5")) {
         JavaVersion.VERSION_21
     } else {
         JavaVersion.VERSION_17
