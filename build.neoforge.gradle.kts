@@ -1,3 +1,5 @@
+import java.util.Locale
+
 plugins {
     id("net.neoforged.moddev")
     id ("dev.kikugie.postprocess.jsonlang")
@@ -39,6 +41,14 @@ jsonlang {
 }
 
 repositories {
+    mavenLocal()
+    maven {
+        name = "Something Catchy"
+        url = uri("https://registry.somethingcatchy.net/repository/maven-public/")
+        content {
+            includeGroupAndSubgroups("net.mehvahdjukaar")
+        }
+    }
     maven {
         name = "Sinytra"
         url = uri("https://maven.su5ed.dev/releases")
@@ -175,6 +185,10 @@ dependencies {
     if (hasProperty("deps.forgified-fabric-loader")) compileOnly("org.sinytra:forgified-fabric-loader:${property("deps.forgified-fabric-loader")}")
     implementation("org.sinytra.forgified-fabric-api:forgified-fabric-api:${property("deps.forgified-fabric-api")}")
     api("me.shedaniel.cloth:cloth-config-neoforge:${property("deps.cloth-config")}")
+    if (hasProperty("deps.codec_ui_version")) {
+        implementation("net.mehvahdjukaar:codecui-neoforge:${property("deps.codec_ui_version")}")
+        jarJar("net.mehvahdjukaar:codecui-neoforge:${property("deps.codec_ui_version")}")
+    }
 }
 
 
@@ -219,9 +233,19 @@ publishMods {
     file = tasks.jar.map { it.archiveFile.get() }
     additionalFiles.from(tasks.named<org.gradle.jvm.tasks.Jar>("sourcesJar").map { it.archiveFile.get() })
 
-    type = BETA
-    displayName = "${property("mod.name")} ${property("mod.version")} for ${stonecutter.current.version} NeoForge"
-    version = "${property("mod.version")}+${property("deps.minecraft")}-neoforge"
+    var release = "${property("mod.sub_version")}" == "release"
+    type =
+        if (release) STABLE
+        else BETA
+    var subVer =
+        if (release) ""
+        else ".${property("mod.sub_version")}"
+    var displaySubVer =
+        if (release) ""
+        else " ${(property("mod.sub_version") as String).replace(".", " ").uppercase(Locale.getDefault())}"
+
+    displayName = "${property("mod.name")} ${stonecutter.current.version + displaySubVer} ${property("mod.version")} NeoForge"
+    version = "${property("mod.version")}${subVer}-${property("deps.minecraft")}-NeoForge"
     changelog = provider { rootProject.file("CHANGELOG-LATEST.md").readText() }
     modLoaders.add("neoforge")
 
@@ -230,7 +254,8 @@ publishMods {
         accessToken = env.MODRINTH_API_KEY.orNull()
         minecraftVersions.add(property("deps.minecraft") as String)
         minecraftVersions.addAll(additionalVersions)
-        optional("mcqoy")
+        requires("cloth-config", "forgified-fabric-api")
+//        environment = SERVER_ONLY_CLIENT_OPTIONAL
     }
 
     curseforge {
@@ -238,5 +263,16 @@ publishMods {
         accessToken = env.CURSEFORGE_API_KEY.orNull()
         minecraftVersions.add(property("deps.minecraft") as String)
         minecraftVersions.addAll(additionalVersions)
+        javaVersions.add(if (stonecutter.eval(stonecutter.current.version, ">=26")) {
+            JavaVersion.VERSION_25
+        } else if (stonecutter.eval(stonecutter.current.version, ">=1.20.5")) {
+            JavaVersion.VERSION_21
+        } else {
+            JavaVersion.VERSION_17
+        })
+        changelogType = "markdown"
+        requires("cloth-config", "forgified-fabric-api")
+//        client = true
+//        server = true
     }
 }

@@ -5,7 +5,7 @@ plugins {
     id("net.neoforged.moddev") version "2.0.141" apply false
     id("net.minecraftforge.gradle") version "[7.0.17,8)" apply false
     id("dev.kikugie.postprocess.jsonlang") version "2.1-beta.4" apply false
-    id("me.modmuss50.mod-publish-plugin") version "0.8.+" apply false
+    id("me.modmuss50.mod-publish-plugin") version "2.1.1" apply false
 }
 
 stonecutter active "26.2-fabric"

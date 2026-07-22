@@ -1,5 +1,8 @@
 @file:Suppress("UnstableApiUsage")
 
+import java.util.Locale
+
+
 plugins {
     id("dev.kikugie.loom-back-compat")
     id("dev.kikugie.postprocess.jsonlang")
@@ -46,6 +49,14 @@ jsonlang {
 }
 
 repositories {
+    mavenLocal()
+    maven {
+        name = "Something Catchy"
+        url = uri("https://registry.somethingcatchy.net/repository/maven-public/")
+        content {
+            includeGroupAndSubgroups("net.mehvahdjukaar")
+        }
+    }
     maven {
         name = "shedaniel (Cloth Config)"
         url = uri("https://maven.shedaniel.me/")
@@ -156,7 +167,10 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api:fabric-api:${property("deps.fabric-api")}")
     modImplementation("com.terraformersmc:modmenu:${property("deps.modmenu")}")
     modApi("me.shedaniel.cloth:cloth-config-fabric:${property("deps.cloth-config")}")
-
+    if (hasProperty("deps.codec_ui_version")) {
+        modImplementation("net.mehvahdjukaar:codecui-fabric:${property("deps.codec_ui_version")}")
+        include("net.mehvahdjukaar:codecui-fabric:${property("deps.codec_ui_version")}")
+    }
 }
 
 
@@ -216,19 +230,31 @@ publishMods {
     file = loomx.modJar.map { it.archiveFile.get() }
     additionalFiles.from(loomx.modSourcesJar.map { it.archiveFile.get() })
 
-    type = STABLE
-    displayName = "${property("mod.name")} ${property("mod.version")} for ${stonecutter.current.version} Fabric"
-    version = "${property("mod.version")}+${property("deps.minecraft")}-fabric"
+    var release = "${property("mod.sub_version")}" == "release"
+    type =
+        if (release) STABLE
+        else BETA
+    var subVer =
+        if (release) ""
+        else ".${property("mod.sub_version")}"
+    var displaySubVer =
+        if (release) ""
+        else " ${(property("mod.sub_version") as String).replace(".", " ").uppercase(Locale.getDefault())}"
+
+    displayName = "${property("mod.name")} ${stonecutter.current.version + displaySubVer} ${property("mod.version")} Fabric"
+    version = "${property("mod.version")}${subVer}-${property("deps.minecraft")}-Fabric"
     changelog = provider { rootProject.file("CHANGELOG-LATEST.md").readText() }
     modLoaders.add("fabric")
+    modLoaders.add("quilt")
 
     modrinth {
         projectId = property("publish.modrinth") as String
         accessToken = env.MODRINTH_API_KEY.orNull()
         minecraftVersions.add(property("deps.minecraft") as String)
         minecraftVersions.addAll(additionalVersions)
-        requires("fabric-api")
-        optional("mcqoy")
+        requires("cloth-config", "fabric-api")
+        optional("modmenu")
+//        environment = SERVER_ONLY_CLIENT_OPTIONAL
     }
 
     curseforge {
@@ -236,6 +262,17 @@ publishMods {
         accessToken = env.CURSEFORGE_API_KEY.orNull()
         minecraftVersions.add(property("deps.minecraft") as String)
         minecraftVersions.addAll(additionalVersions)
-        requires("fabric-api")
+        javaVersions.add(if (stonecutter.eval(stonecutter.current.version, ">=26")) {
+            JavaVersion.VERSION_25
+        } else if (stonecutter.eval(stonecutter.current.version, ">=1.20.5")) {
+            JavaVersion.VERSION_21
+        } else {
+            JavaVersion.VERSION_17
+        })
+        changelogType = "markdown"
+        requires("cloth-config", "fabric-api")
+        optional("modmenu")
+//        client = true
+//        server = true
     }
 }
