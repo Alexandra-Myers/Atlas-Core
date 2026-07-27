@@ -2,14 +2,27 @@ package net.atlas.atlascore.config.fixer;
 
 import com.google.gson.JsonObject;
 import net.atlas.atlascore.config.AtlasConfig;
+import net.minecraft.resources.Identifier;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 public class ConfigFixer {
     public final AtlasConfig owner;
+    private final List<Identifier> oldIds;
+
     public ConfigFixer(AtlasConfig owner) {
         this.owner = owner;
+        this.oldIds = Collections.emptyList();
+    }
+    public ConfigFixer(AtlasConfig owner, List<Identifier> oldIds) {
+        this.owner = owner;
+        this.oldIds = oldIds;
+    }
+    public List<Identifier> oldIds() {
+        return this.oldIds;
     }
     public final void fix(JsonObject configJsonObject) throws IOException {
         MutableBoolean dirty = new MutableBoolean(false);

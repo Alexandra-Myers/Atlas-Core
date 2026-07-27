@@ -32,5 +32,6 @@ public class AtlasCorePlatformFabric implements AtlasCorePlatform {
     public Collection<ModRepresentation> mapFromModContainers() {
         return mapFromModContainers(FabricLoader.getInstance().getAllMods(), new String[0]);
     }
+
 }
 //?}

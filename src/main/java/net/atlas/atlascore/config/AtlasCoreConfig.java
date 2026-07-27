@@ -1,34 +1,20 @@
 package net.atlas.atlascore.config;
 
 import com.google.gson.JsonObject;
-import com.mojang.brigadier.arguments.*;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
-import me.shedaniel.clothconfig2.gui.entries.BooleanListEntry;
-import me.shedaniel.clothconfig2.gui.entries.DoubleListEntry;
-import me.shedaniel.clothconfig2.gui.entries.IntegerListEntry;
-import me.shedaniel.clothconfig2.gui.entries.StringListEntry;
 import net.atlas.atlascore.AtlasCore;
-import net.atlas.atlascore.util.CommonUtils;
-import net.atlas.atlascore.util.ConfigRepresentable;
 //? fabric {
+import net.atlas.atlascore.config.fixer.ConfigFixer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 //?}
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
-//? >=1.21.11 {
-import net.minecraft.util.Util;
-//?}
-//? <1.21.11 {
-/*import net.minecraft.Util;
-*///?}
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 //? >=26.1 {
 import net.minecraft.world.item.ItemStackTemplate;
@@ -40,159 +26,17 @@ import net.minecraft.world.item.Items;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Field;
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 public class AtlasCoreConfig extends AtlasConfig {
-    public static class TestClass implements ConfigRepresentable<TestClass> {
-        public static final StreamCodec<RegistryFriendlyByteBuf, TestClass> STREAM_CODEC = new StreamCodec<>() {
-            @Override
-            public void encode(RegistryFriendlyByteBuf registryFriendlyByteBuf, TestClass testClass) {
-                CommonUtils.writeId(registryFriendlyByteBuf, testClass.owner.heldValue.owner().name);
-                registryFriendlyByteBuf.writeUtf(testClass.owner.heldValue.name());
-                registryFriendlyByteBuf.writeUtf(testClass.innerString);
-                registryFriendlyByteBuf.writeBoolean(testClass.innerBool);
-                registryFriendlyByteBuf.writeVarInt(testClass.innerInt);
-                registryFriendlyByteBuf.writeDouble(testClass.innerDouble);
-            }
-
-            @Override
-            @SuppressWarnings("unchecked")
-            public @NotNull TestClass decode(RegistryFriendlyByteBuf registryFriendlyByteBuf) {
-                AtlasConfig config = AtlasConfig.configs.get(CommonUtils.readId(registryFriendlyByteBuf));
-                return new TestClass((ConfigHolder<TestClass>) config.valueNameToConfigHolderMap.get(registryFriendlyByteBuf.readUtf()), registryFriendlyByteBuf.readUtf(), registryFriendlyByteBuf.readBoolean(), registryFriendlyByteBuf.readVarInt(), registryFriendlyByteBuf.readDouble());
-            }
-        };
-        public ConfigHolder<TestClass> owner;
-        public String innerString;
-        public Boolean innerBool;
-        public Integer innerInt;
-        public Double innerDouble;
-        public String innerString() {
-            return innerString;
-        }
-        public Boolean innerBool() {
-            return innerBool;
-        }
-        public Integer innerInt() {
-            return innerInt;
-        }
-        public Double innerDouble() {
-            return innerDouble;
-        }
-        public static final Map<String, Field> fields = Util.make(new HashMap<>(), hashMap -> {
-            try {
-                hashMap.put("inner_string", TestClass.class.getDeclaredField("innerString"));
-                hashMap.put("inner_bool", TestClass.class.getDeclaredField("innerBool"));
-                hashMap.put("inner_int", TestClass.class.getDeclaredField("innerInt"));
-                hashMap.put("inner_double", TestClass.class.getDeclaredField("innerDouble"));
-            } catch (NoSuchFieldException ignored) {
-            }
-        });
-        public static final BiFunction<TestClass, String, Component> convertFieldToComponent = (testClass, string) -> {
-            try {
-                return Component.translatable(testClass.owner.getTranslationKey() + "." + string).append(Component.literal(": ")).append(Component.literal(String.valueOf(testClass.fieldRepresentingHolder(string).get(testClass))));
-            } catch (IllegalAccessException ignored) {
-
-            }
-            return Component.translatable(testClass.owner.getTranslationKey() + "." + string);
-        };
-        public static final BiFunction<TestClass, String, Component> convertFieldToNameComponent = (testClass, string) -> Component.translatable(testClass.owner.getTranslationKey() + "." + string);
-        public static final BiFunction<TestClass, String, Component> convertFieldToValueComponent = (testClass, string) -> {
-            try {
-                return Component.literal(String.valueOf(testClass.fieldRepresentingHolder(string).get(testClass)));
-            } catch (IllegalAccessException ignored) {
-
-            }
-            return Component.translatable(testClass.owner.getTranslationKey() + "." + string);
-        };
-        public Supplier<Component> resetTranslation = null;
-
-        public TestClass(ConfigHolder<TestClass> owner, String innerString, Boolean innerBool, Integer innerInt, Double innerDouble) {
-            this.owner = owner;
-            this.innerString = innerString;
-            this.innerBool = innerBool;
-            this.innerInt = innerInt;
-            this.innerDouble = innerDouble;
-        }
-
-        @Override
-        public Codec<TestClass> getCodec(ConfigHolder<TestClass> owner) {
-            return RecordCodecBuilder.create(instance ->
+    public record TestClass(String innerString, Boolean innerBool, Integer innerInt, Double innerDouble) {
+            public static final Codec<TestClass> CODEC = RecordCodecBuilder.create(instance ->
                     instance.group(Codec.STRING.optionalFieldOf("inner_string", "bar").forGetter(TestClass::innerString),
                                     Codec.BOOL.optionalFieldOf("inner_bool", true).forGetter(TestClass::innerBool),
                                     Codec.INT.optionalFieldOf("inner_int", 3).forGetter(TestClass::innerInt),
                                     Codec.DOUBLE.optionalFieldOf("inner_double", 7.0).forGetter(TestClass::innerDouble))
-                            .apply(instance, (innerString, innerBool, innerInt, innerDouble) -> new TestClass(owner, innerString, innerBool, innerInt, innerDouble)));
-        }
+                            .apply(instance, TestClass::new));
 
-        @Override
-        public void setOwnerHolder(ConfigHolder<TestClass> configHolder) {
-            owner = configHolder;
-        }
-
-        @Override
-        public List<String> fields() {
-            return fields.keySet().stream().toList();
-        }
-
-        @Override
-        public Component getFieldValue(String name) {
-            return convertFieldToValueComponent.apply(this, name);
-        }
-
-        @Override
-        public Component getFieldName(String name) {
-            return convertFieldToNameComponent.apply(this, name);
-        }
-
-        @Override
-        public void listField(String name, Consumer<Component> input) {
-            input.accept(convertFieldToComponent.apply(this, name));
-        }
-
-        @Override
-        public void listFields(Consumer<Component> input) {
-            fields.keySet().forEach(string -> input.accept(convertFieldToComponent.apply(this, string)));
-        }
-
-        @Override
-        public Field fieldRepresentingHolder(String name) {
-            return fields.get(name);
-        }
-
-        @Override
-        public ArgumentType<?> argumentTypeRepresentingHolder(String name) {
-            try {
-                return switch (fields.get(name).get(this)) {
-                    case String ignored -> StringArgumentType.greedyString();
-                    case Boolean ignored -> BoolArgumentType.bool();
-                    case Integer ignored -> IntegerArgumentType.integer();
-                    case Double ignored -> DoubleArgumentType.doubleArg();
-                    case null, default -> null;
-                };
-            } catch (IllegalAccessException ignored) {
-            }
-            return null;
-        }
-
-        @Override
-        //? fabric {
-        @Environment(EnvType.CLIENT)
-        //?}
-        public List<AbstractConfigListEntry<?>> transformIntoConfigEntries() {
-            if (resetTranslation == null)
-                resetTranslation = () -> Component.translatable(owner.getTranslationResetKey());
-            List<AbstractConfigListEntry<?>> entries = new ArrayList<>();
-            entries.add(new StringListEntry(convertFieldToNameComponent.apply(this, "inner_string"), innerString, resetTranslation.get(), () -> "bar", string -> innerString = string, Optional::empty, false));
-            entries.add(new BooleanListEntry(convertFieldToNameComponent.apply(this, "inner_bool"), innerBool, resetTranslation.get(), () -> true, bool -> innerBool = bool, Optional::empty, false));
-            entries.add(new IntegerListEntry(convertFieldToNameComponent.apply(this, "inner_int"), innerInt, resetTranslation.get(), () -> 3, integer -> innerInt = integer, Optional::empty, false));
-            entries.add(new DoubleListEntry(convertFieldToNameComponent.apply(this, "inner_double"), innerDouble, resetTranslation.get(), () -> 7.0, aDouble -> innerDouble = aDouble, Optional::empty, false));
-            return entries;
-        }
     }
     public enum TestEnum {
         FOO,
@@ -204,7 +48,7 @@ public class AtlasCoreConfig extends AtlasConfig {
     //? <26.1 {
     /*public TagHolder<ItemStack> testItem;
     *///?}
-    public ObjectHolder<TestClass> testObject;
+    public TagHolder<TestClass> testObject;
     public EnumHolder<TestEnum> testEnum;
     public StringHolder testString;
     public BooleanHolder testBool;
@@ -222,6 +66,11 @@ public class AtlasCoreConfig extends AtlasConfig {
     }
 
     @Override
+    public ConfigFixer createFixer() {
+        return new ConfigFixer(this, List.of(Identifier.fromNamespaceAndPath("atlas-core", "atlas-core-config")));
+    }
+
+    @Override
     public void defineConfigHolders() {
         //? >=26.1 {
         testItem = createCodecBacked("testItem", new ItemStackTemplate(Items.APPLE, 18), ItemStackTemplate.CODEC);
@@ -230,7 +79,7 @@ public class AtlasCoreConfig extends AtlasConfig {
         /*testItem = createCodecBacked("testItem", new ItemStack(Items.APPLE, 18), ItemStack.STRICT_CODEC);
         *///?}
         testItem.tieToCategory(test);
-        testObject = createObject("testObject", new TestClass(testObject, "bar", true, 3, 7.0), TestClass.class, TestClass.STREAM_CODEC);
+        testObject = createCodecBacked("testObject", new TestClass("bar", true, 3, 7.0), TestClass.CODEC);
         testObject.tieToCategory(test);
         testEnum = createEnum("testEnum", TestEnum.FOO, TestEnum.class, TestEnum.values(), e -> Component.translatable("text.config.atlas-core-config.option.testEnum." + e.name().toLowerCase(Locale.ROOT)));
         testEnum.tieToCategory(test);

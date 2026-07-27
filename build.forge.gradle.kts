@@ -214,6 +214,25 @@ java {
     targetCompatibility = javaCompat
 }
 
+stonecutter {
+    val (version, loader) = current.project.split('-', limit = 2)
+    properties.tags(version, loader)
+
+    replacements.string(current.parsed >= "1.21.11") {
+        replace("ResourceLocation", "Identifier")
+        replace("net.minecraft.Util", "net.minecraft.util.Util")
+        replace("net.minecraft.FileUtil", "net.minecraft.util.FileUtil")
+        replace("org.jetbrains.annotations.Nullable", "org.jspecify.annotations.Nullable")
+        replace("org.jetbrains.annotations.NotNull", "org.jspecify.annotations.NonNull")
+        replace("@NotNull", "@NonNull")
+    }
+
+    replacements.string(current.parsed >= "1.21.4") {
+        replace("net.minecraft.world.item.Tier", "net.minecraft.world.item.ToolMaterial")
+        replace("Tiers.", "ToolMaterial.")
+    }
+}
+
 val additionalVersionsStr = findProperty("publish.additionalVersions") as String?
 val additionalVersions: List<String> = additionalVersionsStr
     ?.split(",")
@@ -225,9 +244,19 @@ publishMods {
     file = tasks.jar.map { it.archiveFile.get() }
     additionalFiles.from(tasks.named<org.gradle.jvm.tasks.Jar>("sourcesJar").map { it.archiveFile.get() })
 
-    type = BETA
-    displayName = "${property("mod.name")} ${property("mod.version")} for ${stonecutter.current.version} Forge"
-    version = "${property("mod.version")}+${property("deps.minecraft")}-forge"
+    var release = "${property("mod.sub_version")}" == "release"
+    type =
+        if (release) STABLE
+        else BETA
+    var subVer =
+        if (release) ""
+        else ".${property("mod.sub_version")}"
+    var displaySubVer =
+        if (release) ""
+        else " ${(property("mod.sub_version") as String).replace(".", " ").uppercase(Locale.getDefault())}"
+
+    displayName = "${property("mod.name")} ${stonecutter.current.version + displaySubVer} ${property("mod.version")} Forge"
+    version = "${property("mod.version")}${subVer}-${property("deps.minecraft")}-Forge"
     changelog = provider { rootProject.file("CHANGELOG-LATEST.md").readText() }
     modLoaders.add("neoforge")
 
@@ -236,7 +265,8 @@ publishMods {
         accessToken = env.MODRINTH_API_KEY.orNull()
         minecraftVersions.add(property("deps.minecraft") as String)
         minecraftVersions.addAll(additionalVersions)
-        optional("mcqoy")
+        requires("cloth-config", "forgified-fabric-api")
+        environment = SERVER_ONLY_CLIENT_OPTIONAL
     }
 
     curseforge {
@@ -244,5 +274,16 @@ publishMods {
         accessToken = env.CURSEFORGE_API_KEY.orNull()
         minecraftVersions.add(property("deps.minecraft") as String)
         minecraftVersions.addAll(additionalVersions)
+        javaVersions.add(if (stonecutter.eval(stonecutter.current.version, ">=26")) {
+            JavaVersion.VERSION_25
+        } else if (stonecutter.eval(stonecutter.current.version, ">=1.20.5")) {
+            JavaVersion.VERSION_21
+        } else {
+            JavaVersion.VERSION_17
+        })
+        changelogType = "markdown"
+        requires("cloth-config", "forgified-fabric-api")
+        client = true
+        server = true
     }
 }

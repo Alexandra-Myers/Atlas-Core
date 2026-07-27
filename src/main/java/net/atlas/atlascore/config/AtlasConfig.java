@@ -18,7 +18,7 @@ import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.gui.entries.*;
 import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.AtlasCorePlatform;
-import net.atlas.atlascore.client.gui.CodecBackedListEntry;
+import net.atlas.atlascore.client.gui.entry.ConfigEntry;
 import net.atlas.atlascore.command.argument.ConfigHolderArgument;
 import net.atlas.atlascore.config.fixer.ConfigFixer;
 import net.atlas.atlascore.config.fixer.ConfigHolderFixer;
@@ -34,6 +34,9 @@ import net.fabricmc.fabric.api.networking.v1.PacketSender;
 //? fabric {
 import net.fabricmc.loader.api.FabricLoader;
 //?}
+import net.mehvahdjukaar.codecui.Schema;
+import net.mehvahdjukaar.codecui.SchemaCodec;
+import net.mehvahdjukaar.codecui.SchemaContext;
 import net.minecraft.ChatFormatting;
 import net.minecraft.CrashReport;
 import net.minecraft.ReportedException;
@@ -47,18 +50,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-//? >=1.21.11 {
 import net.minecraft.resources.Identifier;
-//?}
-//? <1.21.11 {
-/*import net.minecraft.resources.ResourceLocation;
-*///?}
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ExtraCodecs;
 //? neoforge {
 /*import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
 *///?}
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
@@ -79,36 +78,20 @@ import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
 
 public abstract class AtlasConfig {
-    //? >=1.21.11 {
     public final Identifier name;
-    //?}
-    //? <1.21.11 {
-    /*public final ResourceLocation name;
-    *///?}
     public final SyncMode defaultSyncMode;
     public final ConfigSide configSide;
     public final ConfigFixer configFixer;
     public boolean isDefault;
     public final Map<String, ConfigHolder<?>> valueNameToConfigHolderMap = Maps.newHashMap();
 	public final List<Category> categories;
-    //? >=1.21.11 {
-    public static final Map<Identifier, AtlasConfig> configs =
-    //?}
-    //? <1.21.11 {
-    /*public static final Map<ResourceLocation, AtlasConfig> configs =
-    *///?}
-            Maps.newHashMap();
+    public static final Map<Identifier, AtlasConfig> configs = Maps.newHashMap();
 	public static final Map<String, AtlasConfig> menus = Maps.newHashMap();
     File configFile;
     JsonObject configJsonObject;
     List<ConfigHolder<?>> configHolders;
 
-    //? >=1.21.11 {
     public AtlasConfig(Identifier name,
-    //?}
-    //? <1.21.11 {
-    /*public AtlasConfig(ResourceLocation name,
-    *///?}
                        SyncMode defaultSyncMode,
                        ConfigSide configSide) {
         this.configSide = configSide;
@@ -130,30 +113,15 @@ public abstract class AtlasConfig {
         load();
         if (!configs.containsKey(name)) configs.put(name, this);
     }
-    //? >=1.21.11 {
     public AtlasConfig(Identifier name,
-    //?}
-    //? <1.21.11 {
-    /*public AtlasConfig(ResourceLocation name,
-                       *///?}
                        SyncMode defaultSyncMode) {
         this(name, defaultSyncMode, ConfigSide.COMMON);
     }
-    //? >=1.21.11 {
     public AtlasConfig(Identifier name,
-    //?}
-    //? <1.21.11 {
-    /*public AtlasConfig(ResourceLocation name,
-                       *///?}
                        ConfigSide configSide) {
         this(name, SyncMode.OVERRIDE_CLIENT, configSide);
     }
-    //? >=1.21.11 {
     public AtlasConfig(Identifier name) {
-    //?}
-    //? <1.21.11 {
-    /*public AtlasConfig(ResourceLocation name) {
-    *///?}
         this(name, SyncMode.OVERRIDE_CLIENT, ConfigSide.COMMON);
     }
 
@@ -213,8 +181,15 @@ public abstract class AtlasConfig {
         return hex.startsWith("#") ? hex.substring(1) : hex;
     }
     @ApiStatus.Internal
+    protected Path getConfigFolderPath(Identifier id) {
+        return Path.of(AtlasCorePlatform.INSTANCE.getConfigDir().getFileName().getFileName() + "/" + id.getNamespace() + configSide.getAsDir());
+    }
+    @ApiStatus.Internal
     protected Path getConfigFolderPath() {
-        return Path.of(AtlasCorePlatform.INSTANCE.getConfigDir().getFileName().getFileName() + "/" + name.getNamespace() + configSide.getAsDir());
+        return getConfigFolderPath(this.name);
+    }
+    private String getConfigFolderPathName(Identifier id) {
+        return getConfigFolderPath(id).toAbsolutePath() + "/" + id.getPath() + ".json";
     }
 	public void reload() {
         resetExtraHolders();
@@ -223,9 +198,15 @@ public abstract class AtlasConfig {
     @ApiStatus.Internal
     protected void load() {
 		isDefault = false;
-        if (configFile == null) configFile = new File(getConfigFolderPath().toAbsolutePath() + "/" + name.getPath() + ".json");
+        if (configFile == null) configFile = new File(getConfigFolderPathName(this.name));
         if (!configFile.exists()) {
             try {
+                for (Identifier candidate : this.configFixer.oldIds()) {
+                    Path candidateFilePath = Path.of(getConfigFolderPathName(candidate));
+                    if (Files.exists(candidateFilePath))
+                        Files.move(candidateFilePath, configFile.toPath());
+                    return;
+                }
                 configFile.createNewFile();
                 saveConfig();
             } catch (IOException e) {
@@ -559,8 +540,8 @@ public abstract class AtlasConfig {
         protected T parsedValue = null;
         public final ConfigValue<T> heldValue;
         public final StreamCodec<RegistryFriendlyByteBuf, T> streamCodec;
-        public final Codec<T> codec;
-        public final Codec<T> rawCodec;
+        public final SchemaCodec<T> codec;
+        public final SchemaCodec<T> rawCodec;
         protected Supplier<ConfigHolderFixer<T>> fixer = Suppliers.memoize(() -> new ConfigHolderFixer<>(this));
 		public RestartRequiredMode restartRequired = RestartRequiredMode.NO_RESTART;
 		public boolean serverManaged = false;
@@ -571,9 +552,9 @@ public abstract class AtlasConfig {
             heldValue = value;
             if (streamCodec != null) this.streamCodec = streamCodec;
             else this.streamCodec = formAlternateStreamCodec();
-            if (codec != null) this.rawCodec = codec;
-            else this.rawCodec = formAlternateCodec();
-            this.codec = this.rawCodec.fieldOf(value.name).codec();
+            if (codec != null) this.rawCodec = SchemaCodec.wrap(codec);
+            else this.rawCodec = SchemaCodec.wrap(formAlternateCodec());
+            this.codec = SchemaCodec.wrap(this.rawCodec.fieldOf(value.name).codec());
             value.addAssociation(this);
         }
 
@@ -602,10 +583,10 @@ public abstract class AtlasConfig {
             return synchedValue != null;
         }
         public DataResult<JsonElement> encodeAsJSON() {
-            return rawCodec.encodeStart(JsonOps.INSTANCE, value);
+            return rawCodec.encodeStart(SchemaContext.getRegistries().createSerializationContext(JsonOps.INSTANCE), value);
         }
 		public DataResult<JsonElement> encodeAsJSON(JsonObject root) {
-			return codec.encode(value, JsonOps.INSTANCE, root);
+			return codec.encode(value, SchemaContext.getRegistries().createSerializationContext(JsonOps.INSTANCE), root);
 		}
         public void writeToBuf(RegistryFriendlyByteBuf buf) {
             if (heldValue.syncMode() != SyncMode.NONE) {
@@ -631,8 +612,8 @@ public abstract class AtlasConfig {
         public boolean isNotValid(T newValue) {
             return !heldValue.isValid(newValue);
         }
-        public void loadFromJSONAndResetManaged(JsonObject jsonObject) {
-            setValueAndResetManaged(codec.parse(JsonOps.INSTANCE, jsonObject).getOrThrow());
+        public void loadFromJSONAndResetManaged(JsonElement jsonElement) {
+            setValueAndResetManaged(codec.parse(SchemaContext.getRegistries().createSerializationContext(JsonOps.INSTANCE), jsonElement).getOrThrow());
         }
 		public void setValueAndResetManaged(T newValue) {
 			setValue(newValue);
@@ -663,6 +644,10 @@ public abstract class AtlasConfig {
         @Override
         public void resetValue() {
             setValue(heldValue.defaultValue());
+        }
+
+        public boolean isSlider() {
+            return false;
         }
 
         public void tieToCategory(Category category) {
@@ -696,7 +681,17 @@ public abstract class AtlasConfig {
         //? fabric {
         @Environment(EnvType.CLIENT)
         //?}
-		public abstract AbstractConfigListEntry<?> transformIntoConfigEntry();
+		public ConfigEntry<?> transformIntoRealConfigEntry() {
+            return ConfigEntry.acceptBySchema(this.rawCodec, this);
+        }
+
+        @Deprecated(forRemoval = true, since = "1.2.0")
+        //? fabric {
+        @Environment(EnvType.CLIENT)
+        //?}
+        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
+            return null;
+        }
 
         @Override
         public void setToParsedValue() {
@@ -745,7 +740,7 @@ public abstract class AtlasConfig {
         }
 
         public Tag asNBT(T val) {
-            return rawCodec.encodeStart(NbtOps.INSTANCE, val).getOrThrow();
+            return rawCodec.encodeStart(SchemaContext.getRegistries().createSerializationContext(NbtOps.INSTANCE), val).getOrThrow();
         }
 
         public String asSNBT(T val) {
@@ -754,15 +749,7 @@ public abstract class AtlasConfig {
 
         public T loadFromSNBT(StringReader reader) throws CommandSyntaxException {
             Tag tag = CommonUtils.read(reader);
-            return rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow(s -> CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException().createWithContext(reader, s));
-        }
-
-        @Override
-        //? fabric {
-        @Environment(EnvType.CLIENT)
-        //?}
-        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            return new CodecBackedListEntry<>(Component.translatable(getTranslationKey()), rawCodec, asNBT(get()), Component.translatable(getTranslationResetKey()), () -> asNBT(heldValue.defaultValue), tag -> setValue(rawCodec.parse(NbtOps.INSTANCE, tag).getOrThrow()), tooltip, restartRequired.restartRequiredOnClient());
+            return rawCodec.parse(SchemaContext.getRegistries().createSerializationContext(NbtOps.INSTANCE), tag).getOrThrow(s -> CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherParseException().createWithContext(reader, s));
         }
 
         @Override
@@ -781,6 +768,7 @@ public abstract class AtlasConfig {
             return parsedValue;
         }
     }
+    @Deprecated(since = "1.2.0")
     @SuppressWarnings({"rawtypes", "unchecked"})
     public static class ObjectHolder<T extends ConfigRepresentable> extends ConfigHolder<T> implements ExtendedHolder {
         public final Class<T> clazz;
@@ -801,14 +789,6 @@ public abstract class AtlasConfig {
         @Override
         public Component getValueAsComponent() {
             return Component.translatable(getTranslationKey());
-        }
-
-        @Override
-        //? fabric {
-        @Environment(EnvType.CLIENT)
-        //?}
-        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            return new MultiElementListEntry<>(Component.translatable(getTranslationKey()), get(), get().transformIntoConfigEntries(), expandByDefault);
         }
 
         @Override
@@ -997,14 +977,6 @@ public abstract class AtlasConfig {
         }
 
         @Override
-		//? fabric {
-        @Environment(EnvType.CLIENT)
-        //?}
-		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new EnumListEntry<>(Component.translatable(getTranslationKey()), clazz, get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, names, tooltip, restartRequired.restartRequiredOnClient());
-		}
-
-        @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
             for (E e : heldValue.possibleValues) {
                 if (e.name().toLowerCase().startsWith(builder.getRemainingLowerCase())) {
@@ -1048,14 +1020,6 @@ public abstract class AtlasConfig {
         }
 
         @Override
-		//? fabric {
-        @Environment(EnvType.CLIENT)
-        //?}
-		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new StringListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
-		}
-
-        @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
             if (heldValue.possibleValues != null) return SharedSuggestionProvider.suggest(heldValue.possibleValues, builder);
             return Suggestions.empty();
@@ -1084,14 +1048,6 @@ public abstract class AtlasConfig {
         public Component getValueAsComponent() {
             return get() ? Component.translatable("text.config.true") : Component.translatable("text.config.false");
         }
-
-        @Override
-		//? fabric {
-        @Environment(EnvType.CLIENT)
-        //?}
-		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new BooleanListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
-		}
 
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
@@ -1137,14 +1093,9 @@ public abstract class AtlasConfig {
         }
 
         @Override
-		//? fabric {
-        @Environment(EnvType.CLIENT)
-        //?}
-		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			if (!heldValue.isRange || !isSlider)
-				return new IntegerListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
-			return new IntegerSliderEntry(Component.translatable(getTranslationKey()), heldValue.possibleValues[0], heldValue.possibleValues[1], get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
-		}
+        public boolean isSlider() {
+            return this.isSlider;
+        }
 
         @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
@@ -1227,14 +1178,6 @@ public abstract class AtlasConfig {
         }
 
         @Override
-		//? fabric {
-        @Environment(EnvType.CLIENT)
-        //?}
-		public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-			return new DoubleListEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
-		}
-
-        @Override
         public <S> CompletableFuture<Suggestions> buildSuggestions(CommandContext<S> commandContext, SuggestionsBuilder builder) {
             if (heldValue.possibleValues != null && !heldValue.isRange) {
                 for (Double d : heldValue.possibleValues) {
@@ -1296,11 +1239,14 @@ public abstract class AtlasConfig {
         }
 	}
     public static class ColorHolder extends ConfigHolder<Integer> {
-        private boolean hasAlpha;
+        private static final Codec<Integer> STRING_RGB = SchemaCodec.of(Codec.STRING.validate(s -> stripHexStarter(s).length() > 6 ? DataResult.error(() -> "Input too long to be a valid color hex: " + s) : DataResult.success(s))
+                    .xmap(s -> getColor(s, null, false), integer -> toColorHex(false, integer)), new Schema.Color(false, true));
+        private static final Codec<Integer> STRING_ARGB = SchemaCodec.of(Codec.STRING.validate(s -> stripHexStarter(s).length() > 8 ? DataResult.error(() -> "Input too long to be a valid color hex: " + s) : DataResult.success(s))
+                .xmap(s -> getColor(s, null, true), integer -> toColorHex(true, integer)), new Schema.Color(true, true));
+        private final boolean hasAlpha;
 
         private ColorHolder(ConfigValue<Integer> value, boolean alpha) {
-            super(value, Codec.STRING.validate(s -> stripHexStarter(s).length() > (alpha ? 8 : 6) ? DataResult.error(() -> "Input too long to be a valid color hex: " + s) : DataResult.success(s))
-                    .xmap(s -> getColor(s, null, alpha), integer -> '#' + toColorHex(alpha, integer)), ByteBufCodecs.VAR_INT.mapStream(buf -> buf));
+            super(value, alpha ? STRING_ARGB : STRING_RGB, ByteBufCodecs.VAR_INT.mapStream(buf -> buf));
             hasAlpha = alpha;
         }
 
@@ -1316,29 +1262,13 @@ public abstract class AtlasConfig {
 
         @Override
         public Component getValueAsComponent() {
-            return Component.literal("#" + toColorHex(hasAlpha, get()));
+            return Component.literal(toColorHex(hasAlpha, get()));
         }
 
-        public static String toColorHex(boolean hasAlpha, int val) {
-            int i = 6;
-            if (hasAlpha)
-                i = 8;
-            String toHex = Integer.toHexString(val);
-            while (toHex.length() < i) {
-                toHex = "0".concat(toHex);
-            }
-            return toHex;
-        }
-
-        @Override
-        //? fabric {
-        @Environment(EnvType.CLIENT)
-        //?}
-        public AbstractConfigListEntry<?> transformIntoConfigEntry() {
-            ColorEntry entry = new ColorEntry(Component.translatable(getTranslationKey()), get(), Component.translatable(getTranslationResetKey()), () -> heldValue.defaultValue, this::setValue, tooltip, restartRequired.restartRequiredOnClient());
-            if (hasAlpha) entry.withAlpha();
-            else entry.withoutAlpha();
-            return entry;
+        public static String toColorHex(boolean hasAlpha, int color) {
+            String hexString = Integer.toHexString(color);
+            int targetLength = hasAlpha ? 8 : 6;
+            return "#" + StringUtils.leftPad(hexString, targetLength, '0');
         }
 
         @Override
@@ -1462,10 +1392,12 @@ public abstract class AtlasConfig {
             }
             if (isMismatched.get()) {
                 //? >=26.2 {
-                context.client().showDebugChat(Component.translatable("text.config.command.mismatch"));
+                context.client().showDebugChat(Component.translatable("text.config.command.mismatch.0"));
+                context.client().showDebugChat(Component.translatable("text.config.command.mismatch.1"));
                 //?}
                 //? <26.2 {
-                /*context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch"), false);
+                /*context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch.0"), false);
+                context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch.1"), false);
                 *///?}
             }
         }
@@ -1498,11 +1430,11 @@ public abstract class AtlasConfig {
 		//? fabric {
         @Environment(EnvType.CLIENT)
         //?}
-		public List<AbstractConfigListEntry<?>> membersAsCloth() {
-			List<AbstractConfigListEntry<?>> transformed = new ArrayList<>();
+		public List<ConfigEntry<?>> membersAsConfigEntries() {
+			List<ConfigEntry<?>> transformed = new ArrayList<>();
 			members.forEach(configHolder -> {
-				AbstractConfigListEntry<?> entry = configHolder.transformIntoConfigEntry();
-				entry.setEditable(!configHolder.serverManaged);
+                ConfigEntry<?> entry = configHolder.transformIntoRealConfigEntry();
+				entry.setServerManaged(configHolder.serverManaged);
 				transformed.add(entry);
 			});
 			return transformed;

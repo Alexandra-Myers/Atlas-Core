@@ -1,6 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "atlas-core",
+  "id": "atlas_core",
+  "provides": [
+    "atlas-core"
+  ],
   "version": "${version}",
 
   "name": "${mod_name}",

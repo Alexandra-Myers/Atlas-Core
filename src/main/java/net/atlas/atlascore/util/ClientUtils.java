@@ -1,7 +1,9 @@
 package net.atlas.atlascore.util;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.resources.Identifier;
 
 public class ClientUtils {
     public static Screen getScreen(Minecraft client) {
@@ -19,5 +21,11 @@ public class ClientUtils {
         //? <26.2 {
         /*client.setScreen(screen);
         *///?}
+    }
+    public static WidgetSprites buildNoFocusedDisabled(Identifier base) {
+        return new WidgetSprites(base, base.withSuffix("_disabled"), base.withSuffix("_highlighted"));
+    }
+    public static WidgetSprites buildFull(Identifier base) {
+        return new WidgetSprites(base, base.withSuffix("_disabled"), base.withSuffix("_highlighted"), base.withSuffix("_highlighted_disabled"));
     }
 }

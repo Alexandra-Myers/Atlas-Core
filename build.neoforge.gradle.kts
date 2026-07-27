@@ -222,6 +222,25 @@ java {
     targetCompatibility = javaCompat
 }
 
+stonecutter {
+    val (version, loader) = current.project.split('-', limit = 2)
+    properties.tags(version, loader)
+
+    replacements.string(current.parsed >= "1.21.11") {
+        replace("ResourceLocation", "Identifier")
+        replace("net.minecraft.Util", "net.minecraft.util.Util")
+        replace("net.minecraft.FileUtil", "net.minecraft.util.FileUtil")
+        replace("org.jetbrains.annotations.Nullable", "org.jspecify.annotations.Nullable")
+        replace("org.jetbrains.annotations.NotNull", "org.jspecify.annotations.NonNull")
+        replace("@NotNull", "@NonNull")
+    }
+
+    replacements.string(current.parsed >= "1.21.4") {
+        replace("net.minecraft.world.item.Tier", "net.minecraft.world.item.ToolMaterial")
+        replace("Tiers.", "ToolMaterial.")
+    }
+}
+
 val additionalVersionsStr = findProperty("publish.additionalVersions") as String?
 val additionalVersions: List<String> = additionalVersionsStr
     ?.split(",")
@@ -255,7 +274,7 @@ publishMods {
         minecraftVersions.add(property("deps.minecraft") as String)
         minecraftVersions.addAll(additionalVersions)
         requires("cloth-config", "forgified-fabric-api")
-//        environment = SERVER_ONLY_CLIENT_OPTIONAL
+        environment = SERVER_ONLY_CLIENT_OPTIONAL
     }
 
     curseforge {
@@ -272,7 +291,7 @@ publishMods {
         })
         changelogType = "markdown"
         requires("cloth-config", "forgified-fabric-api")
-//        client = true
-//        server = true
+        client = true
+        server = true
     }
 }

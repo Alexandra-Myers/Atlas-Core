@@ -5,6 +5,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerConfigurationNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.mehvahdjukaar.codecui.SchemaContext;
 import net.minecraft.commands.CommandSourceStack;
 //? >=1.21.5 {
 import net.minecraft.nbt.NbtOps;
@@ -13,12 +14,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.common.ServerCommonPacketListener;
-//? >=1.21.11 {
 import net.minecraft.resources.Identifier;
-//?}
-//? <1.21.11 {
-/*import net.minecraft.resources.ResourceLocation;
-*///?}
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientCommonPacketListener;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -27,31 +23,11 @@ import net.minecraft.server.permissions.Permissions;
 //?}
 
 public class CommonUtils {
-    //? >=1.21.11 {
     public static void writeId(FriendlyByteBuf buf, Identifier id) {
-    //?}
-    //? <1.21.11 {
-    /*public static void writeId(FriendlyByteBuf buf, ResourceLocation id) {
-    *///?}
-        //? >=1.21.11 {
         buf.writeIdentifier(id);
-        //?}
-        //? <1.21.11 {
-        /*buf.writeResourceLocation(id);
-        *///?}
     }
-    //? >=1.21.11 {
     public static Identifier readId(FriendlyByteBuf buf) {
-     //?}
-    //? <1.21.11 {
-    /*public static ResourceLocation readId(FriendlyByteBuf buf) {
-        *///?}
-        //? >=1.21.11 {
         return buf.readIdentifier();
-         //?}
-        //? <1.21.11 {
-        /*return buf.readResourceLocation();
-        *///?}
     }
 
     public static Packet<ClientCommonPacketListener> createClientboundConfigurationPacket(CustomPacketPayload payload) {
@@ -83,7 +59,7 @@ public class CommonUtils {
 
     public static Tag read(StringReader reader) throws CommandSyntaxException {
         //? >=1.21.5 {
-        return TagParser.create(NbtOps.INSTANCE).parseAsArgument(reader);
+        return TagParser.create(SchemaContext.getRegistries().createSerializationContext(NbtOps.INSTANCE)).parseAsArgument(reader);
         //?}
         //? <1.21.5 {
         /*return new TagParser(reader).readValue();
@@ -93,7 +69,7 @@ public class CommonUtils {
     public static boolean hasPerms(CommandSourceStack commandSourceStack) {
         //? >=1.21.11 {
         return commandSourceStack.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER);
-         //?}
+        //?}
         //? <1.21.11 {
         /*return commandSourceStack.hasPermission(2);
         *///?}

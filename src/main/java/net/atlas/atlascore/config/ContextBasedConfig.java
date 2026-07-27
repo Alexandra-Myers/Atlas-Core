@@ -3,12 +3,7 @@ package net.atlas.atlascore.config;
 import net.atlas.atlascore.util.Context;
 import net.atlas.atlascore.util.ContextCondition;
 import net.fabricmc.loader.api.FabricLoader;
-//? >=1.21.11 {
 import net.minecraft.resources.Identifier;
-//?}
-//? <1.21.11 {
-/*import net.minecraft.resources.ResourceLocation;
-*///?}
 
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
@@ -23,12 +18,7 @@ public abstract class ContextBasedConfig extends AtlasConfig {
     final List<ContextBasedConfig> subConfigs;
 
     @Deprecated
-    //? >=1.21.11 {
     public ContextBasedConfig(Identifier name,
-    //?}
-    //? <1.21.11 {
-    /*public ContextBasedConfig(ResourceLocation name,
-    *///?}
                               SyncMode defaultSyncMode,
                               ConfigSide configSide,
                               ContextCondition contextCondition) {
@@ -46,120 +36,71 @@ public abstract class ContextBasedConfig extends AtlasConfig {
     }
 
     public static <T extends ContextBasedConfig> T createGeneric(Class<T> tClass,
-                                                                 //? >=1.21.11 {
                                                                  Identifier name
-                                                                 //?}
-                                                                 //? <1.21.11 {
-                                                                 /*ResourceLocation name
-                                                                 *///?}
                                                                  ) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         return createGeneric(tClass, name, SyncMode.OVERRIDE_CLIENT, ConfigSide.COMMON);
     }
 
     public static <T extends ContextBasedConfig> T createGeneric(Class<T> tClass,
-                                                                 //? >=1.21.11 {
                                                                  Identifier name,
-                                                                 //?}
-                                                                 //? <1.21.11 {
-                                                                 /*ResourceLocation name,
-                                                                 *///?}
                                                                  ConfigSide configSide) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         return createGeneric(tClass, name, SyncMode.OVERRIDE_CLIENT, configSide);
     }
 
     public static <T extends ContextBasedConfig> T createGeneric(Class<T> tClass,
-                                                                 //? >=1.21.11 {
                                                                  Identifier name,
-                                                                 //?}
-                                                                 //? <1.21.11 {
-                                                                 /*ResourceLocation name,
-                                                                 *///?}
                                                                  SyncMode defaultSyncMode) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         return createGeneric(tClass, name, defaultSyncMode, ConfigSide.COMMON);
     }
 
     public static <T extends ContextBasedConfig> T createGeneric(Class<T> tClass,
-                                                                 //? >=1.21.11 {
                                                                  Identifier name,
-                                                                 //?}
-                                                                 //? <1.21.11 {
-                                                                 /*ResourceLocation name,
-                                                                 *///?}
                                                                  SyncMode defaultSyncMode,
                                                                  ConfigSide configSide) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
-        //? >=1.21.11 {
         return tClass.getConstructor(Identifier.class,
-        //?}
-        //? <1.21.11 {
-        /*return tClass.getConstructor(ResourceLocation.class,
-        *///?}
                 SyncMode.class,
                 ConfigSide.class,
                 ContextCondition.class).newInstance(name, defaultSyncMode, configSide, ContextCondition.GENERIC);
     }
 
     public static <T extends ContextBasedConfig> T createContextual(Class<T> tClass,
-                                                                    //? >=1.21.11 {
                                                                     Identifier name,
-                                                                    //?}
-                                                                    //? <1.21.11 {
-                                                                    /*ResourceLocation name,
-                                                                    *///?}
                                                                     ContextCondition contextCondition) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         return createContextual(tClass, name, SyncMode.OVERRIDE_CLIENT, ConfigSide.COMMON, contextCondition);
     }
 
     public static <T extends ContextBasedConfig> T createContextual(Class<T> tClass,
-                                                                    //? >=1.21.11 {
                                                                     Identifier name,
-                                                                    //?}
-                                                                    //? <1.21.11 {
-                                                                    /*ResourceLocation name,
-                                                                    *///?}
                                                                     ConfigSide configSide,
                                                                     ContextCondition contextCondition) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         return createContextual(tClass, name, SyncMode.OVERRIDE_CLIENT, configSide, contextCondition);
     }
 
     public static <T extends ContextBasedConfig> T createContextual(Class<T> tClass,
-                                                                    //? >=1.21.11 {
                                                                     Identifier name,
-                                                                    //?}
-                                                                    //? <1.21.11 {
-                                                                    /*ResourceLocation name,
-                                                                    *///?}
                                                                     SyncMode defaultSyncMode,
                                                                     ContextCondition contextCondition) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         return createContextual(tClass, name, defaultSyncMode, ConfigSide.COMMON, contextCondition);
     }
 
     public static <T extends ContextBasedConfig> T createContextual(Class<T> tClass,
-                                                                    //? >=1.21.11 {
                                                                     Identifier name,
-                                                                    //?}
-                                                                    //? <1.21.11 {
-                                                                    /*ResourceLocation name,
-                                                                    *///?}
                                                                     SyncMode defaultSyncMode,
                                                                     ConfigSide configSide,
                                                                     ContextCondition contextCondition) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
-        //? >=1.21.11 {
         return tClass.getConstructor(Identifier.class,
-         //?}
-        //? <1.21.11 {
-        /*return tClass.getConstructor(ResourceLocation.class,
-        *///?}
                 SyncMode.class,
                 ConfigSide.class,
                 ContextCondition.class).newInstance(name, defaultSyncMode, configSide, contextCondition);
     }
 
     @Override
-    protected Path getConfigFolderPath() {
+    protected Path getConfigFolderPath(Identifier id) {
         if (isGeneric)
-            return Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + name.getNamespace());
-        return Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + name.getNamespace() + "/" + contextCondition.name());
+            return Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + id.getNamespace());
+        return Path.of(FabricLoader.getInstance().getConfigDir().getFileName().getFileName() + "/" + id.getNamespace() + "/" + contextCondition.name());
     }
+
     public ContextBasedConfig getConfig(String name) {
         if (contextCondition.name().equals(name)) return this;
         if (subConfigs == null) return generic.getConfig(name);

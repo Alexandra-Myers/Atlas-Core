@@ -5,20 +5,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-//? >=1.21.11 {
 import net.minecraft.resources.Identifier;
-//?}
-//? <1.21.11 {
-/*import net.minecraft.resources.ResourceLocation;
-*///?}
 
 public class ComponentUtils {
-    //? >=1.21.11 {
     public static String toSimpleLocation(Identifier id) {
-    //?}
-    //? <1.21.11 {
-    /*public static String toSimpleLocation(ResourceLocation id) {
-    *///?}
         if (id.getNamespace().equals("minecraft")) return id.getPath();
         return id.toString();
     }

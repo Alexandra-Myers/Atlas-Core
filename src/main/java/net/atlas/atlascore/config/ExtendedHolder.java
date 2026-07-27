@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
+@Deprecated(since = "1.2.0")
 public interface ExtendedHolder {
     Component getInnerTranslation(String name);
     Component getInnerValue(String name);

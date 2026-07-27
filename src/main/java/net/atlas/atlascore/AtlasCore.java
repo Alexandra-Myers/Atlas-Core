@@ -20,12 +20,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-//? >=1.21.11 {
 import net.minecraft.resources.Identifier;
-//?}
-//? <1.21.11 {
-/*import net.minecraft.resources.ResourceLocation;
-*///?}
 import net.minecraft.server.network.ConfigurationTask;
 import org.apache.logging.log4j.LogManager;
 import org.jetbrains.annotations.NotNull;
@@ -35,51 +30,21 @@ import java.util.Comparator;
 import java.util.function.Consumer;
 
 public class AtlasCore {
-    //? fabric {
-    public static final String MOD_ID = "atlas-core";
-    //?}
-    //? neoforge {
-    /*public static final String MOD_ID = "atlas_core";
-    *///?}
+    public static final String MOD_ID = "atlas_core";
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final PrefixLogger LOGGER = new PrefixLogger(LogManager.getLogger("Atlas Core"));
     public static AtlasCoreConfig CONFIG;
-    //? >=1.21.11 {
     public static Identifier modDetectionNetworkChannel =
-    //?}
-    //? <1.21.11 {
-    /*public static ResourceLocation modDetectionNetworkChannel =
-    *///?}
             id("networking");
     public static void init() {
         CONFIG = new AtlasCoreConfig();
-        //? >=26.1 {
         PayloadTypeRegistry.clientboundPlay()
-        //?}
-        //? <26.1 {
-        /*PayloadTypeRegistry.playS2C()
-        *///?}
                 .register(AtlasConfigPacket.TYPE, AtlasConfigPacket.CODEC);
-        //? >=26.1 {
         PayloadTypeRegistry.serverboundPlay()
-        //?}
-        //? <26.1 {
-        /*PayloadTypeRegistry.playC2S()
-        *///?}
                 .register(ClientInformPacket.TYPE, ClientInformPacket.CODEC);
-        //? >=26.1 {
         PayloadTypeRegistry.serverboundConfiguration()
-        //?}
-        //? <26.1 {
-        /*PayloadTypeRegistry.configurationC2S()
-        *///?}
                 .register(ServerboundClientModPacket.TYPE, ServerboundClientModPacket.CODEC);
-        //? >=26.1 {
         PayloadTypeRegistry.clientboundConfiguration()
-        //?}
-        //? <26.1 {
-        /*PayloadTypeRegistry.configurationS2C()
-        *///?}
                 .register(ClientboundModListRetrievalPacket.TYPE, ClientboundModListRetrievalPacket.CODEC);
         ServerPlayConnectionEvents.JOIN.register(modDetectionNetworkChannel,(handler, sender, server) -> {
             for (AtlasConfig atlasConfig : AtlasConfig.configs.values().stream().filter(atlasConfig -> atlasConfig.configSide.isCommon()).toList()) {
@@ -127,16 +92,9 @@ public class AtlasCore {
         });
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> ConfigCommand.register(dispatcher));
     }
-    //? >=1.21.11 {
     public static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
-    //?}
-    //? <1.21.11 {
-    /*public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
-    }
-    *///?}
 
     public record AtlasConfigPacket(boolean forCommand, AtlasConfig config) implements CustomPacketPayload {
         public static final Type<AtlasConfigPacket> TYPE = new Type<>(id("atlas_config"));
