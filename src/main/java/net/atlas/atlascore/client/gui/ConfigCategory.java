@@ -1,10 +1,13 @@
 package net.atlas.atlascore.client.gui;
 
 import net.atlas.atlascore.client.gui.entry.BaseEntry;
+import net.atlas.atlascore.mixin.AbstractSelectionListAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.network.chat.Component;
+import org.jspecify.annotations.NonNull;
 
+import java.util.Comparator;
 import java.util.List;
 
 public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
@@ -22,8 +25,13 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
         return new ConfigCategory(name, configScreen, configScreen.getMinecraft(), configScreen.width, configScreen.height - 123, 0, 63, 24);
     }
 
-    public static ConfigCategory create(Component name, ConfigScreen configScreen, int x, int y) {
-        return new ConfigCategory(name, configScreen, configScreen.getMinecraft(), configScreen.width - x, 80, x, y, 24);
+    public void addEntryBefore(BaseEntry target, BaseEntry entry) {
+        int index = this.children().indexOf(target);
+        double scrollFromBottom = (double)this.maxScrollAmount() - this.scrollAmount();
+        //noinspection unchecked
+        ((AbstractSelectionListAccessor<BaseEntry>)this).getChildren().add(index, entry);
+        this.setScrollAmount((double)this.maxScrollAmount() - scrollFromBottom);
+        entry.bindOwner(this, this.parent);
     }
 
     @Override
@@ -33,11 +41,12 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
 
     @Override
     public int addEntry(BaseEntry entry, int height) {
-        entry.bindOwner(this, this.parent);
+        int originalX = entry.getX();
         int originalHeight = entry.getHeight();
         int index = super.addEntry(entry, height);
-        entry.setX(getX());
+        entry.setX(getX() + originalX);
         entry.setHeight(originalHeight);
+        entry.bindOwner(this, this.parent);
         return index;
     }
 
@@ -48,19 +57,47 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
 
     @Override
     public void addEntryToTop(BaseEntry entry, int height) {
-        entry.bindOwner(this, this.parent);
-        List<BaseEntry> children = this.children();
+        int originalX = entry.getX();
         int originalHeight = entry.getHeight();
-        super.addEntryToTop(entry, height);
-        entry.setX(getX());
+        runXPosRestoringOperation(() -> super.addEntryToTop(entry, height));
+        entry.setX(getX() + originalX);
         entry.setHeight(originalHeight);
-        for (BaseEntry child : children) {
-            child.setX(0);
-        }
+        entry.bindOwner(this, this.parent);
     }
 
-    public void emitReset() {
-        this.children().forEach(BaseEntry::resetValueSafe);
+    @Override
+    protected void sort(@NonNull Comparator<BaseEntry> comparator) {
+        runXPosRestoringOperation(() -> super.sort(comparator));
+    }
+
+    @Override
+    protected void swap(int firstIndex, int secondIndex) {
+        runXPosRestoringOperation(() -> super.swap(firstIndex, secondIndex));
+    }
+
+    @Override
+    public void updateSizeAndPosition(int width, int height, int x, int y) {
+        runXPosRestoringOperation(() -> super.updateSizeAndPosition(width, height, x, y));
+    }
+
+    @Override
+    public void setScrollAmount(double scrollAmount) {
+        runXPosRestoringOperation(() -> super.setScrollAmount(scrollAmount));
+    }
+
+    @Override
+    public void removeEntries(@NonNull List<BaseEntry> entries) {
+        runXPosRestoringOperation(() -> entries.forEach(super::removeEntry));
+    }
+
+    @Override
+    public void removeEntry(BaseEntry entry) {
+        runXPosRestoringOperation(() -> super.removeEntry(entry));
+    }
+
+    @Override
+    public void removeEntryFromTop(BaseEntry entry) {
+        super.removeEntryFromTop(entry);
     }
 
     public boolean hasErrors() {
@@ -85,10 +122,6 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
         return isRestartRequired;
     }
 
-    public void setEditable(boolean editable) {
-        children().forEach(entry -> entry.setEditable(editable));
-    }
-
     @Override
     public int getRowLeft() {
         return getX();
@@ -108,16 +141,22 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
     @Override
     public void setPosition(int x, int y) {
         super.setPosition(x, y);
-        repositionEntries();
+        this.repositionEntries();
+    }
+
+    public void runXPosRestoringOperation(Runnable runnable) {
+//        Stream<Pair<BaseEntry, Integer>> originalXs = this.children().stream().map(baseEntry -> Pair.of(baseEntry, baseEntry.getX()));
+        runnable.run();
+//        originalXs.forEach(pair -> pair.getFirst().setX(pair.getSecond()));
     }
 
     public void repositionEntries() {
         int y = this.getY() + 2 - (int)this.scrollAmount();
 
         for(BaseEntry child : this.children()) {
+            if (!child.isVisible()) continue;
             child.setY(y);
             y += child.getHeight();
-            child.setX(this.getX());
         }
     }
 }

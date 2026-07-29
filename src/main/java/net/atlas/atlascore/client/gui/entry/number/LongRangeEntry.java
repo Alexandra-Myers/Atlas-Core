@@ -20,6 +20,16 @@ public class LongRangeEntry extends NumberRangeEntry<Long> {
     }
 
     @Override
+    public Long lowStarting() {
+        return Math.max(0, this.min);
+    }
+
+    @Override
+    public Long highStarting() {
+        return Math.min(0, this.max);
+    }
+
+    @Override
     public void increment() {
         this.value++;
     }

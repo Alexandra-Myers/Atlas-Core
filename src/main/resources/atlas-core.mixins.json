@@ -5,6 +5,8 @@
   "compatibilityLevel": "${java}",
   "mixins": [],
   "client": [
+    "AbstractSelectionListAccessor",
+    "AbstractSelectionListMixin",
     "OptionsScreenMixin"
   ],
   "injectors": {

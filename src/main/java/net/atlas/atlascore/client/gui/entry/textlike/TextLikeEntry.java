@@ -53,13 +53,13 @@ public abstract class TextLikeEntry<T> extends ConfigEntry<T> {
     }
 
     @Override
-    public void extractContent(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
+    public void extractContents(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
         extractNameAndTooltip(graphics, hovered, 1, mouseX, mouseY);
         this.editBox.setEditable(isEditable());
         int valueX = getX() + getWidth() - getValueWidth() - getResetWidth() - 5;
         this.editBox.setPosition(valueX, getPaddedY());
         this.editBox.extractRenderState(graphics, mouseX, mouseY, a);
-        super.extractContent(graphics, mouseX, mouseY, hovered, a);
+        super.extractContents(graphics, mouseX, mouseY, hovered, a);
     }
 
     @Override

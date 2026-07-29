@@ -49,7 +49,7 @@ public class BooleanEntry extends ConfigEntry<Boolean> {
     }
 
     @Override
-    public void extractContent(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
+    public void extractContents(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
         extractNameAndTooltip(graphics, hovered, 1, mouseX, mouseY);
         this.onButton.active = isEditable();
         this.offButton.active = isEditable();
@@ -58,7 +58,7 @@ public class BooleanEntry extends ConfigEntry<Boolean> {
         this.offButton.setPosition(buttonX, getPaddedY());
         this.onButton.extractRenderState(graphics, mouseX, mouseY, a);
         this.offButton.extractRenderState(graphics, mouseX, mouseY, a);
-        super.extractContent(graphics, mouseX, mouseY, hovered, a);
+        super.extractContents(graphics, mouseX, mouseY, hovered, a);
     }
 
     public void invert() {

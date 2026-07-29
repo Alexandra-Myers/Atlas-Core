@@ -24,18 +24,18 @@ public class ColorEntry extends TextLikeEntry<Integer> {
         this.hasAlpha = hasAlpha;
         this.editBox.setValue(valueToString(currentValue)); // Kind of redundant but we want hasAlpha to be set by the time value is updated
         this.colorDisplayWidget = new ColorDisplayWidget(0, 0, 20, this.editBox::isFocused, () ->
-                this.hasAlpha ? this.getValue() : 0xFF000000 | this.getValue());
+                this.getValue() == null ? 0xFF000000 : (this.hasAlpha ? this.getValue() : 0xFF000000 | this.getValue()));
         this.addChild(this.colorDisplayWidget);
     }
 
     @Override
-    public void extractContent(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
+    public void extractContents(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
         int valueX = getX() + getWidth() - getValueWidth() - getResetWidth() - 5;
         int colorDisplayX = valueX + this.editBox.getWidth() + 2;
         this.colorDisplayWidget.setPosition(colorDisplayX, this.getPaddedY());
 
         this.colorDisplayWidget.extractRenderState(graphics, mouseX, mouseY, a);
-        super.extractContent(graphics, mouseX, mouseY, hovered, a);
+        super.extractContents(graphics, mouseX, mouseY, hovered, a);
     }
 
     public Optional<Component> error() {

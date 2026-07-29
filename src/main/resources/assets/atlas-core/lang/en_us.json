@@ -18,6 +18,7 @@
   "text.config.atlas-core-config.option.configNameDisplayColour": "Config Name Display Color",
   "text.config.atlas-core-config.option.grayFormattingColour": "Gray Formatting Color",
   "text.config.atlas-core-config.option.testItem": "Test Item Stack",
+  "text.config.atlas-core-config.option.testColorList": "Test Color List",
   "text.config.atlas-core-config.option.testObject": "Test Object",
   "text.config.atlas-core-config.option.testObject.inner_string": "Inner String",
   "text.config.atlas-core-config.option.testObject.inner_bool": "Inner Boolean",

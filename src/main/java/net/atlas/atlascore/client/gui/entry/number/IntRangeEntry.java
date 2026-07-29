@@ -24,6 +24,16 @@ public class IntRangeEntry extends NumberRangeEntry<Integer> {
     }
 
     @Override
+    public Integer lowStarting() {
+        return Math.max(0, this.min);
+    }
+
+    @Override
+    public Integer highStarting() {
+        return Math.min(0, this.max);
+    }
+
+    @Override
     public void increment() {
         this.value++;
     }

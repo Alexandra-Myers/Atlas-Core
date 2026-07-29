@@ -27,13 +27,13 @@ public class IntSliderEntry extends ConfigEntry<Integer> {
 
 
     @Override
-    public void extractContent(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
+    public void extractContents(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
         extractNameAndTooltip(graphics, hovered, 1, mouseX, mouseY);
         this.slider.active = isEditable();
         int valueX = getX() + getWidth() - getValueWidth() - getResetWidth() - 5;
         this.slider.setPosition(valueX, getPaddedY());
         this.slider.extractRenderState(graphics, mouseX, mouseY, a);
-        super.extractContent(graphics, mouseX, mouseY, hovered, a);
+        super.extractContents(graphics, mouseX, mouseY, hovered, a);
     }
 
     @Override

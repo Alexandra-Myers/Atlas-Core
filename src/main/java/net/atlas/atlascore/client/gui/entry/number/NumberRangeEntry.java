@@ -29,14 +29,14 @@ public abstract class NumberRangeEntry<N extends Number> extends TextLikeEntry<N
         this.min = min;
         this.max = max;
         this.incButton = SpriteIconButton.builder(INCREMENT, button -> {
-                    if (this.getValue() == null) this.setValue(min);
+                    if (this.getValue() == null) this.setValue(lowStarting());
                     increment();
                     this.editBox.setValue(valueToString(this.getValue()));
                 }, true)
                 .sprite(CONFIG_INCREMENT, 20, 10)
                 .size(20, 10).build();
         this.decButton = SpriteIconButton.builder(DECREMENT, button -> {
-                    if (this.getValue() == null) this.setValue(max);
+                    if (this.getValue() == null) this.setValue(highStarting());
                     decrement();
                     this.editBox.setValue(valueToString(this.getValue()));
                 }, true)
@@ -48,7 +48,7 @@ public abstract class NumberRangeEntry<N extends Number> extends TextLikeEntry<N
 
 
     @Override
-    public void extractContent(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
+    public void extractContents(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
         this.incButton.active = isEditable() && (this.getValue() == null || !isAtMax(this.getValue()));
         this.decButton.active = isEditable() && (this.getValue() == null || !isAtMin(this.getValue()));
         int valueX = getX() + getWidth() - getValueWidth() - getResetWidth() - 5;
@@ -57,9 +57,11 @@ public abstract class NumberRangeEntry<N extends Number> extends TextLikeEntry<N
         this.decButton.setPosition(buttonX, getPaddedY() + getUnpaddedBaseHeight() / 2);
         this.incButton.extractRenderState(graphics, mouseX, mouseY, a);
         this.decButton.extractRenderState(graphics, mouseX, mouseY, a);
-        super.extractContent(graphics, mouseX, mouseY, hovered, a);
+        super.extractContents(graphics, mouseX, mouseY, hovered, a);
     }
 
+    public abstract N lowStarting();
+    public abstract N highStarting();
     public abstract void increment();
     public abstract void decrement();
     public abstract boolean isAtMin(N value);

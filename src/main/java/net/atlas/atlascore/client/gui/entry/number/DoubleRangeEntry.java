@@ -19,6 +19,16 @@ public class DoubleRangeEntry extends NumberRangeEntry<Double> {
     }
 
     @Override
+    public Double lowStarting() {
+        return Math.max(0, this.min);
+    }
+
+    @Override
+    public Double highStarting() {
+        return Math.min(0, this.max);
+    }
+
+    @Override
     public void increment() {
         this.value++;
     }

@@ -45,6 +45,7 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     public static final WidgetSprites RESET_SPRITE = ClientUtils.buildNoFocusedDisabled(AtlasCore.id("widget/config_reset"));
     public static final Component RESET = Component.translatableWithFallback("text.config.reset", "Reset");
     public T value;
+    public boolean visible = true;
     public boolean editable = true;
     public boolean optional = false;
     public boolean saveOnChange = false;
@@ -52,13 +53,14 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     public ConfigScreen owner;
     public int x;
     public int y;
+    private Button resetButton;
+    private @Nullable Button removeButton;
     public final T initialValue;
     public final Supplier<T> defaultValue;
     public final boolean restartRequired;
     public final @Nullable Component name;
     public final Supplier<Optional<Component[]>> tooltip;
     public final Consumer<T> saveCallback;
-    public final Button resetButton;
     private final List<GuiEventListener> children = new ArrayList<>();
     private final List<NarratableEntry> narratables = new ArrayList<>();
     private final NarratableEntry narratableForm = new BoundNarratablesList(() -> {
@@ -82,14 +84,38 @@ public abstract class ConfigEntry<T> extends BaseEntry {
         this.narratables.add(new NarratableConfigEntry());
     }
 
+    public ConfigEntry<?> addRemoveButton(Button removeButton) {
+        if (removeButton == null) return this;
+        this.addChild(1, removeButton);
+        this.removeButton = removeButton;
+        return this;
+    }
+
+    public ConfigEntry<?> rebindResetButton(Button resetOverride) {
+        this.removeChild(this.resetButton);
+        this.addChild(0, resetOverride);
+        this.resetButton = resetOverride;
+        return this;
+    }
+
+    public void removeChild(AbstractWidget widget) {
+        this.children.remove(widget);
+        this.narratables.remove(widget);
+    }
+
     public void addChild(AbstractWidget widget) {
         this.children.add(widget);
         this.narratables.add(widget);
     }
 
+    public void addChild(int index, AbstractWidget widget) {
+        this.children.add(index, widget);
+        this.narratables.add(index, widget);
+    }
+
     public void addChild(BaseEntry entry) {
         this.children.add(entry);
-        this.narratables.add(entry.narratableForm());
+        entry.narratableForm().ifPresent(this.narratables::add);
     }
 
     public ConfigEntry<T> saveOnChange() {
@@ -117,14 +143,23 @@ public abstract class ConfigEntry<T> extends BaseEntry {
         return accept(schema, Optional.ofNullable(value.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), () -> Optional.ofNullable(defaultValue.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), new JsonElement[0], restartRequired, Component.literal(snakeCaseToName(name)), Optional::empty, saveCallback);
     }
 
+    public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, JsonElement value, Supplier<JsonElement> defaultValue, boolean restartRequired, Consumer<JsonElement> saveCallback) {
+        return accept(schema, value, defaultValue, new JsonElement[0], restartRequired, null, Optional::empty, saveCallback);
+    }
+
     public static <T> ConfigEntry<?> accept(Schema<T> schema, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
-        return accept(Either.left(schema), true, false, currentValue, defaultValue, values, restartRequired, name, tooltip, saveCallback);
+        return accept(Either.left(schema), currentValue, defaultValue, values, restartRequired, name, tooltip, saveCallback);
+    }
+
+    public static <T> ConfigEntry<?> accept(Either<Schema<T>, SchemaCodec<T>> schema, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+        return accept(schema, true, false, currentValue, defaultValue, values, restartRequired, name, tooltip, saveCallback);
     }
 
     public static <T> ConfigEntry<?> accept(Either<Schema<T>, SchemaCodec<T>> schema, boolean usesRange, boolean isSlider, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
         return switch (schema.map(Function.identity(), SchemaCodec::schema)) {
             case Schema.Record<T> ignored -> new ObjectEntry<>(schema, currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
             case Schema.Ref<T> ignored -> new ObjectEntry<>(schema, currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
+            case Schema.ListOf<?> list -> new ListEntry<>(list.element(), list.min(), list.max(), currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
             case Schema.Str str -> usesRange ?
                     new StringEntry(mapNullableJsonElement(currentValue, JsonElement::getAsString),
                             () -> mapNullableJsonElement(defaultValue.get(), JsonElement::getAsString),
@@ -270,6 +305,16 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     }
 
     @Override
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
+
+    @Override
+    public boolean isVisible() {
+        return this.visible;
+    }
+
+    @Override
     public void bindOwner(ConfigCategory parent, ConfigScreen owner) {
         this.owningCategory = parent;
         this.owner = owner;
@@ -298,11 +343,16 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     }
 
     @Override
-    public void extractContent(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
+    public void extractContents(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
         int buttonX = getX() + getWidth() - getResetWidth();
         this.resetButton.active = isEditable() && !Objects.equals(this.defaultValue.get(), this.getValue());
         this.resetButton.setPosition(buttonX, getPaddedY());
         this.resetButton.extractRenderState(graphics, mouseX, mouseY, a);
+        if (this.removeButton == null) return;
+        buttonX += this.resetButton.getWidth() + 2;
+        this.removeButton.active = isEditable();
+        this.removeButton.setPosition(buttonX, getPaddedY());
+        this.removeButton.extractRenderState(graphics, mouseX, mouseY, a);
     }
 
     public void extractNameAndTooltip(GuiGraphicsExtractor graphics, boolean hovered, int inset, int mouseX, int mouseY) {
@@ -359,7 +409,7 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     }
 
     public final int getResetWidth() {
-        return 20;
+        return this.resetButton.getWidth() + (this.removeButton != null ? this.removeButton.getWidth() + 2 : 0);
     }
 
     @Override
@@ -399,8 +449,8 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     }
 
     @Override
-    public NarratableEntry narratableForm() {
-        return this.narratableForm;
+    public Optional<NarratableEntry> narratableForm() {
+        return Optional.of(this.narratableForm);
     }
 
     public final class NarratableConfigEntry implements NarratableEntry {

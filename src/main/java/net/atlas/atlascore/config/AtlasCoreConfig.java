@@ -48,6 +48,7 @@ public class AtlasCoreConfig extends AtlasConfig {
     //? <26.1 {
     /*public TagHolder<ItemStack> testItem;
     *///?}
+    public TagHolder<List<Integer>> testColorList;
     public TagHolder<TestClass> testObject;
     public EnumHolder<TestEnum> testEnum;
     public StringHolder testString;
@@ -79,6 +80,8 @@ public class AtlasCoreConfig extends AtlasConfig {
         /*testItem = createCodecBacked("testItem", new ItemStack(Items.APPLE, 18), ItemStack.STRICT_CODEC);
         *///?}
         testItem.tieToCategory(test);
+        testColorList = createCodecBacked("testColorList", List.of(0xFF6633), ColorHolder.STRING_RGB.listOf(1, 3));
+        testColorList.tieToCategory(test);
         testObject = createCodecBacked("testObject", new TestClass("bar", true, 3, 7.0), TestClass.CODEC);
         testObject.tieToCategory(test);
         testEnum = createEnum("testEnum", TestEnum.FOO, TestEnum.class, TestEnum.values(), e -> Component.translatable("text.config.atlas-core-config.option.testEnum." + e.name().toLowerCase(Locale.ROOT)));

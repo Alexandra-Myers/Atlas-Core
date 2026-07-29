@@ -19,6 +19,16 @@ public class FloatRangeEntry extends NumberRangeEntry<Float> {
     }
 
     @Override
+    public Float lowStarting() {
+        return Math.max(0, this.min);
+    }
+
+    @Override
+    public Float highStarting() {
+        return Math.min(0, this.max);
+    }
+
+    @Override
     public void increment() {
         this.value++;
     }

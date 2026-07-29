@@ -1,13 +1,10 @@
 package net.atlas.atlascore.client.gui.entry;
 
-import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.client.gui.ConfigCategory;
 import net.atlas.atlascore.client.gui.ConfigScreen;
-import net.atlas.atlascore.util.ClientUtils;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.SpriteIconButton;
-import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -20,9 +17,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import static net.atlas.atlascore.client.gui.entry.ListEntry.ADD_BUTTON;
+import static net.atlas.atlascore.client.gui.entry.ListEntry.ADD_ENTRY;
+
 public class UnboundConfigEntry extends BaseEntry {
-    public static final WidgetSprites ADD_BUTTON = ClientUtils.buildNoFocusedDisabled(AtlasCore.id("widget/config_add_entry"));
-    public static final Component ADD_ENTRY = Component.translatableWithFallback("text.config.add_entry", "Add Entry");
     public final Supplier<ConfigEntry<?>> entrySupplier;
     public final Button createButton;
     public final NarratableUnboundConfigEntry narratableForm;
@@ -63,6 +61,18 @@ public class UnboundConfigEntry extends BaseEntry {
     }
 
     @Override
+    public void setVisible(boolean visible) {
+        if (!visible) this.createButton.visible = false;
+        else this.createButton.visible = this.entry == null;
+        if (this.entry != null) this.entry.setVisible(visible);
+    }
+
+    @Override
+    public boolean isVisible() {
+        return this.entry == null ? this.createButton.visible : this.entry.isVisible();
+    }
+
+    @Override
     public boolean isChanged() {
         return this.entry != null && this.entry.isChanged();
     }
@@ -78,13 +88,13 @@ public class UnboundConfigEntry extends BaseEntry {
     }
 
     @Override
-    public NarratableEntry narratableForm() {
-        return this.narratableForm;
+    public Optional<NarratableEntry> narratableForm() {
+        return Optional.ofNullable(this.narratableForm);
     }
 
     @Override
-    public void extractContent(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
-        this.createButton.setPosition(this.getX(), this.getY());
+    public void extractContents(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
+        this.createButton.setPosition(this.getX() + 10, this.getY());
         this.createButton.extractRenderState(graphics, mouseX, mouseY, a);
         if (this.entry != null) {
             this.entry.setPosition(this.getX(), this.getY());

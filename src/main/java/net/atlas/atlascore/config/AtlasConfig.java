@@ -1239,9 +1239,9 @@ public abstract class AtlasConfig {
         }
 	}
     public static class ColorHolder extends ConfigHolder<Integer> {
-        private static final Codec<Integer> STRING_RGB = SchemaCodec.of(Codec.STRING.validate(s -> stripHexStarter(s).length() > 6 ? DataResult.error(() -> "Input too long to be a valid color hex: " + s) : DataResult.success(s))
+        public static final Codec<Integer> STRING_RGB = SchemaCodec.of(Codec.STRING.validate(s -> stripHexStarter(s).length() > 6 ? DataResult.error(() -> "Input too long to be a valid color hex: " + s) : DataResult.success(s))
                     .xmap(s -> getColor(s, null, false), integer -> toColorHex(false, integer)), new Schema.Color(false, true));
-        private static final Codec<Integer> STRING_ARGB = SchemaCodec.of(Codec.STRING.validate(s -> stripHexStarter(s).length() > 8 ? DataResult.error(() -> "Input too long to be a valid color hex: " + s) : DataResult.success(s))
+        public static final Codec<Integer> STRING_ARGB = SchemaCodec.of(Codec.STRING.validate(s -> stripHexStarter(s).length() > 8 ? DataResult.error(() -> "Input too long to be a valid color hex: " + s) : DataResult.success(s))
                 .xmap(s -> getColor(s, null, true), integer -> toColorHex(true, integer)), new Schema.Color(true, true));
         private final boolean hasAlpha;
 
