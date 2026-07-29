@@ -138,7 +138,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
         };
         BaseEntry ret = source == schema ? new UnboundConfigEntry(supplier) : supplier.get();
         ret.setX(this.getX() + 10);
-        ret.setVisible(this.isVisible());
+        ret.setVisible(this.expanded);
         return ret;
     }
 

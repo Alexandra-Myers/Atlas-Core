@@ -144,7 +144,7 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     }
 
     public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String translationKey, String name, boolean restartRequired, JsonElement value, JsonElement defaultValue, Consumer<JsonElement> saveCallback) {
-        return accept(schema, translationKey, Optional.ofNullable(defaultValue.isJsonNull() ? null : value.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), () -> Optional.ofNullable(defaultValue.isJsonNull() ? null : defaultValue.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), new JsonElement[0], restartRequired, Component.literal(convertToName(name)), Optional::empty, saveCallback);
+        return accept(schema, translationKey, Optional.ofNullable(defaultValue.isJsonNull() ? null : value.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), () -> Optional.ofNullable(defaultValue.isJsonNull() ? null : defaultValue.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), new JsonElement[0], restartRequired, Component.translatableWithFallback(translationKey, convertToName(name)), Optional::empty, saveCallback);
     }
 
     public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String translationKey, JsonElement value, Supplier<JsonElement> defaultValue, boolean restartRequired, Consumer<JsonElement> saveCallback) {
