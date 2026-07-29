@@ -141,7 +141,7 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
     @Override
     public void setPosition(int x, int y) {
         super.setPosition(x, y);
-        this.repositionEntries();
+        this.atlas_core$repositionEntries();
     }
 
     public void runXPosRestoringOperation(Runnable runnable) {
@@ -150,7 +150,7 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
 //        originalXs.forEach(pair -> pair.getFirst().setX(pair.getSecond()));
     }
 
-    public void repositionEntries() {
+    public void atlas_core$repositionEntries() {
         int y = this.getY() + 2 - (int)this.scrollAmount();
 
         for(BaseEntry child : this.children()) {

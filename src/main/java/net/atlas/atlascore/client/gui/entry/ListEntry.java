@@ -141,7 +141,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
         this.expandButton.visible = !this.expandButton.visible;
         this.collapseButton.visible = !this.collapseButton.visible;
         this.subEntries.forEach(baseEntry -> baseEntry.setVisible(this.expanded));
-        this.owningCategory.repositionEntries();
+        this.owningCategory.atlas_core$repositionEntries();
     }
 
     @Override

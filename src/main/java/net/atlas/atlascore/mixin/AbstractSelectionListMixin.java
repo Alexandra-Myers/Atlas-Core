@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.Mixin;
 public class AbstractSelectionListMixin {
     @WrapMethod(method = "repositionEntries")
     public void repositionEntries(Operation<Void> original) {
-        if (AbstractSelectionList.class.cast(this) instanceof ConfigCategory category) category.repositionEntries();
+        if (AbstractSelectionList.class.cast(this) instanceof ConfigCategory category) category.atlas_core$repositionEntries();
         else original.call();
     }
 }
