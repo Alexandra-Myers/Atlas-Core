@@ -13,7 +13,7 @@ import net.minecraft.util.Mth;
 import java.util.List;
 
 public class CategorySwitcher extends AbstractContainerWidget {
-    private static final int MAX_VISIBLE = 7;
+    private static final int MAX_VISIBLE = 8;
     public static final WidgetSprites LEFT_SPRITE = ClientUtils.buildNoFocusedDisabled(AtlasCore.id("widget/config_shift_left"));
     public static final WidgetSprites RIGHT_SPRITE = ClientUtils.buildNoFocusedDisabled(AtlasCore.id("widget/config_shift_right"));
     public static final Component LEFT = Component.translatableWithFallback("text.config.shift_left", "Shift Left");
@@ -58,9 +58,7 @@ public class CategorySwitcher extends AbstractContainerWidget {
     private void setCurrentIndex(int index) {
         this.currentIndex = Mth.clamp(index, 0, this.categories.size());
         for (int i = 0; i < this.categories.size(); i++) {
-            if (i < this.currentIndex || !(i < this.currentIndex + this.visibleCount)) {
-                this.categories.get(i).active = false;
-            }
+            this.categories.get(i).active = i >= this.currentIndex && i < this.currentIndex + this.visibleCount;
         }
     }
 
