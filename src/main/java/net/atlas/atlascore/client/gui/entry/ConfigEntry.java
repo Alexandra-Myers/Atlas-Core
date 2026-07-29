@@ -156,7 +156,6 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     }
 
     public static <T> ConfigEntry<?> accept(Either<Schema<T>, SchemaCodec<T>> schema, String translationKey, boolean usesRange, boolean isSlider, boolean isRawString, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
-        AtlasCore.LOGGER.info("Schema for " + translationKey + ": " + schema.map(Function.identity(), SchemaCodec::schema));
         return switch (schema.map(Function.identity(), SchemaCodec::schema)) {
             case Schema.Record<T> ignored -> new ObjectEntry<>(schema, translationKey, currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
             case Schema.Ref<T> ignored -> new ObjectEntry<>(schema, translationKey, currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);

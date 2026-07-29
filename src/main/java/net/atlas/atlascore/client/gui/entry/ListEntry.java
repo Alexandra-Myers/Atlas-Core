@@ -9,7 +9,6 @@ import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.client.gui.ConfigCategory;
 import net.atlas.atlascore.client.gui.ConfigScreen;
 import net.atlas.atlascore.util.ClientUtils;
-import net.mehvahdjukaar.codecui.CodecUI;
 import net.mehvahdjukaar.codecui.Schema;
 import net.mehvahdjukaar.codecui.SchemaCodec;
 import net.mehvahdjukaar.codecui.SchemaContext;
@@ -83,7 +82,6 @@ public class ListEntry<T, A> extends ConfigEntry<JsonElement> {
                     .map(resolvedDefaultEntries -> finalIndex >= resolvedDefaultEntries.size() ? JsonNull.INSTANCE :
                             resolvedDefaultEntries.get(finalIndex))
                     .orElse(JsonNull.INSTANCE);
-            AtlasCore.LOGGER.info("Current Value: " + CodecUI.GSON.toJson(currentEntry) + " Default Value: " + CodecUI.GSON.toJson(defaultEntry));
             boolean isUnderTargetSize = i < minSize;
             if (!currentEntry.isJsonNull() || isUnderTargetSize) {
                 this.subEntries.add(createConfigEntry(i + 1, currentEntry, defaultEntry));

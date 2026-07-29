@@ -411,7 +411,6 @@ public abstract class AtlasConfig {
     }
     public DoubleHolder createInRange(String name, double defaultVal, double min, double max, SyncMode syncMode) {
         Double[] range = new Double[]{min, max};
-        AtlasCore.LOGGER.info("Range: " + Arrays.toString(range));
         return createDouble(name, defaultVal, range, true, syncMode);
     }
     public DoubleHolder createDouble(String name, Double defaultVal, Double[] values, boolean isRange, SyncMode syncMode) {

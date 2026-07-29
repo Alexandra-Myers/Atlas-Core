@@ -30,12 +30,12 @@ public class DoubleRangeEntry extends NumberRangeEntry<Double> {
 
     @Override
     public void increment() {
-        this.value++;
+        this.value = Math.min(this.value + 1, this.max);
     }
 
     @Override
     public void decrement() {
-        this.value--;
+        this.value = Math.min(this.value - 1, this.max);
     }
 
     @Override
