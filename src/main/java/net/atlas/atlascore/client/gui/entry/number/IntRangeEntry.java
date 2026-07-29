@@ -40,7 +40,7 @@ public class IntRangeEntry extends NumberRangeEntry<Integer> {
 
     @Override
     public void decrement() {
-        this.value = Math.min(this.value - 1, this.max);
+        this.value = Math.max(this.value - 1, this.min);
     }
 
     @Override
