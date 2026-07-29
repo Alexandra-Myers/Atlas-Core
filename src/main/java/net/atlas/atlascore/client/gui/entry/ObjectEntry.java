@@ -82,6 +82,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
         }
         this.bindRawExtraToValue();
         this.subEntries.add(new SeparatorEntry(this.expanded, 10, this.getX()));
+        AtlasCore.LOGGER.info("Sub entries for : " + translationKey + ": " + this.subEntries.size());
         if (this.expanded) this.expandButton.visible = false;
         else this.collapseButton.visible = false;
     }
@@ -102,7 +103,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
     @Override
     public void bindOwner(ConfigCategory parent, ConfigScreen owner) {
         super.bindOwner(parent, owner);
-        this.subEntries.forEach(parent::addEntry);
+        parent.addEntriesAfter(this, this.subEntries);
     }
 
     public void bindRecordField(Schema.Field<?, ?> field, Schema<T> schema) {
@@ -202,6 +203,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
 
     @Override
     public Optional<Component> error() {
+        if (!this.getValue().isJsonObject()) return Optional.of(Component.literal("Not a JSON object: " + this.getValue()));
         return this.schema.right().map(codec -> {
             DynamicOps<JsonElement> ops = SchemaContext.getRegistries().createSerializationContext(JsonOps.INSTANCE);
             return codec.parse(ops, this.getValue());

@@ -27,9 +27,30 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
     public void addEntryBefore(BaseEntry target, BaseEntry entry) {
         int index = this.children().indexOf(target);
         double scrollFromBottom = (double)this.maxScrollAmount() - this.scrollAmount();
+        insertEntry(index, entry);
+        this.setScrollAmount((double)this.maxScrollAmount() - scrollFromBottom);
+    }
+
+    public void addEntriesAfter(BaseEntry target, List<BaseEntry> entry) {
+        int index = this.children().indexOf(target);
+        double scrollFromBottom = (double)this.maxScrollAmount() - this.scrollAmount();
+        for (BaseEntry child : entry) {
+            insertEntry(index, child);
+            index++;
+        }
+        this.setScrollAmount((double)this.maxScrollAmount() - scrollFromBottom);
+    }
+
+    public void addEntryAfter(BaseEntry target, BaseEntry entry) {
+        int index = this.children().indexOf(target);
+        double scrollFromBottom = (double)this.maxScrollAmount() - this.scrollAmount();
+        insertEntry(index + 1, entry);
+        this.setScrollAmount((double)this.maxScrollAmount() - scrollFromBottom);
+    }
+
+    private void insertEntry(int index, BaseEntry entry) {
         //noinspection unchecked
         ((AbstractSelectionListAccessor<BaseEntry>)this).getChildren().add(index, entry);
-        this.setScrollAmount((double)this.maxScrollAmount() - scrollFromBottom);
         entry.bindOwner(this, this.parent);
     }
 

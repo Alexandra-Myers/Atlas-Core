@@ -123,13 +123,21 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
     @Override
     public void resetValue() {
         super.resetValue();
+        int lastIndex = this.subEntries.indexOf(this.addEntry);
+        for (int i = 0; i < lastIndex; i++) {
+            if (i >= enforceJsonArray(this.getValue()).size() && i >= this.minSize) {
+                this.subEntries.remove(i);
+                i--;
+                lastIndex--;
+            }
+        }
         this.subEntries.forEach(BaseEntry::resetValueSafe);
     }
 
     @Override
     public void bindOwner(ConfigCategory parent, ConfigScreen owner) {
         super.bindOwner(parent, owner);
-        this.subEntries.forEach(parent::addEntry);
+        parent.addEntriesAfter(this, this.subEntries);
     }
 
     @Override
@@ -164,6 +172,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
 
     @Override
     public Optional<Component> error() {
+        if (!this.getValue().isJsonArray()) return Optional.of(Component.literal("Not a JSON array: " + this.getValue()));
         return this.subEntries.stream()
                 .map(BaseEntry::error)
                 .flatMap(Optional::stream)
