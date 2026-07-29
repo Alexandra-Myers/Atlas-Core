@@ -85,7 +85,7 @@ public class ListEntry<T, A> extends ConfigEntry<JsonElement> {
             boolean isUnderTargetSize = i < minSize;
             if (!currentEntry.isJsonNull() || isUnderTargetSize) {
                 this.subEntries.add(createConfigEntry(i + 1, currentEntry, defaultEntry));
-                if (isUnderTargetSize) currentEntries.add(currentEntry);
+                if (currentEntry.isJsonNull()) currentEntries.add(currentEntry);
             }
         }
         return currentEntries;
