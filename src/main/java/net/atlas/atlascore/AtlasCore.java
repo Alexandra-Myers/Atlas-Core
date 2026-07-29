@@ -23,7 +23,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.network.ConfigurationTask;
 import org.apache.logging.log4j.LogManager;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -111,7 +111,7 @@ public class AtlasCore {
         }
 
         @Override
-        public @NotNull Type<? extends CustomPacketPayload> type() {
+        public @NonNull Type<? extends CustomPacketPayload> type() {
             return TYPE;
         }
     }
@@ -129,7 +129,7 @@ public class AtlasCore {
         }
 
         @Override
-        public @NotNull Type<? extends CustomPacketPayload> type() {
+        public @NonNull Type<? extends CustomPacketPayload> type() {
             return TYPE;
         }
     }
@@ -143,7 +143,7 @@ public class AtlasCore {
         }
 
         @Override
-        public @NotNull Type type() {
+        public @NonNull Type type() {
             return TYPE;
         }
     }
@@ -170,7 +170,7 @@ public class AtlasCore {
          * @return the type of this packet
          */
         @Override
-        public @NotNull Type<?> type() {
+        public @NonNull Type<?> type() {
             return TYPE;
         }
     }
@@ -196,7 +196,7 @@ public class AtlasCore {
          * @return the type of this packet
          */
         @Override
-        public @NotNull Type<?> type() {
+        public @NonNull Type<?> type() {
             return TYPE;
         }
     }

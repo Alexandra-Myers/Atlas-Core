@@ -4,8 +4,8 @@ import com.google.gson.JsonObject;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.atlas.atlascore.AtlasCore;
-//? fabric {
 import net.atlas.atlascore.config.fixer.ConfigFixer;
+//? fabric {
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 //?}
@@ -24,7 +24,7 @@ import net.minecraft.world.item.ItemStackTemplate;
 *///?}
 import net.minecraft.world.item.Items;
 
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.*;
 
@@ -105,7 +105,7 @@ public class AtlasCoreConfig extends AtlasConfig {
     }
 
     @Override
-    public @NotNull List<Category> createCategories() {
+    public @NonNull List<Category> createCategories() {
         List<Category> categoryList = super.createCategories();
         test = new Category(this, "test_options", new ArrayList<>());
         formatting = new Category(this, "text_formatting", new ArrayList<>());

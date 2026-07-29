@@ -23,7 +23,8 @@ import static net.atlas.atlascore.client.gui.entry.EnumEntry.snakeCaseToName;
 public class ConfigScreen extends Screen {
     private static final Component SAVE_AND_EXIT = Component.translatableWithFallback("text.config.save_and_exit", "Save & Exit");
     private static final Component EXIT_WITHOUT_SAVING = Component.translatableWithFallback("text.config.exit_without_saving", "Exit without Saving");
-    private final HeaderAndFooterLayout layout = new HeaderAndFooterLayout(this, 33, 64);
+    @SuppressWarnings("FieldCanBeLocal")
+    private /*? >=26.2 {*//*final*//*?}*/ HeaderAndFooterLayout layout = new HeaderAndFooterLayout(this, 33, 64);
     private final Screen lastScreen;
     private final AtlasConfig config;
     private final List<ConfigCategory> categories = new ArrayList<>();
@@ -38,7 +39,10 @@ public class ConfigScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        this.layout.removeChildren();
+        //? >=26.2
+        //this.layout.removeChildren();
+        //? <26.2
+        this.layout = new HeaderAndFooterLayout(this, 33, 64);
         this.layout.addTitleHeader(this.title, this.font);
         this.categories.clear();
         LinearLayout footer = this.layout.addToFooter(LinearLayout.vertical().spacing(4));

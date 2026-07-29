@@ -59,7 +59,7 @@ import net.neoforged.fml.loading.FMLEnvironment;
 *///?}
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.io.*;
 import java.lang.reflect.Field;
@@ -156,7 +156,7 @@ public abstract class AtlasConfig {
         }).toList();
     }
 
-	public @NotNull List<Category> createCategories() {
+	public @NonNull List<Category> createCategories() {
 		return new ArrayList<>();
 	}
 
@@ -1392,13 +1392,13 @@ public abstract class AtlasConfig {
             }
             if (isMismatched.get()) {
                 //? >=26.2 {
-                context.client().showDebugChat(Component.translatable("text.config.command.mismatch.0"));
+                /*context.client().showDebugChat(Component.translatable("text.config.command.mismatch.0"));
                 context.client().showDebugChat(Component.translatable("text.config.command.mismatch.1"));
-                //?}
-                //? <26.2 {
-                /*context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch.0"), false);
-                context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch.1"), false);
                 *///?}
+                //? <26.2 {
+                context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch.0"), false);
+                context.client().getChatListener().handleSystemMessage(Component.translatable("text.config.command.mismatch.1"), false);
+                //?}
             }
         }
         packet.config().handleExtraSync(packet, context);

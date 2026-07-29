@@ -184,7 +184,7 @@ neoForge {
 dependencies {
     if (hasProperty("deps.forgified-fabric-loader")) compileOnly("org.sinytra:forgified-fabric-loader:${property("deps.forgified-fabric-loader")}")
     implementation("org.sinytra.forgified-fabric-api:forgified-fabric-api:${property("deps.forgified-fabric-api")}")
-    api("me.shedaniel.cloth:cloth-config-neoforge:${property("deps.cloth-config")}")
+    compileOnly("me.shedaniel.cloth:cloth-config-neoforge:${property("deps.cloth-config")}")
     if (hasProperty("deps.codec_ui_version")) {
         implementation("net.mehvahdjukaar:codecui-neoforge:${property("deps.codec_ui_version")}")
         jarJar("net.mehvahdjukaar:codecui-neoforge:${property("deps.codec_ui_version")}")

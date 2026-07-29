@@ -180,7 +180,7 @@ dependencies {
         implementation("io.github.llamalad7:mixinextras-forge:${property("deps.mixinextras")}")
     }
     implementation("org.sinytra.forgified-fabric-api:forgified-fabric-api:${property("deps.forgified-fabric-api")}")
-    api("me.shedaniel.cloth:cloth-config-forge:${property("deps.cloth-config")}")
+    compileOnly("me.shedaniel.cloth:cloth-config-forge:${property("deps.cloth-config")}")
 }
 
 

@@ -166,7 +166,7 @@ dependencies {
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric-loader")}")
     modImplementation("net.fabricmc.fabric-api:fabric-api:${property("deps.fabric-api")}")
     modImplementation("com.terraformersmc:modmenu:${property("deps.modmenu")}")
-    modApi("me.shedaniel.cloth:cloth-config-fabric:${property("deps.cloth-config")}")
+    modCompileOnly("me.shedaniel.cloth:cloth-config-fabric:${property("deps.cloth-config")}")
     if (hasProperty("deps.codec_ui_version")) {
         modImplementation("net.mehvahdjukaar:codecui-fabric:${property("deps.codec_ui_version")}")
         include("net.mehvahdjukaar:codecui-fabric:${property("deps.codec_ui_version")}")

@@ -26,7 +26,7 @@ public class CategorySwitcher extends AbstractContainerWidget {
     private int currentIndex = 0;
 
     public CategorySwitcher(ConfigScreen screen, List<ConfigCategory> categories) {
-        super(0, 38, screen.width, 20, Component.empty());
+        super(0, 38, screen.width, 20, Component.empty()/*? <26.2 {*/, AbstractScrollArea.defaultSettings(0)/*?}*/);
         int buttonsWidth = screen.width - 20;
         this.visibleCount = Math.max(Math.min(categories.size(), MAX_VISIBLE), 1);
         this.left = SpriteIconButton.builder(LEFT,

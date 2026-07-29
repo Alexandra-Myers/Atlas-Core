@@ -4,8 +4,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.atlas.atlascore.config.AtlasConfig;
 import org.apache.commons.lang3.mutable.MutableBoolean;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +17,7 @@ public class ConfigHolderFixer<T> {
     public ConfigHolderFixer(AtlasConfig.ConfigHolder<T> owner) {
         this.owner = owner;
     }
-    final void fix(@Nullable JsonObject holderRootObject, @NotNull JsonObject configRootObject, MutableBoolean dirty) {
+    final void fix(@Nullable JsonObject holderRootObject, @NonNull JsonObject configRootObject, MutableBoolean dirty) {
         JsonElement value = null;
         boolean readFromRoot = false;
         if (holderRootObject != null && holderRootObject.has(owner.getName())) value = holderRootObject.get(owner.getName());
@@ -36,7 +36,7 @@ public class ConfigHolderFixer<T> {
         }
     }
 
-    public JsonElement fixData(@Nullable JsonElement value, @Nullable JsonObject holderRootObject, @NotNull JsonObject configRootObject) {
+    public JsonElement fixData(@Nullable JsonElement value, @Nullable JsonObject holderRootObject, @NonNull JsonObject configRootObject) {
         if (value == null) {
             for (String oldCategory : pastCategories) {
                 if (!configRootObject.has(oldCategory)) continue;
