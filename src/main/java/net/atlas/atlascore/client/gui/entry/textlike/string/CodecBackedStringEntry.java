@@ -32,7 +32,13 @@ public class CodecBackedStringEntry<T> extends StringEntry {
         return this.schema.right().map(codec -> {
             DynamicOps<JsonElement> ops = SchemaContext.getRegistries().createSerializationContext(JsonOps.INSTANCE);
             JsonReader reader = CodecUI.GSON.newJsonReader(new StringReader(this.getValue()));
-            return codec.parse(ops, JsonParser.parseReader(reader));
+            JsonElement read;
+            try {
+                read = JsonParser.parseReader(reader);
+            } catch (Exception e) {
+                return DataResult.error(e::toString);
+            }
+            return codec.parse(ops, read);
         }).flatMap(DataResult::error)
                 .<Component>map(e -> Component.literal("Invalid input: " + e)).or(super::error);
     }

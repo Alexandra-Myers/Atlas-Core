@@ -2,7 +2,9 @@ package net.atlas.atlascore.client.gui.entry;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.google.gson.stream.JsonReader;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
@@ -19,6 +21,7 @@ import net.atlas.atlascore.client.gui.entry.textlike.string.CodecBackedStringEnt
 import net.atlas.atlascore.client.gui.entry.textlike.string.StringEntry;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.util.ClientUtils;
+import net.mehvahdjukaar.codecui.CodecUI;
 import net.mehvahdjukaar.codecui.Schema;
 import net.mehvahdjukaar.codecui.SchemaCodec;
 import net.mehvahdjukaar.codecui.SchemaContext;
@@ -34,6 +37,7 @@ import net.minecraft.network.chat.MutableComponent;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.io.StringReader;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -267,15 +271,24 @@ public abstract class ConfigEntry<T> extends BaseEntry {
                             tooltip,
                             input -> saveCallback.accept(new JsonPrimitive(input)));
             case null, default -> new CodecBackedStringEntry<>(schema,
-                    mapNullableJsonElement(currentValue, JsonElement::getAsString),
-                    () -> mapNullableJsonElement(defaultValue.get(), JsonElement::getAsString),
+                    mapNullableJsonElement(currentValue, CodecUI.GSON::toJson),
+                    () -> mapNullableJsonElement(defaultValue.get(), CodecUI.GSON::toJson),
                     0,
                     Integer.MAX_VALUE,
                     null,
                     restartRequired,
                     name,
                     tooltip,
-                    input -> saveCallback.accept(new JsonPrimitive(input)));
+                    input -> {
+                        JsonReader reader = CodecUI.GSON.newJsonReader(new StringReader(input));
+                        JsonElement read;
+                        try {
+                            read = JsonParser.parseReader(reader);
+                        } catch (Exception e) {
+                            return;
+                        }
+                        saveCallback.accept(read);
+                    });
         };
     }
 
