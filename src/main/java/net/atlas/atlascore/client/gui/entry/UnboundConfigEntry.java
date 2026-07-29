@@ -46,8 +46,9 @@ public class UnboundConfigEntry extends BaseEntry {
     }
 
     @Override
-    public void bindOwner(ConfigCategory parent, ConfigScreen owner) {
+    public int bindOwner(ConfigCategory parent, ConfigScreen owner) {
         this.owner = owner;
+        return 1;
     }
 
     @Override

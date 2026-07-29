@@ -14,15 +14,19 @@ import java.util.Optional;
 public class SeparatorEntry extends BaseEntry {
     public final int inset;
     public boolean visible;
+    public SeparatorEntry(boolean visible, int x) {
+        this(visible, 7, x);
+    }
     public SeparatorEntry(boolean visible, int inset, int x) {
         this.visible = visible;
         this.inset = inset;
         this.setX(x);
     }
     @Override
-    public void bindOwner(ConfigCategory parent, ConfigScreen owner) {
+    public int bindOwner(ConfigCategory parent, ConfigScreen owner) {
         this.setWidth(parent.getWidth() - (this.inset * 2) - getX());
         this.setHeight(5);
+        return 1;
     }
 
     @Override

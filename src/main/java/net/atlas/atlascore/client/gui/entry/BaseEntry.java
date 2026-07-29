@@ -11,7 +11,7 @@ import org.jspecify.annotations.NonNull;
 import java.util.Optional;
 
 public abstract class BaseEntry extends ContainerObjectSelectionList.Entry<BaseEntry> {
-    public abstract void bindOwner(ConfigCategory parent, ConfigScreen owner);
+    public abstract int bindOwner(ConfigCategory parent, ConfigScreen owner);
     public abstract void setEditable(boolean editable);
     public abstract void resetValueSafe();
     public abstract void setVisible(boolean visible);

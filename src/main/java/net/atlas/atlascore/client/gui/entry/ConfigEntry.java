@@ -329,9 +329,10 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     }
 
     @Override
-    public void bindOwner(ConfigCategory parent, ConfigScreen owner) {
+    public int bindOwner(ConfigCategory parent, ConfigScreen owner) {
         this.owningCategory = parent;
         this.owner = owner;
+        return 1;
     }
 
     public void setServerManaged(boolean serverManaged) {

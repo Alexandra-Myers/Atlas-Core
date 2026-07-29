@@ -67,7 +67,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
         this.addChild(this.rawExtra);
         this.addChild(this.expandButton);
         this.addChild(this.collapseButton);
-        this.subEntries.add(new SeparatorEntry(this.expanded, 10, this.getX()));
+        this.subEntries.add(new SeparatorEntry(this.expanded, this.getX()));
         switch (this.schema.map(Function.identity(), SchemaCodec::schema)) {
             case Schema.Record<T> record -> record.fields().forEach(field -> this.bindRecordField(field, record));
             case Schema.Ref<T> recursive -> {
@@ -81,8 +81,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
             default -> {}
         }
         this.bindRawExtraToValue();
-        this.subEntries.add(new SeparatorEntry(this.expanded, 10, this.getX()));
-        AtlasCore.LOGGER.info("Sub entries for : " + translationKey + ": " + this.subEntries.size());
+        this.subEntries.add(new SeparatorEntry(this.expanded, this.getX()));
         if (this.expanded) this.expandButton.visible = false;
         else this.collapseButton.visible = false;
     }
@@ -101,9 +100,11 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
     }
 
     @Override
-    public void bindOwner(ConfigCategory parent, ConfigScreen owner) {
-        super.bindOwner(parent, owner);
+    public int bindOwner(ConfigCategory parent, ConfigScreen owner) {
+        int indices = super.bindOwner(parent, owner);
         parent.addEntriesAfter(this, this.subEntries);
+        indices += this.subEntries.size();
+        return indices;
     }
 
     public void bindRecordField(Schema.Field<?, ?> field, Schema<T> schema) {
@@ -134,7 +135,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
                 else result.add(fieldName, encoded);
                 this.setValue(result);
             }).saveOnChange();
-            ret.bindOwner(this.owningCategory, this.owner);
+            if (this.owningCategory != null) this.owningCategory.addEntryAfter(this.subEntries.get(this.subEntries.size() - 2), ret);
             return ret;
         };
         BaseEntry ret = source == schema ? new UnboundConfigEntry(supplier) : supplier.get();

@@ -54,7 +54,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
                 .size(10, 10).build();
         this.addChild(this.expandButton);
         this.addChild(this.collapseButton);
-        this.subEntries.add(new SeparatorEntry(this.expanded, 10, this.getX()));
+        this.subEntries.add(new SeparatorEntry(this.expanded, this.getX()));
         if (!currentValue.isJsonNull()) {
             JsonArray currentEntries = currentValue.getAsJsonArray();
             Optional<JsonArray> defaultEntries = Optional.of(defaultValue.get())
@@ -77,7 +77,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
         }
         this.addEntry = new ListAddEntry();
         this.subEntries.add(this.addEntry);
-        this.subEntries.add(new SeparatorEntry(this.expanded, 10, this.getX()));
+        this.subEntries.add(new SeparatorEntry(this.expanded, this.getX()));
         if (this.expanded) this.expandButton.visible = false;
         else this.collapseButton.visible = false;
     }
@@ -99,7 +99,6 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
             result.set(index - 1, encoded);
             this.setValue(result);
         }).saveOnChange();
-        if (this.owningCategory != null) ret.bindOwner(this.owningCategory, this.owner);
         Button removeButton = SpriteIconButton.builder(REMOVE_ENTRY, button -> {
                     if (this.subEntries.size() - 3 == this.minSize) return;
                     BaseEntry removed = this.subEntries.remove(index);
@@ -135,9 +134,11 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
     }
 
     @Override
-    public void bindOwner(ConfigCategory parent, ConfigScreen owner) {
-        super.bindOwner(parent, owner);
+    public int bindOwner(ConfigCategory parent, ConfigScreen owner) {
+        int indices = super.bindOwner(parent, owner);
         parent.addEntriesAfter(this, this.subEntries);
+        indices += this.subEntries.size();
+        return indices;
     }
 
     @Override
@@ -190,8 +191,8 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
             this.setX(ListEntry.this.getX() + 10);
         }
         @Override
-        public void bindOwner(ConfigCategory parent, ConfigScreen owner) {
-
+        public int bindOwner(ConfigCategory parent, ConfigScreen owner) {
+            return 1;
         }
 
         @Override
