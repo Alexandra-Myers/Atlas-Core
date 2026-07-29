@@ -32,7 +32,7 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
     }
 
     public void addEntriesAfter(BaseEntry target, List<BaseEntry> entry) {
-        int index = this.children().indexOf(target);
+        int index = this.children().indexOf(target) + 1;
         double scrollFromBottom = (double)this.maxScrollAmount() - this.scrollAmount();
         for (BaseEntry child : entry) {
             insertEntry(index, child);
