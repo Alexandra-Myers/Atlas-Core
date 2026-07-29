@@ -1,11 +1,11 @@
 package net.atlas.atlascore.client.gui.entry;
 
-import com.google.common.base.Suppliers;
 import com.google.gson.*;
 import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.client.gui.ConfigCategory;
 import net.atlas.atlascore.client.gui.ConfigScreen;
 import net.atlas.atlascore.util.ClientUtils;
+import net.mehvahdjukaar.codecui.CodecUI;
 import net.mehvahdjukaar.codecui.Schema;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -55,31 +55,34 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
         this.addChild(this.expandButton);
         this.addChild(this.collapseButton);
         this.subEntries.add(new SeparatorEntry(this.expanded, this.getX()));
-        if (!currentValue.isJsonNull()) {
-            JsonArray currentEntries = currentValue.getAsJsonArray();
-            Optional<JsonArray> defaultEntries = Optional.of(defaultValue.get())
-                    .filter(JsonElement::isJsonArray)
-                    .map(JsonElement::getAsJsonArray);
-            Supplier<JsonArray> addTo = Suppliers.memoize(currentEntries::deepCopy);
-            for (int i = 0; i < Math.max(minSize, Math.max(defaultEntries.map(JsonArray::size).orElse(-1), currentEntries.size())); i++) {
-                JsonElement currentEntry = i >= currentEntries.size() ? JsonNull.INSTANCE : currentEntries.get(i);
-                int finalIndex = i;
-                JsonElement defaultEntry = defaultEntries
-                        .map(resolvedDefaultEntries -> finalIndex >= resolvedDefaultEntries.size() ? JsonNull.INSTANCE :
-                                resolvedDefaultEntries.get(finalIndex))
-                        .orElse(JsonNull.INSTANCE);
-                boolean isUnderTargetSize = i < minSize;
-                if (!currentEntry.isJsonNull() || isUnderTargetSize) {
-                    this.subEntries.add(createConfigEntry(i + 1, currentEntry, defaultEntry));
-                    if (isUnderTargetSize) addTo.get().add(currentEntry);
-                }
-            }
-        }
+        this.setInitialValue(wrapInputValue(currentValue));
         this.addEntry = new ListAddEntry();
         this.subEntries.add(this.addEntry);
         this.subEntries.add(new SeparatorEntry(this.expanded, this.getX()));
         if (this.expanded) this.expandButton.visible = false;
         else this.collapseButton.visible = false;
+    }
+
+    public JsonElement wrapInputValue(JsonElement value) {
+        JsonArray currentEntries = enforceJsonArray(value);
+        Optional<JsonArray> defaultEntries = Optional.of(this.defaultValue.get())
+                .filter(JsonElement::isJsonArray)
+                .map(JsonElement::getAsJsonArray);
+        for (int i = 0; i < Math.max(minSize, Math.max(defaultEntries.map(JsonArray::size).orElse(-1), currentEntries.size())); i++) {
+            JsonElement currentEntry = i >= currentEntries.size() ? JsonNull.INSTANCE : currentEntries.get(i);
+            int finalIndex = i;
+            JsonElement defaultEntry = defaultEntries
+                    .map(resolvedDefaultEntries -> finalIndex >= resolvedDefaultEntries.size() ? JsonNull.INSTANCE :
+                            resolvedDefaultEntries.get(finalIndex))
+                    .orElse(JsonNull.INSTANCE);
+            AtlasCore.LOGGER.info("Current Value: " + CodecUI.GSON.toJson(currentEntry) + " Default Value: " + CodecUI.GSON.toJson(defaultEntry));
+            boolean isUnderTargetSize = i < minSize;
+            if (!currentEntry.isJsonNull() || isUnderTargetSize) {
+                this.subEntries.add(createConfigEntry(i + 1, currentEntry, defaultEntry));
+                if (isUnderTargetSize) currentEntries.add(currentEntry);
+            }
+        }
+        return currentEntries;
     }
 
     public void addSubEntry() {
@@ -101,9 +104,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
         }).saveOnChange();
         Button removeButton = SpriteIconButton.builder(REMOVE_ENTRY, button -> {
                     if (this.subEntries.size() - 3 == this.minSize) return;
-                    BaseEntry removed = this.subEntries.remove(index);
-                    if (this.owningCategory != null)
-                        this.owningCategory.removeEntry(removed);
+                    removeSubEntry(index);
                     JsonArray result = enforceJsonArray(this.getValue());
                     result.remove(index - 1);
                     this.setValue(result);
@@ -123,14 +124,19 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
     public void resetValue() {
         super.resetValue();
         int lastIndex = this.subEntries.indexOf(this.addEntry);
-        for (int i = 0; i < lastIndex; i++) {
-            if (i >= enforceJsonArray(this.getValue()).size() && i >= this.minSize) {
-                this.subEntries.remove(i);
-                i--;
-                lastIndex--;
-            }
+        for (int i = Math.max(enforceJsonArray(this.getValue()).size(), this.minSize) + 1; i < lastIndex; i++) {
+            removeSubEntry(i);
+            i--;
+            lastIndex--;
         }
         this.subEntries.forEach(BaseEntry::resetValueSafe);
+    }
+
+    public void removeSubEntry(int index) {
+        BaseEntry removed = this.subEntries.remove(index);
+        if (this.owningCategory != null)
+            this.owningCategory.removeEntry(removed);
+        removed.propagateRemoval();
     }
 
     @Override
@@ -139,6 +145,17 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
         parent.addEntriesAfter(this, this.subEntries);
         indices += this.subEntries.size();
         return indices;
+    }
+
+    @Override
+    public void propagateRemoval() {
+        super.propagateRemoval();
+        int size = this.subEntries.size();
+        for (int i = 0; i < size; i++) {
+            removeSubEntry(i);
+            i--;
+            size--;
+        }
     }
 
     @Override
@@ -193,6 +210,11 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
         @Override
         public int bindOwner(ConfigCategory parent, ConfigScreen owner) {
             return 1;
+        }
+
+        @Override
+        public void propagateRemoval() {
+
         }
 
         @Override

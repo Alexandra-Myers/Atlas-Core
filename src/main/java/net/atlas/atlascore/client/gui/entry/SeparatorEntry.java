@@ -30,6 +30,11 @@ public class SeparatorEntry extends BaseEntry {
     }
 
     @Override
+    public void propagateRemoval() {
+
+    }
+
+    @Override
     public void setEditable(boolean editable) {
 
     }

@@ -142,10 +142,22 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
         this.atlas_core$repositionEntries();
     }
 
+    @Override
+    protected int contentHeight() {
+        int totalHeight = 0;
+
+        for (BaseEntry child : this.children()) {
+            if (!child.isVisible()) continue;
+            totalHeight += child.getHeight();
+        }
+
+        return totalHeight + 4;
+    }
+
     public void atlas_core$repositionEntries() {
         int y = this.getY() + 2 - (int)this.scrollAmount();
 
-        for(BaseEntry child : this.children()) {
+        for (BaseEntry child : this.children()) {
             if (!child.isVisible()) continue;
             child.setY(y);
             y += child.getHeight();

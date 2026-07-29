@@ -68,6 +68,7 @@ public class ConfigScreen extends Screen {
         this.config.categories.forEach(category -> {
             ConfigCategory configCategory = ConfigCategory.create(Component.translatableWithFallback(category.translationKey(), convertToName(category.name())), this);
             category.membersAsConfigEntries().forEach(configCategory::addEntry);
+            configCategory.atlas_core$repositionEntries();
             this.categories.add(configCategory);
         });
         List<AtlasConfig.ConfigHolder<?>> uncategorised = this.config.getUncategorisedHolders();
@@ -78,6 +79,7 @@ public class ConfigScreen extends Screen {
                 entry.setEditable(!holder.serverManaged);
                 return entry;
             }).forEach(configCategory::addEntry);
+            configCategory.atlas_core$repositionEntries();
             this.categories.add(configCategory);
         }
         this.selectedCategory = this.categories.getFirst();

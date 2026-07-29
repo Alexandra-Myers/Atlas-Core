@@ -52,6 +52,11 @@ public class UnboundConfigEntry extends BaseEntry {
     }
 
     @Override
+    public void propagateRemoval() {
+        if (this.entry != null) this.entry.propagateRemoval();
+    }
+
+    @Override
     public void setEditable(boolean editable) {
         if (this.entry != null) this.entry.setEditable(editable);
     }

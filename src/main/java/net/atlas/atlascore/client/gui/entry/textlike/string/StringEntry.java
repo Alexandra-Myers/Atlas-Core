@@ -24,6 +24,12 @@ public class StringEntry extends TextLikeEntry<String> {
     }
 
     @Override
+    public String valueToString(String value) {
+        if (value == null) return "";
+        return value;
+    }
+
+    @Override
     public DataResult<String> parseFromString(String value) {
         if (value.length() < this.minLen)
             return DataResult.error(() -> "Value too short! Expected: " + this.minLen + " Actual: " + value.length());

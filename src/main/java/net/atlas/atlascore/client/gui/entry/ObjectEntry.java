@@ -1,6 +1,7 @@
 package net.atlas.atlascore.client.gui.entry;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
@@ -93,6 +94,13 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
         this.bindRawExtraToValue();
     }
 
+    public void removeSubEntry(int index) {
+        BaseEntry removed = this.subEntries.remove(index);
+        if (this.owningCategory != null)
+            this.owningCategory.removeEntry(removed);
+        removed.propagateRemoval();
+    }
+
     public void bindRawExtraToValue() {
         JsonObject clearedOfNonExtras = enforceJsonObject(getValue());
         this.accountedKeys.forEach(clearedOfNonExtras::remove);
@@ -105,6 +113,17 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
         parent.addEntriesAfter(this, this.subEntries);
         indices += this.subEntries.size();
         return indices;
+    }
+
+    @Override
+    public void propagateRemoval() {
+        super.propagateRemoval();
+        int size = this.subEntries.size();
+        for (int i = 0; i < size; i++) {
+            removeSubEntry(i);
+            i--;
+            size--;
+        }
     }
 
     public void bindRecordField(Schema.Field<?, ?> field, Schema<T> schema) {
@@ -129,8 +148,11 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
 
     private BaseEntry entryOf(Schema<T> schema, String fieldName, Schema<?> source) {
         Supplier<ConfigEntry<?>> supplier = () -> {
-            ConfigEntry<?> ret = ConfigEntry.acceptBySchema(source, this.translationKey + "." + convertCamelCaseToSnakeCase(fieldName), fieldName, this.restartRequired, this.getValue(), this.defaultValue.get(), encoded -> {
-                JsonObject result = enforceJsonObject(this.getValue()).deepCopy();
+            ConfigEntry<?> ret = ConfigEntry.acceptBySchema(source, this.translationKey + "." + convertCamelCaseToSnakeCase(fieldName), fieldName, this.restartRequired,
+                    readOptional(this.getValue(), fieldName),
+                    () -> readOptional(this.defaultValue.get(), fieldName),
+                    encoded -> {
+                JsonObject result = enforceJsonObject(this.getValue());
                 if (encoded.isJsonNull()) result.remove(fieldName);
                 else result.add(fieldName, encoded);
                 this.setValue(result);
@@ -146,6 +168,11 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
 
     public static JsonObject enforceJsonObject(JsonElement value) {
         return !value.isJsonObject() ? new JsonObject() : value.getAsJsonObject().deepCopy();
+    }
+
+    public static JsonElement readOptional(JsonElement source, String name) {
+        return !source.isJsonObject() ? JsonNull.INSTANCE : Optional.ofNullable(source.getAsJsonObject().get(name))
+                .orElse(JsonNull.INSTANCE);
     }
 
     public void putAllFromString(String str) {

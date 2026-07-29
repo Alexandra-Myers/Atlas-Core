@@ -2,9 +2,7 @@ package net.atlas.atlascore.client.gui.entry;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
-import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
-import com.google.gson.stream.JsonReader;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
@@ -21,7 +19,6 @@ import net.atlas.atlascore.client.gui.entry.textlike.string.CodecBackedStringEnt
 import net.atlas.atlascore.client.gui.entry.textlike.string.StringEntry;
 import net.atlas.atlascore.config.AtlasConfig;
 import net.atlas.atlascore.util.ClientUtils;
-import net.mehvahdjukaar.codecui.CodecUI;
 import net.mehvahdjukaar.codecui.Schema;
 import net.mehvahdjukaar.codecui.SchemaCodec;
 import net.mehvahdjukaar.codecui.SchemaContext;
@@ -37,7 +34,6 @@ import net.minecraft.network.chat.MutableComponent;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.io.StringReader;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -49,6 +45,7 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     public static final WidgetSprites RESET_SPRITE = ClientUtils.buildNoFocusedDisabled(AtlasCore.id("widget/config_reset"));
     public static final Component RESET = Component.translatableWithFallback("text.config.reset", "Reset");
     public T value;
+    private T initialValue;
     public boolean visible = true;
     public boolean editable = true;
     public boolean optional = false;
@@ -59,7 +56,6 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     public int y;
     private Button resetButton;
     private @Nullable Button removeButton;
-    public final T initialValue;
     public final Supplier<T> defaultValue;
     public final boolean restartRequired;
     public final @Nullable Component name;
@@ -143,8 +139,8 @@ public abstract class ConfigEntry<T> extends BaseEntry {
         return accept(Either.right(schema), tConfigHolder.getTranslationKey(), usesRange, tConfigHolder.isSlider(), encode.apply(tConfigHolder.get()), () -> encode.apply(tConfigHolder.heldValue.defaultValue()), encodedValues, tConfigHolder.restartRequired.restartRequiredOnClient(), Component.translatable(tConfigHolder.getTranslationKey()), tConfigHolder.tooltip, encoded -> tConfigHolder.setValue(decode.apply(encoded)));
     }
 
-    public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String translationKey, String name, boolean restartRequired, JsonElement value, JsonElement defaultValue, Consumer<JsonElement> saveCallback) {
-        return accept(schema, translationKey, Optional.ofNullable(defaultValue.isJsonNull() ? null : value.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), () -> Optional.ofNullable(defaultValue.isJsonNull() ? null : defaultValue.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), new JsonElement[0], restartRequired, Component.translatableWithFallback(translationKey, convertToName(name)), Optional::empty, saveCallback);
+    public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String translationKey, String name, boolean restartRequired, JsonElement value, Supplier<JsonElement> defaultValue, Consumer<JsonElement> saveCallback) {
+        return accept(schema, translationKey, value, defaultValue, new JsonElement[0], restartRequired, Component.translatableWithFallback(translationKey, convertToName(name)), Optional::empty, saveCallback);
     }
 
     public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String translationKey, JsonElement value, Supplier<JsonElement> defaultValue, boolean restartRequired, Consumer<JsonElement> saveCallback) {
@@ -272,24 +268,12 @@ public abstract class ConfigEntry<T> extends BaseEntry {
                             tooltip,
                             input -> saveCallback.accept(new JsonPrimitive(input)));
             case null, default -> new CodecBackedStringEntry<>(schema,
-                    mapNullableJsonElement(currentValue, CodecUI.GSON::toJson),
-                    () -> mapNullableJsonElement(defaultValue.get(), CodecUI.GSON::toJson),
-                    0,
-                    Integer.MAX_VALUE,
-                    null,
+                    currentValue,
+                    defaultValue,
                     restartRequired,
                     name,
                     tooltip,
-                    input -> {
-                        JsonReader reader = CodecUI.GSON.newJsonReader(new StringReader(input));
-                        JsonElement read;
-                        try {
-                            read = JsonParser.parseReader(reader);
-                        } catch (Exception e) {
-                            return;
-                        }
-                        saveCallback.accept(read);
-                    });
+                    saveCallback);
         };
     }
 
@@ -337,6 +321,11 @@ public abstract class ConfigEntry<T> extends BaseEntry {
 
     public void setServerManaged(boolean serverManaged) {
         this.editable &= !serverManaged;
+    }
+
+    @Override
+    public void propagateRemoval() {
+
     }
 
     public void setEditable(boolean editable) {
@@ -466,6 +455,11 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     @Override
     public Optional<NarratableEntry> narratableForm() {
         return Optional.of(this.narratableForm);
+    }
+
+    protected void setInitialValue(T value) {
+        this.initialValue = value;
+        this.value = this.initialValue;
     }
 
     public final class NarratableConfigEntry implements NarratableEntry {
