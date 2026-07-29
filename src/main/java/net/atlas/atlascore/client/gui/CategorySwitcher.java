@@ -65,7 +65,7 @@ public class CategorySwitcher extends AbstractContainerWidget {
     private void setCurrentIndex(int index) {
         this.currentIndex = Mth.clamp(index, 0, this.categories.size());
         for (int i = 0; i < this.categories.size(); i++) {
-            this.categories.get(i).active = this.isSelected.test(i) && this.isIndexVisible(i);
+            this.categories.get(i).active = !this.isSelected.test(i) && this.isIndexVisible(i);
         }
     }
 
