@@ -7,7 +7,6 @@ import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 
-import java.util.Comparator;
 import java.util.List;
 
 public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
@@ -59,40 +58,20 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
     public void addEntryToTop(BaseEntry entry, int height) {
         int originalX = entry.getX();
         int originalHeight = entry.getHeight();
-        runXPosRestoringOperation(() -> super.addEntryToTop(entry, height));
+        super.addEntryToTop(entry, height);
         entry.setX(getX() + originalX);
         entry.setHeight(originalHeight);
         entry.bindOwner(this, this.parent);
     }
 
     @Override
-    protected void sort(@NonNull Comparator<BaseEntry> comparator) {
-        runXPosRestoringOperation(() -> super.sort(comparator));
-    }
-
-    @Override
-    protected void swap(int firstIndex, int secondIndex) {
-        runXPosRestoringOperation(() -> super.swap(firstIndex, secondIndex));
-    }
-
-    @Override
-    public void updateSizeAndPosition(int width, int height, int x, int y) {
-        runXPosRestoringOperation(() -> super.updateSizeAndPosition(width, height, x, y));
-    }
-
-    @Override
-    public void setScrollAmount(double scrollAmount) {
-        runXPosRestoringOperation(() -> super.setScrollAmount(scrollAmount));
-    }
-
-    @Override
     public void removeEntries(@NonNull List<BaseEntry> entries) {
-        runXPosRestoringOperation(() -> entries.forEach(super::removeEntry));
+        super.removeEntries(entries);
     }
 
     @Override
     public void removeEntry(BaseEntry entry) {
-        runXPosRestoringOperation(() -> super.removeEntry(entry));
+        super.removeEntry(entry);
     }
 
     @Override
@@ -142,12 +121,6 @@ public class ConfigCategory extends ContainerObjectSelectionList<BaseEntry> {
     public void setPosition(int x, int y) {
         super.setPosition(x, y);
         this.atlas_core$repositionEntries();
-    }
-
-    public void runXPosRestoringOperation(Runnable runnable) {
-//        Stream<Pair<BaseEntry, Integer>> originalXs = this.children().stream().map(baseEntry -> Pair.of(baseEntry, baseEntry.getX()));
-        runnable.run();
-//        originalXs.forEach(pair -> pair.getFirst().setX(pair.getSecond()));
     }
 
     public void atlas_core$repositionEntries() {
