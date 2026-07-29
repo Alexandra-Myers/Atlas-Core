@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 public class CategorySwitcher extends AbstractContainerWidget {
     private static final int MAX_VISIBLE = 8;
@@ -22,6 +23,7 @@ public class CategorySwitcher extends AbstractContainerWidget {
     private final Button left;
     private final Button right;
     private final List<Button> categories;
+    private final Predicate<Integer> isSelected;
     private final List<? extends GuiEventListener> listeners;
     private int currentIndex = 0;
 
@@ -39,10 +41,15 @@ public class CategorySwitcher extends AbstractContainerWidget {
                 .size(10, 20)
                 .sprite(RIGHT_SPRITE, 10, 20).build();
         this.right.setPosition(this.width - 10, 38);
+        this.isSelected = index -> categories.get(index).equals(screen.getSelectedCategory());
         this.categories = categories.stream().map(configCategory -> {
             Button ret = Button.builder(configCategory.name, button -> {
                 screen.setSelectedCategory(configCategory);
-                this.getCategories().forEach(button1 -> button1.active = true);
+                List<Button> selections = this.getCategories();
+                for (int i = 0; i < selections.size(); i++) {
+                    if (selections.get(i) == button) continue;
+                    selections.get(i).active = isIndexVisible(i);
+                }
                 button.active = false;
             }).size(buttonsWidth / this.visibleCount, 20).build();
             ret.active = configCategory != screen.getSelectedCategory();
@@ -58,8 +65,12 @@ public class CategorySwitcher extends AbstractContainerWidget {
     private void setCurrentIndex(int index) {
         this.currentIndex = Mth.clamp(index, 0, this.categories.size());
         for (int i = 0; i < this.categories.size(); i++) {
-            this.categories.get(i).active = i >= this.currentIndex && i < this.currentIndex + this.visibleCount;
+            this.categories.get(i).active = this.isSelected.test(i) && this.isIndexVisible(i);
         }
+    }
+
+    private boolean isIndexVisible(int index) {
+        return index >= this.currentIndex && index < this.currentIndex + this.visibleCount;
     }
 
     public List<Button> getCategories() {
