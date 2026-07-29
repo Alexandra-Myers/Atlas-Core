@@ -99,7 +99,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
             result.set(index - 1, encoded);
             this.setValue(result);
         }).saveOnChange();
-        ret.bindOwner(this.owningCategory, this.owner);
+        if (this.owningCategory != null) ret.bindOwner(this.owningCategory, this.owner);
         Button removeButton = SpriteIconButton.builder(REMOVE_ENTRY, button -> {
                     if (this.subEntries.size() - 3 == this.minSize) return;
                     BaseEntry removed = this.subEntries.remove(index);
