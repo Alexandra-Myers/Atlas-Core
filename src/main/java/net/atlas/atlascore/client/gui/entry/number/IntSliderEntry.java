@@ -21,7 +21,7 @@ public class IntSliderEntry extends ConfigEntry<Integer> {
         this.min = min;
         this.max = max;
         double initialPosition = (double) (getValue() - min) / Mth.abs(max - min);
-        this.slider = new IntegerSlider(0, 0, 48, 20, initialPosition, min, max, this::setValue, () -> Component.literal(String.format("Value: %d", this.getValue())));
+        this.slider = new IntegerSlider(0, 0, 96, 20, initialPosition, min, max, this::setValue, () -> Component.literal(String.format("Value: %d", this.getValue())));
         this.addChild(this.slider);
     }
 
@@ -38,6 +38,6 @@ public class IntSliderEntry extends ConfigEntry<Integer> {
 
     @Override
     public int getValueWidth() {
-        return 48;
+        return 96;
     }
 }

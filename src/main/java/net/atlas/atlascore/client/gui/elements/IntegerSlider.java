@@ -25,7 +25,7 @@ public class IntegerSlider extends AbstractSliderButton {
     }
 
     protected void applyValue() {
-        this.setCallback.accept((int)(this.min + Math.abs(this.max - this.min) * this.value));
+        this.setCallback.accept((int)(this.min + Math.abs(this.max - (long) this.min) * this.value));
     }
 
     public double getProgress() {

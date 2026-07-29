@@ -5,6 +5,8 @@ import com.mojang.brigadier.context.ParsedArgument;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import net.atlas.atlascore.AtlasCore;
+import net.mehvahdjukaar.codecui.Schema;
+import net.mehvahdjukaar.codecui.SchemaCodec;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -15,16 +17,20 @@ import java.util.function.Function;
 import static net.atlas.atlascore.command.argument.Argument.Arguments.PRIMITIVE_TO_WRAPPER;
 
 public class Codecs {
-    public static Codec<Double> doubleRangeMinInclusiveWithMessage(double d, double e, Function<Double, String> function) {
-        return Codec.DOUBLE.validate((double_) -> double_.compareTo(d) >= 0 && double_.compareTo(e) <= 0 ? DataResult.success(double_) : DataResult.error(() -> function.apply(double_)));
+    public static Codec<Double> doubleRangeMinInclusiveWithMessage(double min, double max, Function<Double, String> function) {
+        return SchemaCodec.of(Codec.DOUBLE
+                        .validate((double_) -> double_.compareTo(min) >= 0 && double_.compareTo(max) <= 0 ? DataResult.success(double_) : DataResult.error(() -> function.apply(double_))),
+                new Schema.DoubleRange(min, max));
     }
 
-    public static Codec<Double> doubleRangeMinExclusiveWithMessage(double d, double e, Function<Double, String> function) {
-        return Codec.DOUBLE.validate((double_) -> double_.compareTo(d) > 0 && double_.compareTo(e) <= 0 ? DataResult.success(double_) : DataResult.error(() -> function.apply(double_)));
+    public static Codec<Double> doubleRangeMinExclusiveWithMessage(double min, double max, Function<Double, String> function) {
+        return SchemaCodec.of(Codec.DOUBLE
+                        .validate((double_) -> double_.compareTo(min) > 0 && double_.compareTo(max) <= 0 ? DataResult.success(double_) : DataResult.error(() -> function.apply(double_))),
+                new Schema.DoubleRange(min, max));
     }
 
-    public static Codec<Double> doubleRange(double d, double e) {
-        return doubleRangeMinInclusiveWithMessage(d, e, (double_) -> "Value must be within range [" + d + ";" + e + "]: " + double_);
+    public static Codec<Double> doubleRange(double min, double max) {
+        return doubleRangeMinInclusiveWithMessage(min, max, (double_) -> "Value must be within range [" + min + ";" + max + "]: " + double_);
     }
     public static <S, V> List<V> getArguments(CommandContext<S> context, Class<V> clazz) {
         return getArguments(context).values().stream()

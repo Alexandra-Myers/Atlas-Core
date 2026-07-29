@@ -411,6 +411,7 @@ public abstract class AtlasConfig {
     }
     public DoubleHolder createInRange(String name, double defaultVal, double min, double max, SyncMode syncMode) {
         Double[] range = new Double[]{min, max};
+        AtlasCore.LOGGER.info("Range: " + Arrays.toString(range));
         return createDouble(name, defaultVal, range, true, syncMode);
     }
     public DoubleHolder createDouble(String name, Double defaultVal, Double[] values, boolean isRange, SyncMode syncMode) {
@@ -748,6 +749,10 @@ public abstract class AtlasConfig {
         public void setToSynchedValue() {
             if (synchedValue != null) setValue(synchedValue);
         }
+
+        public boolean isRawString() {
+            return true;
+        }
     }
     public static class TagHolder<T> extends ConfigHolder<T> {
         private TagHolder(ConfigValue<T> value, Codec<T> codec) {
@@ -1025,10 +1030,21 @@ public abstract class AtlasConfig {
             }
             throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerExpectedSymbol().create("a valid enum input");
         }
+
+        @Override
+        public boolean isRawString() {
+            return false;
+        }
     }
     public static class StringHolder extends ConfigHolder<String> {
         private StringHolder(ConfigValue<String> value) {
-            super(value, Codec.STRING.validate(s -> value.possibleValues == null || Arrays.stream(value.possibleValues).anyMatch(s1 -> s1.equals(s)) ? DataResult.success(s) : DataResult.error(() -> "Expected a string matching one of the following: " + value.possibleValues + "\nFound: " + s)), ByteBufCodecs.STRING_UTF8.mapStream(buf -> buf));
+            super(value, value.possibleValues == null ? Codec.STRING : buildEnumLikeCodec(value.possibleValues), ByteBufCodecs.STRING_UTF8.mapStream(buf -> buf));
+        }
+
+        public static Codec<String> buildEnumLikeCodec(String[] possibleValues) {
+            return SchemaCodec.of(Codec.STRING
+                    .validate(s -> Arrays.asList(possibleValues).contains(s) ? DataResult.success(s) : DataResult.error(() -> "Expected a string matching one of the following: " + Arrays.toString(possibleValues) + "\nFound: " + s)),
+                    new Schema.Enum<>(Arrays.asList(possibleValues), Function.identity()));
         }
 
         @Override
@@ -1091,9 +1107,18 @@ public abstract class AtlasConfig {
     public static class IntegerHolder extends ConfigHolder<Integer> {
 		public final boolean isSlider;
         private IntegerHolder(ConfigValue<Integer> value, boolean isSlider) {
-            super(value, value.possibleValues == null ? Codec.INT : value.isRange ? ExtraCodecs.intRange(value.possibleValues[0], value.possibleValues[1]) :
-                    Codec.INT.validate(integer -> Arrays.stream(value.possibleValues).anyMatch(integer::equals) ? DataResult.success(integer) : DataResult.error(() -> "Expected an integer within the following: " + value.possibleValues + "\nFound: " + integer)), ByteBufCodecs.VAR_INT.mapStream(buf -> buf));
+            super(value, value.possibleValues == null ? Codec.INT : value.isRange ? buildRangeCodec(value.possibleValues) : buildEnumLikeCodec(value.possibleValues), ByteBufCodecs.VAR_INT.mapStream(buf -> buf));
             this.isSlider = isSlider;
+        }
+
+        public static Codec<Integer> buildRangeCodec(Integer[] possibleValues) {
+            return SchemaCodec.of(ExtraCodecs.intRange(possibleValues[0], possibleValues[1]),
+                    new Schema.IntRange(possibleValues[0], possibleValues[1]));
+        }
+
+        public static Codec<Integer> buildEnumLikeCodec(Integer[] possibleValues) {
+            return Codec.INT
+                    .validate(integer -> Arrays.asList(possibleValues).contains(integer) ? DataResult.success(integer) : DataResult.error(() -> "Expected an integer within the following: " + Arrays.toString(possibleValues) + "\nFound: " + integer));
         }
 
         @Override
@@ -1177,8 +1202,16 @@ public abstract class AtlasConfig {
     }
     public static class DoubleHolder extends ConfigHolder<Double> {
         private DoubleHolder(ConfigValue<Double> value) {
-            super(value, value.possibleValues == null ? Codec.DOUBLE : value.isRange ? Codecs.doubleRange(value.possibleValues[0], value.possibleValues[1]) :
-                    Codec.DOUBLE.validate(d -> Arrays.stream(value.possibleValues).anyMatch(d::equals) ? DataResult.success(d) : DataResult.error(() -> "Expected an double within the following: " + value.possibleValues + "\nFound: " + d)), ByteBufCodecs.DOUBLE.mapStream(buf -> buf));
+            super(value, value.possibleValues == null ? Codec.DOUBLE : value.isRange ? buildRangeCodec(value.possibleValues) : buildEnumLikeCodec(value.possibleValues), ByteBufCodecs.DOUBLE.mapStream(buf -> buf));
+        }
+
+        public static Codec<Double> buildRangeCodec(Double[] possibleValues) {
+            return Codecs.doubleRange(possibleValues[0], possibleValues[1]);
+        }
+
+        public static Codec<Double> buildEnumLikeCodec(Double[] possibleValues) {
+            return Codec.DOUBLE
+                    .validate(d -> Arrays.asList(possibleValues).contains(d) ? DataResult.success(d) : DataResult.error(() -> "Expected an double within the following: " + Arrays.toString(possibleValues) + "\nFound: " + d));
         }
 
         @Override

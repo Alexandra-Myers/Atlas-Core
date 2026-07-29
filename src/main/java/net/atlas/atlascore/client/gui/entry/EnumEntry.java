@@ -43,8 +43,8 @@ public class EnumEntry extends ConfigEntry<JsonElement> {
         return new EnumEntry(currentValue, defaultValue, List.of(values), jsonElement -> jsonElement.isJsonNull() ? Component.empty() : Component.literal(fromJSON.apply(jsonElement).toString()), restartRequired, name, tooltip, saveCallback);
     }
 
-    public static <T> EnumEntry convertSchemaNames(Schema.Enum<T> schema, String translationKey, JsonElement currentValue, Supplier<JsonElement> defaultValue, List<T> values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
-        return new EnumEntry(currentValue, defaultValue, values.stream().map(t -> toJson(schema, t)).toList(), jsonElement -> jsonElement.isJsonNull() ? Component.empty() : Component.translatableWithFallback(translationKey + "." + jsonElement.getAsString(), convertToName(jsonElement.getAsString())), restartRequired, name, tooltip, saveCallback);
+    public static <T> EnumEntry convertSchemaNames(Schema.Enum<T> schema, String translationKey, boolean isRawString, JsonElement currentValue, Supplier<JsonElement> defaultValue, List<T> values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+        return new EnumEntry(currentValue, defaultValue, values.stream().map(t -> toJson(schema, t)).toList(), jsonElement -> jsonElement.isJsonNull() ? Component.empty() : Component.translatableWithFallback(translationKey + "." + jsonElement.getAsString(), isRawString ? jsonElement.getAsString() : convertToName(jsonElement.getAsString())), restartRequired, name, tooltip, saveCallback);
     }
 
     public static <T> JsonElement toJson(Schema.Enum<T> schema, T currentValue) {
@@ -64,6 +64,6 @@ public class EnumEntry extends ConfigEntry<JsonElement> {
 
     @Override
     public int getValueWidth() {
-        return 64;
+        return 96;
     }
 }

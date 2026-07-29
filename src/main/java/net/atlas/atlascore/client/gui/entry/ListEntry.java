@@ -1,12 +1,18 @@
 package net.atlas.atlascore.client.gui.entry;
 
 import com.google.gson.*;
+import com.mojang.datafixers.util.Either;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.JsonOps;
 import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.client.gui.ConfigCategory;
 import net.atlas.atlascore.client.gui.ConfigScreen;
 import net.atlas.atlascore.util.ClientUtils;
 import net.mehvahdjukaar.codecui.CodecUI;
 import net.mehvahdjukaar.codecui.Schema;
+import net.mehvahdjukaar.codecui.SchemaCodec;
+import net.mehvahdjukaar.codecui.SchemaContext;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.SpriteIconButton;
@@ -25,13 +31,14 @@ import java.util.function.Supplier;
 
 import static net.atlas.atlascore.client.gui.entry.ObjectEntry.*;
 
-public class ListEntry<T> extends ConfigEntry<JsonElement> {
+public class ListEntry<T, A> extends ConfigEntry<JsonElement> {
     public static final WidgetSprites ADD_BUTTON = ClientUtils.buildNoFocusedDisabled(AtlasCore.id("widget/config_add_entry"));
     public static final Component ADD_ENTRY = Component.translatableWithFallback("text.config.add_entry", "Add Entry");
     public static final WidgetSprites REMOVE_BUTTON = ClientUtils.buildNoFocusedDisabled(AtlasCore.id("widget/config_remove_entry"));
     public static final Component REMOVE_ENTRY = Component.translatableWithFallback("text.config.remove_entry", "Remove Entry");
     public final Button expandButton;
     public final Button collapseButton;
+    private final Either<Schema<A>, SchemaCodec<A>> schema;
     private final Schema<T> entrySchema;
     private final List<BaseEntry> subEntries = new ArrayList<>();
     private final ListAddEntry addEntry;
@@ -39,8 +46,9 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
     private final int minSize;
     private final int maxSize;
     private boolean expanded;
-    public ListEntry(Schema<T> entrySchema, String translationKey, int minSize, int maxSize, JsonElement currentValue, Supplier<JsonElement> defaultValue, boolean expanded, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+    public ListEntry(Either<Schema<A>, SchemaCodec<A>> schema, Schema<T> entrySchema, String translationKey, int minSize, int maxSize, JsonElement currentValue, Supplier<JsonElement> defaultValue, boolean expanded, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
         super(currentValue, defaultValue, restartRequired, name, tooltip, saveCallback);
+        this.schema = schema;
         this.entrySchema = entrySchema;
         this.translationKey = translationKey;
         this.minSize = minSize;
@@ -191,10 +199,14 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
     @Override
     public Optional<Component> error() {
         if (!this.getValue().isJsonArray()) return Optional.of(Component.literal("Not a JSON array: " + this.getValue()));
-        return this.subEntries.stream()
-                .map(BaseEntry::error)
-                .flatMap(Optional::stream)
-                .findFirst();
+        return this.schema.right().map(codec -> {
+                    DynamicOps<JsonElement> ops = SchemaContext.getRegistries().createSerializationContext(JsonOps.INSTANCE);
+                    return codec.parse(ops, this.getValue());
+                }).flatMap(DataResult::error)
+                .<Component>map(e -> Component.literal("Invalid input: " + e)).or(() -> this.subEntries.stream()
+                        .map(BaseEntry::error)
+                        .flatMap(Optional::stream)
+                        .findFirst());
     }
 
     public class ListAddEntry extends BaseEntry {

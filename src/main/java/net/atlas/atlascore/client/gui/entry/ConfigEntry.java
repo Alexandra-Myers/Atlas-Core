@@ -136,7 +136,7 @@ public abstract class ConfigEntry<T> extends BaseEntry {
                 encodedValues[i] = encode.apply(values[i]);
             }
         }
-        return accept(Either.right(schema), tConfigHolder.getTranslationKey(), usesRange, tConfigHolder.isSlider(), encode.apply(tConfigHolder.get()), () -> encode.apply(tConfigHolder.heldValue.defaultValue()), encodedValues, tConfigHolder.restartRequired.restartRequiredOnClient(), Component.translatable(tConfigHolder.getTranslationKey()), tConfigHolder.tooltip, encoded -> tConfigHolder.setValue(decode.apply(encoded)));
+        return accept(Either.right(schema), tConfigHolder.getTranslationKey(), usesRange, tConfigHolder.isSlider(), tConfigHolder.isRawString(), encode.apply(tConfigHolder.get()), () -> encode.apply(tConfigHolder.heldValue.defaultValue()), encodedValues, tConfigHolder.restartRequired.restartRequiredOnClient(), Component.translatable(tConfigHolder.getTranslationKey()), tConfigHolder.tooltip, encoded -> tConfigHolder.setValue(decode.apply(encoded)));
     }
 
     public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String translationKey, String name, boolean restartRequired, JsonElement value, Supplier<JsonElement> defaultValue, Consumer<JsonElement> saveCallback) {
@@ -152,33 +152,27 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     }
 
     public static <T> ConfigEntry<?> accept(Either<Schema<T>, SchemaCodec<T>> schema, String translationKey, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
-        return accept(schema, translationKey, true, false, currentValue, defaultValue, values, restartRequired, name, tooltip, saveCallback);
+        return accept(schema, translationKey, true, false, true, currentValue, defaultValue, values, restartRequired, name, tooltip, saveCallback);
     }
 
-    public static <T> ConfigEntry<?> accept(Either<Schema<T>, SchemaCodec<T>> schema, String translationKey, boolean usesRange, boolean isSlider, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+    public static <T> ConfigEntry<?> accept(Either<Schema<T>, SchemaCodec<T>> schema, String translationKey, boolean usesRange, boolean isSlider, boolean isRawString, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+        AtlasCore.LOGGER.info("Schema for " + translationKey + ": " + schema.map(Function.identity(), SchemaCodec::schema));
         return switch (schema.map(Function.identity(), SchemaCodec::schema)) {
             case Schema.Record<T> ignored -> new ObjectEntry<>(schema, translationKey, currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
             case Schema.Ref<T> ignored -> new ObjectEntry<>(schema, translationKey, currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
-            case Schema.ListOf<?> list -> new ListEntry<>(list.element(), translationKey, list.min(), list.max(), currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
-            case Schema.Str str -> usesRange ?
-                    new StringEntry(mapNullableJsonElement(currentValue, JsonElement::getAsString),
-                            () -> mapNullableJsonElement(defaultValue.get(), JsonElement::getAsString),
-                            str.minLen(),
-                            str.maxLen(),
-                            str.pattern(),
-                            restartRequired,
-                            name,
-                            tooltip,
-                            input -> saveCallback.accept(new JsonPrimitive(input)))
-                    : EnumEntry.literal(currentValue,
-                    defaultValue,
-                    values,
+            case Schema.ListOf<?> list -> new ListEntry<>(schema, list.element(), translationKey, list.min(), list.max(), currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
+            case Schema.Str str -> new StringEntry(mapNullableJsonElement(currentValue, JsonElement::getAsString),
+                    () -> mapNullableJsonElement(defaultValue.get(), JsonElement::getAsString),
+                    str.minLen(),
+                    str.maxLen(),
+                    str.pattern(),
                     restartRequired,
-                    name, tooltip,
-                    saveCallback,
-                    element -> mapNullableJsonElement(element, JsonElement::getAsString));
+                    name,
+                    tooltip,
+                    input -> saveCallback.accept(new JsonPrimitive(input)));
             case Schema.Enum<T> enumSchema -> EnumEntry.convertSchemaNames(enumSchema,
                     translationKey,
+                    isRawString,
                     currentValue,
                     defaultValue,
                     enumSchema.options(),
@@ -372,7 +366,7 @@ public abstract class ConfigEntry<T> extends BaseEntry {
         List<Component> tooltipLines = new ArrayList<>();
         this.tooltip.get().ifPresent(lines -> tooltipLines.addAll(List.of(lines)));
         error.ifPresent(tooltipLines::add);
-        if ((hovered || error.isPresent()) && !tooltipLines.isEmpty() && this.owner != null) graphics.setComponentTooltipForNextFrame(this.owner.getFont(), tooltipLines, mouseX, mouseY);
+        if (hovered && !tooltipLines.isEmpty() && this.owner != null) graphics.setComponentTooltipForNextFrame(this.owner.getFont(), tooltipLines, mouseX, mouseY);
     }
 
     @Override
