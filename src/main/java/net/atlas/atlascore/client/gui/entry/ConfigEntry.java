@@ -43,7 +43,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static net.atlas.atlascore.client.gui.entry.EnumEntry.snakeCaseToName;
+import static net.atlas.atlascore.util.StringUtils.convertToName;
 
 public abstract class ConfigEntry<T> extends BaseEntry {
     public static final WidgetSprites RESET_SPRITE = ClientUtils.buildNoFocusedDisabled(AtlasCore.id("widget/config_reset"));
@@ -140,30 +140,30 @@ public abstract class ConfigEntry<T> extends BaseEntry {
                 encodedValues[i] = encode.apply(values[i]);
             }
         }
-        return accept(Either.right(schema), usesRange, tConfigHolder.isSlider(), encode.apply(tConfigHolder.get()), () -> encode.apply(tConfigHolder.heldValue.defaultValue()), encodedValues, tConfigHolder.restartRequired.restartRequiredOnClient(), Component.translatable(tConfigHolder.getTranslationKey()), tConfigHolder.tooltip, encoded -> tConfigHolder.setValue(decode.apply(encoded)));
+        return accept(Either.right(schema), tConfigHolder.getTranslationKey(), usesRange, tConfigHolder.isSlider(), encode.apply(tConfigHolder.get()), () -> encode.apply(tConfigHolder.heldValue.defaultValue()), encodedValues, tConfigHolder.restartRequired.restartRequiredOnClient(), Component.translatable(tConfigHolder.getTranslationKey()), tConfigHolder.tooltip, encoded -> tConfigHolder.setValue(decode.apply(encoded)));
     }
 
-    public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String name, boolean restartRequired, JsonElement value, JsonElement defaultValue, Consumer<JsonElement> saveCallback) {
-        return accept(schema, Optional.ofNullable(value.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), () -> Optional.ofNullable(defaultValue.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), new JsonElement[0], restartRequired, Component.literal(snakeCaseToName(name)), Optional::empty, saveCallback);
+    public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String translationKey, String name, boolean restartRequired, JsonElement value, JsonElement defaultValue, Consumer<JsonElement> saveCallback) {
+        return accept(schema, translationKey, Optional.ofNullable(value.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), () -> Optional.ofNullable(defaultValue.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), new JsonElement[0], restartRequired, Component.literal(convertToName(name)), Optional::empty, saveCallback);
     }
 
-    public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, JsonElement value, Supplier<JsonElement> defaultValue, boolean restartRequired, Consumer<JsonElement> saveCallback) {
-        return accept(schema, value, defaultValue, new JsonElement[0], restartRequired, null, Optional::empty, saveCallback);
+    public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String translationKey, JsonElement value, Supplier<JsonElement> defaultValue, boolean restartRequired, Consumer<JsonElement> saveCallback) {
+        return accept(schema, translationKey, value, defaultValue, new JsonElement[0], restartRequired, null, Optional::empty, saveCallback);
     }
 
-    public static <T> ConfigEntry<?> accept(Schema<T> schema, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
-        return accept(Either.left(schema), currentValue, defaultValue, values, restartRequired, name, tooltip, saveCallback);
+    public static <T> ConfigEntry<?> accept(Schema<T> schema, String translationKey, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+        return accept(Either.left(schema), translationKey, currentValue, defaultValue, values, restartRequired, name, tooltip, saveCallback);
     }
 
-    public static <T> ConfigEntry<?> accept(Either<Schema<T>, SchemaCodec<T>> schema, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
-        return accept(schema, true, false, currentValue, defaultValue, values, restartRequired, name, tooltip, saveCallback);
+    public static <T> ConfigEntry<?> accept(Either<Schema<T>, SchemaCodec<T>> schema, String translationKey, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+        return accept(schema, translationKey, true, false, currentValue, defaultValue, values, restartRequired, name, tooltip, saveCallback);
     }
 
-    public static <T> ConfigEntry<?> accept(Either<Schema<T>, SchemaCodec<T>> schema, boolean usesRange, boolean isSlider, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+    public static <T> ConfigEntry<?> accept(Either<Schema<T>, SchemaCodec<T>> schema, String translationKey, boolean usesRange, boolean isSlider, JsonElement currentValue, Supplier<JsonElement> defaultValue, JsonElement[] values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
         return switch (schema.map(Function.identity(), SchemaCodec::schema)) {
-            case Schema.Record<T> ignored -> new ObjectEntry<>(schema, currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
-            case Schema.Ref<T> ignored -> new ObjectEntry<>(schema, currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
-            case Schema.ListOf<?> list -> new ListEntry<>(list.element(), list.min(), list.max(), currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
+            case Schema.Record<T> ignored -> new ObjectEntry<>(schema, translationKey, currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
+            case Schema.Ref<T> ignored -> new ObjectEntry<>(schema, translationKey, currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
+            case Schema.ListOf<?> list -> new ListEntry<>(list.element(), translationKey, list.min(), list.max(), currentValue, defaultValue, schema.map(s -> false, c -> true), restartRequired, name, tooltip, saveCallback);
             case Schema.Str str -> usesRange ?
                     new StringEntry(mapNullableJsonElement(currentValue, JsonElement::getAsString),
                             () -> mapNullableJsonElement(defaultValue.get(), JsonElement::getAsString),
@@ -182,6 +182,7 @@ public abstract class ConfigEntry<T> extends BaseEntry {
                     saveCallback,
                     element -> mapNullableJsonElement(element, JsonElement::getAsString));
             case Schema.Enum<T> enumSchema -> EnumEntry.convertSchemaNames(enumSchema,
+                    translationKey,
                     currentValue,
                     defaultValue,
                     enumSchema.options(),

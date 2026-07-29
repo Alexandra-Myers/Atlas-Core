@@ -13,7 +13,7 @@ import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import static net.atlas.atlascore.client.gui.entry.EnumEntry.snakeCaseToName;
+import static net.atlas.atlascore.util.StringUtils.convertToName;
 
 public class ColorEntry extends TextLikeEntry<Integer> {
     private final ColorDisplayWidget colorDisplayWidget;
@@ -94,6 +94,6 @@ public class ColorEntry extends TextLikeEntry<Integer> {
     }
 
     public static Component error(@NonNull String error, Object... args) {
-        return Component.translatableWithFallback("text.config.error.color." + error, snakeCaseToName(error), args);
+        return Component.translatableWithFallback("text.config.error.color." + error, convertToName(error), args);
     }
 }

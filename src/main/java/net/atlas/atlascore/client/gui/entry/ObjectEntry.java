@@ -34,6 +34,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static net.atlas.atlascore.client.gui.entry.textlike.TextLikeEntry.EDIT_FIELDS;
+import static net.atlas.atlascore.util.StringUtils.convertCamelCaseToSnakeCase;
 
 public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
     public static final Identifier COLLAPSED = AtlasCore.id("widget/config_collapsed");
@@ -46,10 +47,12 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
     private final Either<Schema<T>, SchemaCodec<T>> schema;
     private final List<String> accountedKeys = new ArrayList<>();
     private final List<BaseEntry> subEntries = new ArrayList<>();
+    private final String translationKey;
     private boolean expanded;
-    public ObjectEntry(Either<Schema<T>, SchemaCodec<T>> schema, JsonElement currentValue, Supplier<JsonElement> defaultValue, boolean expanded, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+    public ObjectEntry(Either<Schema<T>, SchemaCodec<T>> schema, String translationKey, JsonElement currentValue, Supplier<JsonElement> defaultValue, boolean expanded, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
         super(currentValue, defaultValue, restartRequired, name, tooltip, saveCallback);
         this.schema = schema;
+        this.translationKey = translationKey;
         this.expanded = expanded;
         this.rawExtra = new EditBox(Minecraft.getInstance().font, 124, 20, EDIT_FIELDS);
         this.rawExtra.setMaxLength(999999);
@@ -72,7 +75,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
                 if (target == null) return;
                 switch (target) {
                     case Schema.Record<?> record -> record.fields().forEach(field -> this.bindRecordField(field, recursive));
-                    default -> this.subEntries.add(ConfigEntry.accept(target, this.getValue(), this.defaultValue, null, this.restartRequired, null, this.tooltip, this.saveCallback));
+                    default -> this.subEntries.add(ConfigEntry.accept(target, translationKey, this.getValue(), this.defaultValue, null, this.restartRequired, null, this.tooltip, this.saveCallback));
                 }
             }
             default -> {}
@@ -122,7 +125,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
 
     private BaseEntry entryOf(Schema<T> schema, String fieldName, Schema<?> source) {
         Supplier<ConfigEntry<?>> supplier = () -> {
-            ConfigEntry<?> ret = ConfigEntry.acceptBySchema(source, fieldName, this.restartRequired, this.getValue(), this.defaultValue.get(), encoded -> {
+            ConfigEntry<?> ret = ConfigEntry.acceptBySchema(source, this.translationKey + "." + convertCamelCaseToSnakeCase(fieldName), fieldName, this.restartRequired, this.getValue(), this.defaultValue.get(), encoded -> {
                 JsonObject result = this.getValue().getAsJsonObject().deepCopy();
                 if (encoded.isJsonNull()) result.remove(fieldName);
                 else result.add(fieldName, encoded);

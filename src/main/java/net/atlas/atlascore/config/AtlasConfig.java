@@ -15,7 +15,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
-import me.shedaniel.clothconfig2.gui.entries.*;
 import net.atlas.atlascore.AtlasCore;
 import net.atlas.atlascore.AtlasCorePlatform;
 import net.atlas.atlascore.client.gui.entry.ConfigEntry;
@@ -76,6 +75,7 @@ import java.util.function.Supplier;
 
 import static net.atlas.atlascore.command.OptsArgumentUtils.SUGGEST_NOTHING;
 import static net.atlas.atlascore.util.ComponentUtils.separatorLine;
+import static net.atlas.atlascore.util.StringUtils.convertToName;
 
 public abstract class AtlasConfig {
     public final Identifier name;
@@ -305,11 +305,31 @@ public abstract class AtlasConfig {
         return objectHolder;
     }
 
+    @Deprecated(since = "1.2.0")
     public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Function<Enum, Component> names) {
-        return createEnum(name, defaultVal, clazz, values, names, defaultSyncMode);
+        return createEnum(name, defaultVal, clazz, values, defaultSyncMode);
     }
+    @Deprecated(since = "1.2.0")
     public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Function<Enum, Component> names, SyncMode syncMode) {
-        EnumHolder<E> enumHolder = new EnumHolder<>(new ConfigValue<>(defaultVal, values, false, name, this, syncMode), clazz, names);
+        return createEnum(name, defaultVal, clazz, values, syncMode);
+    }
+
+    public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values) {
+        return createEnum(name, defaultVal, clazz, values, defaultSyncMode);
+    }
+
+    public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, SyncMode syncMode) {
+        return createEnum(name, defaultVal, clazz, values, syncMode, SchemaCodec.of(Codec.STRING
+                        .validate(string -> Arrays.stream(values).noneMatch(e -> e.name().equalsIgnoreCase(string)) ? DataResult.error(() -> "Invalid enum constant for type " + clazz.getSimpleName() + ": " + string) : DataResult.success(string)).xmap(s -> Enum.valueOf(clazz, s.toUpperCase()), e -> e.name().toLowerCase()),
+                new Schema.Enum<>(List.of(values), e -> e.name().toLowerCase())));
+    }
+
+    public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, Codec<E> codec) {
+        return createEnum(name, defaultVal, clazz, values, defaultSyncMode, codec);
+    }
+
+    public final <E extends Enum<E>> EnumHolder<E> createEnum(String name, E defaultVal, Class<E> clazz, E[] values, SyncMode syncMode, Codec<E> codec) {
+        EnumHolder<E> enumHolder = new EnumHolder<>(new ConfigValue<>(defaultVal, values, false, name, this, syncMode), clazz, codec);
         configHolders.add(enumHolder);
         return enumHolder;
     }
@@ -963,17 +983,14 @@ public abstract class AtlasConfig {
     }
     public static class EnumHolder<E extends Enum<E>> extends ConfigHolder<E> {
         public final Class<E> clazz;
-		public final Function<Enum, Component> names;
-        private EnumHolder(ConfigValue<E> value, Class<E> clazz, Function<Enum, Component> names) {
-            super(value, Codec.STRING.validate(string -> Arrays.stream(value.possibleValues).noneMatch(e -> e.name().toUpperCase().equals(string.toUpperCase())) ? DataResult.error(() -> "Invalid enum constant for type " + clazz.getSimpleName() + ": " + string) : DataResult.success(string)).xmap(s -> Enum.valueOf(clazz, s.toUpperCase()), e -> e.name().toLowerCase()),
-                    StreamCodec.of(RegistryFriendlyByteBuf::writeEnum, buf -> buf.readEnum(clazz)));
+        private EnumHolder(ConfigValue<E> value, Class<E> clazz, Codec<E> codec) {
+            super(value, codec, StreamCodec.of(RegistryFriendlyByteBuf::writeEnum, buf -> buf.readEnum(clazz)));
             this.clazz = clazz;
-			this.names = names;
         }
 
         @Override
         public Component getValueAsComponent() {
-            return names.apply(get());
+            return Component.translatableWithFallback(getTranslationKey() + "." + get().name().toLowerCase(), convertToName(get().name().toLowerCase()));
         }
 
         @Override

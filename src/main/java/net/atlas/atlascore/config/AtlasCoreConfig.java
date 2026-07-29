@@ -84,7 +84,7 @@ public class AtlasCoreConfig extends AtlasConfig {
         testColorList.tieToCategory(test);
         testObject = createCodecBacked("testObject", new TestClass("bar", true, 3, 7.0), TestClass.CODEC);
         testObject.tieToCategory(test);
-        testEnum = createEnum("testEnum", TestEnum.FOO, TestEnum.class, TestEnum.values(), e -> Component.translatable("text.config.atlas-core-config.option.testEnum." + e.name().toLowerCase(Locale.ROOT)));
+        testEnum = createEnum("testEnum", TestEnum.FOO, TestEnum.class, TestEnum.values());
         testEnum.tieToCategory(test);
         testString = createString("testString", "foo");
         testString.tieToCategory(test);

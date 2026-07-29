@@ -16,6 +16,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static net.atlas.atlascore.util.StringUtils.convertToName;
+
 public class EnumEntry extends ConfigEntry<JsonElement> {
     private final CycleButton<JsonElement> button;
 
@@ -41,28 +43,12 @@ public class EnumEntry extends ConfigEntry<JsonElement> {
         return new EnumEntry(currentValue, defaultValue, List.of(values), jsonElement -> jsonElement.isJsonNull() ? Component.empty() : Component.literal(fromJSON.apply(jsonElement).toString()), restartRequired, name, tooltip, saveCallback);
     }
 
-    public static <T> EnumEntry convertSchemaNames(Schema.Enum<T> schema, JsonElement currentValue, Supplier<JsonElement> defaultValue, List<T> values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
-        return new EnumEntry(currentValue, defaultValue, values.stream().map(t -> toJson(schema, t)).toList(), jsonElement -> jsonElement.isJsonNull() ? Component.empty() : Component.translatableWithFallback("text.config." + jsonElement.getAsString(), snakeCaseToName(jsonElement.getAsString())), restartRequired, name, tooltip, saveCallback);
+    public static <T> EnumEntry convertSchemaNames(Schema.Enum<T> schema, String translationKey, JsonElement currentValue, Supplier<JsonElement> defaultValue, List<T> values, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+        return new EnumEntry(currentValue, defaultValue, values.stream().map(t -> toJson(schema, t)).toList(), jsonElement -> jsonElement.isJsonNull() ? Component.empty() : Component.translatableWithFallback(translationKey + "." + jsonElement.getAsString(), convertToName(jsonElement.getAsString())), restartRequired, name, tooltip, saveCallback);
     }
 
     public static <T> JsonElement toJson(Schema.Enum<T> schema, T currentValue) {
         return new JsonPrimitive(schema.label().apply(currentValue));
-    }
-
-    public static String snakeCaseToName(String input) {
-        List<Integer> capitalIndices = new ArrayList<>();
-        capitalIndices.add(0);
-        while (input.contains("_")) {
-            int index = input.indexOf('_');
-            if (index + 1 < input.length()) capitalIndices.add(index + 1);
-            input = input.substring(0, index) + " " + input.substring(index + 1);
-        }
-        String[] output = {input};
-        capitalIndices.forEach(capitalIndex -> {
-            char original = output[0].charAt(capitalIndex);
-            output[0] = output[0].substring(0, capitalIndex) + Character.toUpperCase(original) + (capitalIndex + 1 >= output[0].length() ? "" : output[0].substring(capitalIndex + 1));
-        });
-        return output[0];
     }
 
 

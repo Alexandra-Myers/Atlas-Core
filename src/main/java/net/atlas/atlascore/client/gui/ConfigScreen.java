@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import static net.atlas.atlascore.client.gui.entry.EnumEntry.snakeCaseToName;
+import static net.atlas.atlascore.util.StringUtils.convertToName;
 
 public class ConfigScreen extends Screen {
     private static final Component SAVE_AND_EXIT = Component.translatableWithFallback("text.config.save_and_exit", "Save & Exit");
@@ -66,7 +66,7 @@ public class ConfigScreen extends Screen {
         bottomFooterButtons.addChild(Button.builder(EXIT_WITHOUT_SAVING, (button) -> this.onClose()).build());
         this.layout.arrangeElements();
         this.config.categories.forEach(category -> {
-            ConfigCategory configCategory = ConfigCategory.create(Component.translatableWithFallback(category.translationKey(), snakeCaseToName(category.name())), this);
+            ConfigCategory configCategory = ConfigCategory.create(Component.translatableWithFallback(category.translationKey(), convertToName(category.name())), this);
             category.membersAsConfigEntries().forEach(configCategory::addEntry);
             this.categories.add(configCategory);
         });

@@ -35,12 +35,14 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
     private final Schema<T> entrySchema;
     private final List<BaseEntry> subEntries = new ArrayList<>();
     private final ListAddEntry addEntry;
+    private final String translationKey;
     private final int minSize;
     private final int maxSize;
     private boolean expanded;
-    public ListEntry(Schema<T> entrySchema, int minSize, int maxSize, JsonElement currentValue, Supplier<JsonElement> defaultValue, boolean expanded, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
+    public ListEntry(Schema<T> entrySchema, String translationKey, int minSize, int maxSize, JsonElement currentValue, Supplier<JsonElement> defaultValue, boolean expanded, boolean restartRequired, @Nullable Component name, Supplier<Optional<Component[]>> tooltip, Consumer<JsonElement> saveCallback) {
         super(currentValue, defaultValue, restartRequired, name, tooltip, saveCallback);
         this.entrySchema = entrySchema;
+        this.translationKey = translationKey;
         this.minSize = minSize;
         this.maxSize = maxSize;
         this.expanded = expanded;
@@ -92,7 +94,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
     }
 
     public BaseEntry createConfigEntry(int index, JsonElement currentValue, JsonElement defaultValue) {
-        ConfigEntry<?> ret = ConfigEntry.acceptBySchema(this.entrySchema, currentValue, () -> defaultValue, this.restartRequired, encoded -> {
+        ConfigEntry<?> ret = ConfigEntry.acceptBySchema(this.entrySchema, this.translationKey, currentValue, () -> defaultValue, this.restartRequired, encoded -> {
             JsonArray result = this.getValue().getAsJsonArray().deepCopy();
             result.set(index - 1, encoded);
             this.setValue(result);
