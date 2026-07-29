@@ -78,6 +78,6 @@ public class EnumEntry extends ConfigEntry<JsonElement> {
 
     @Override
     public int getValueWidth() {
-        return 32;
+        return 64;
     }
 }
