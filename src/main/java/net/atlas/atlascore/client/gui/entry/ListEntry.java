@@ -85,7 +85,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
     public void addSubEntry() {
         int index = this.subEntries.indexOf(this.addEntry);
         BaseEntry value = createConfigEntry(index, JsonNull.INSTANCE, JsonNull.INSTANCE);
-        JsonArray writer = this.getValue().getAsJsonArray().deepCopy();
+        JsonArray writer = enforceJsonArray(this.getValue());
         writer.add(JsonNull.INSTANCE);
         setValue(writer);
         this.subEntries.add(index, value);
@@ -95,7 +95,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
 
     public BaseEntry createConfigEntry(int index, JsonElement currentValue, JsonElement defaultValue) {
         ConfigEntry<?> ret = ConfigEntry.acceptBySchema(this.entrySchema, this.translationKey, currentValue, () -> defaultValue, this.restartRequired, encoded -> {
-            JsonArray result = this.getValue().getAsJsonArray().deepCopy();
+            JsonArray result = enforceJsonArray(this.getValue());
             result.set(index - 1, encoded);
             this.setValue(result);
         }).saveOnChange();
@@ -105,7 +105,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
                     BaseEntry removed = this.subEntries.remove(index);
                     if (this.owningCategory != null)
                         this.owningCategory.removeEntry(removed);
-                    JsonArray result = this.getValue().getAsJsonArray().deepCopy();
+                    JsonArray result = enforceJsonArray(this.getValue());
                     result.remove(index - 1);
                     this.setValue(result);
                 }, true)
@@ -114,6 +114,10 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
         ret.setX(this.getX() + 10);
         return defaultValue.isJsonNull() ?
                 ret.rebindResetButton(removeButton) : ret.addRemoveButton(removeButton);
+    }
+
+    public static JsonArray enforceJsonArray(JsonElement value) {
+        return !value.isJsonArray() ? new JsonArray() : value.getAsJsonArray().deepCopy();
     }
 
     @Override

@@ -80,9 +80,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
             }
             default -> {}
         }
-        JsonElement clearedOfNonExtras = getValue().deepCopy();
-        if (clearedOfNonExtras.isJsonObject()) this.accountedKeys.forEach(key -> clearedOfNonExtras.getAsJsonObject().remove(key));
-        this.rawExtra.setValue(CodecUI.GSON.toJson(clearedOfNonExtras));
+        this.bindRawExtraToValue();
         this.subEntries.add(new SeparatorEntry(this.expanded, 10, this.getX()));
         if (this.expanded) this.expandButton.visible = false;
         else this.collapseButton.visible = false;
@@ -92,8 +90,12 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
     public void resetValue() {
         super.resetValue();
         this.subEntries.forEach(BaseEntry::resetValueSafe);
-        JsonElement clearedOfNonExtras = getValue().deepCopy();
-        if (clearedOfNonExtras.isJsonObject()) this.accountedKeys.forEach(key -> clearedOfNonExtras.getAsJsonObject().remove(key));
+        this.bindRawExtraToValue();
+    }
+
+    public void bindRawExtraToValue() {
+        JsonObject clearedOfNonExtras = enforceJsonObject(getValue());
+        this.accountedKeys.forEach(clearedOfNonExtras::remove);
         this.rawExtra.setValue(CodecUI.GSON.toJson(clearedOfNonExtras));
     }
 
@@ -126,7 +128,7 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
     private BaseEntry entryOf(Schema<T> schema, String fieldName, Schema<?> source) {
         Supplier<ConfigEntry<?>> supplier = () -> {
             ConfigEntry<?> ret = ConfigEntry.acceptBySchema(source, this.translationKey + "." + convertCamelCaseToSnakeCase(fieldName), fieldName, this.restartRequired, this.getValue(), this.defaultValue.get(), encoded -> {
-                JsonObject result = this.getValue().getAsJsonObject().deepCopy();
+                JsonObject result = enforceJsonObject(this.getValue()).deepCopy();
                 if (encoded.isJsonNull()) result.remove(fieldName);
                 else result.add(fieldName, encoded);
                 this.setValue(result);
@@ -140,15 +142,18 @@ public class ObjectEntry<T> extends ConfigEntry<JsonElement> {
         return ret;
     }
 
+    public static JsonObject enforceJsonObject(JsonElement value) {
+        return !value.isJsonObject() ? new JsonObject() : value.getAsJsonObject().deepCopy();
+    }
+
     public void putAllFromString(String str) {
         JsonReader reader = CodecUI.GSON.newJsonReader(new StringReader(str));
         try {
             JsonElement read = JsonParser.parseReader(reader);
-            JsonElement value = getValue().deepCopy();
-            if (value.isJsonObject() && read.isJsonObject()) {
+            JsonObject value = enforceJsonObject(getValue());
+            if (read.isJsonObject()) {
                 JsonObject readObject = read.getAsJsonObject();
-                JsonObject object = value.getAsJsonObject();
-                readObject.entrySet().forEach(entry -> object.add(entry.getKey(), entry.getValue()));
+                readObject.entrySet().forEach(entry -> value.add(entry.getKey(), entry.getValue()));
                 this.setValue(value);
             }
         } catch (Exception ignored) {
