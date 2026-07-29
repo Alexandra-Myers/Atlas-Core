@@ -65,7 +65,7 @@ public class ListEntry<T> extends ConfigEntry<JsonElement> {
                 JsonElement currentEntry = i >= currentEntries.size() ? JsonNull.INSTANCE : currentEntries.get(i);
                 int finalIndex = i;
                 JsonElement defaultEntry = defaultEntries
-                        .map(resolvedDefaultEntries -> finalIndex >= resolvedDefaultEntries.size() ? null :
+                        .map(resolvedDefaultEntries -> finalIndex >= resolvedDefaultEntries.size() ? JsonNull.INSTANCE :
                                 resolvedDefaultEntries.get(finalIndex))
                         .orElse(JsonNull.INSTANCE);
                 boolean isUnderTargetSize = i < minSize;

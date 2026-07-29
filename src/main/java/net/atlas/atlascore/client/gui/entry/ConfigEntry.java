@@ -131,7 +131,7 @@ public abstract class ConfigEntry<T> extends BaseEntry {
         final boolean usesRange = tConfigHolder.heldValue.isRange() || tConfigHolder.heldValue.possibleValues() == null;
         T[] values = tConfigHolder.heldValue.possibleValues();
         DynamicOps<JsonElement> ops = JsonOps.INSTANCE;
-        Function<T, JsonElement> encode = raw -> raw == null ? JsonNull.INSTANCE : schema.encodeStart(SchemaContext.getRegistries().createSerializationContext(ops), raw).getOrThrow();
+        Function<T, JsonElement> encode = raw -> raw == null ? JsonNull.INSTANCE : schema.encodeStart(SchemaContext.getRegistries().createSerializationContext(ops), raw).mapOrElse(Function.identity(), ignored -> JsonNull.INSTANCE);
         Function<JsonElement, T> decode = jsonElement -> jsonElement.isJsonNull() ? null : schema.parse(SchemaContext.getRegistries().createSerializationContext(ops), jsonElement).getOrThrow();
         JsonElement[] encodedValues = new JsonElement[0];
         if (values != null) {
@@ -144,7 +144,7 @@ public abstract class ConfigEntry<T> extends BaseEntry {
     }
 
     public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String translationKey, String name, boolean restartRequired, JsonElement value, JsonElement defaultValue, Consumer<JsonElement> saveCallback) {
-        return accept(schema, translationKey, Optional.ofNullable(value.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), () -> Optional.ofNullable(defaultValue.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), new JsonElement[0], restartRequired, Component.literal(convertToName(name)), Optional::empty, saveCallback);
+        return accept(schema, translationKey, Optional.ofNullable(value.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), () -> Optional.ofNullable(defaultValue.isJsonNull() ? null : defaultValue.getAsJsonObject().get(name)).orElse(JsonNull.INSTANCE), new JsonElement[0], restartRequired, Component.literal(convertToName(name)), Optional::empty, saveCallback);
     }
 
     public static <T> ConfigEntry<?> acceptBySchema(Schema<T> schema, String translationKey, JsonElement value, Supplier<JsonElement> defaultValue, boolean restartRequired, Consumer<JsonElement> saveCallback) {
